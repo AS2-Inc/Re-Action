@@ -1,0 +1,31 @@
+{
+  "name": "re-action",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/AS2-Inc/Re-Action#readme",
+  "bugs": {
+    "url": "https://github.com/AS2-Inc/Re-Action/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AS2-Inc/Re-Action.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node -r dotenv/config index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.8",
+    "dotenv": "^17.2.3"
+  }
+}

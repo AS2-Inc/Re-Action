@@ -1,0 +1,13 @@
+openapi: 3.0.4
+info:
+  version: '1.0'
+  title: "Re:Action"
+  description: API for Re:Action application
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Localhost
+  # TODO: Add production server
+paths:
+  # TODO: Define API endpoints

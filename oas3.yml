@@ -1,6 +1,6 @@
 openapi: 3.0.4
 info:
-  version: '1.0'
+  version: "1.0"
   title: "Re:Action"
   description: API for Re:Action application
   license:
@@ -10,4 +10,167 @@ servers:
     description: Localhost
   # TODO: Add production server
 paths:
-  # TODO: Define API endpoints
+  /users/login:
+    post:
+      summary: Login
+      tags: [Users]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: {type: string}
+                password: {type: string}
+              required: [email, password]
+      responses:
+        '200':
+          description: Returns JWT Token and user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: {type: string}
+                  email: {type: string}
+                  id: {type: string}
+                  self: {type: string}
+        '401':
+          description: Wrong password
+        '404':
+          description: User not found
+
+  /users/register:
+    post:
+      summary: Register a new user
+      tags: [Users]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: {type: string}
+                surname: {type: string}
+                email: {type: string}
+                password: {type: string}
+                neighborhood: {type: string}
+              required: [name, surname, email, password]
+      responses:
+        '201':
+          description: User created successfully
+        '409':
+          description: Email already exists
+
+  /users/me:
+    get:
+      summary: Get current user profile
+      tags: [Users]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: User profile data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: {type: string}
+                  points: {type: integer}
+                  streak: {type: integer}
+                  neighborhood: {type: string}
+                  tasks_completed: {type: integer}
+        '404':
+          description: User not found
+
+  /users/activate:
+    get:
+      summary: Activate user account
+      tags: [Users]
+      parameters:
+        - in: query
+          name: token
+          schema:
+            type: string
+          required: true
+          description: Activation token
+      responses:
+        '200':
+          description: Account activated
+        '400':
+          description: Invalid or expired token
+
+  /tasks:
+    get:
+      summary: Get list of tasks
+      tags: [Tasks]
+      responses:
+        '200':
+          description: A JSON array of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Create a new task (Operators only)
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      requestBody:
+        content:
+          application/json:
+             schema:
+               $ref: '#/components/schemas/Task'
+      responses:
+        '201':
+          description: Task created
+
+  /tasks/{id}/complete:
+    post:
+      summary: Mark a task as completed for the logged user
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task verified and points added
+
+components:
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: x-access-token
+  schemas:
+    Task:
+      type: object
+      required:
+        - title
+        - points
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        points:
+          type: integer
+        difficulty:
+          type: string
+          enum: [low, medium, high]
+        category:
+          type: string
+          enum: [mobility, waste, community]
+        verification_method:
+          type: string
+          enum: [gps, qr, manual]
+        active:
+          type: boolean

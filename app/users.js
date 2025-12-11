@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import express from "express";
+import jwt from "jsonwebtoken";
 import User from "./models/user.js";
 import tokenChecker from "./tokenChecker.js";
 
@@ -20,12 +21,16 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ error: "Wrong password" });
   }
 
+  // The account must be active
+  if (!user.active) {
+    return res.status(403).json({ error: "Account not activated" });
+  }
+
   // Create Token Payload
   var payload = {
     email: user.email,
     id: user._id,
     role: user.role, // Important for RBAC
-    neighborhood: user.neighborhood,
   };
 
   var options = { expiresIn: 86400 }; // the session last for 24 hours
@@ -39,23 +44,41 @@ router.post("/login", async (req, res) => {
   });
 });
 
-// POST /api/v1/users/register (Registration - RF1)
+// POST /api/v1/users/register (Registration for a user- RF1)
 router.post("/register", async (req, res) => {
+  if (
+    !req.body ||
+    !req.body.name ||
+    !req.body.surname ||
+    !req.body.email ||
+    !req.body.password
+  ) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
   const existing = await User.findOne({ email: req.body.email });
   if (existing) return res.status(409).json({ error: "Email already exists" });
+
+  // Check if the email is in a valid format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(req.body.email)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+
+  // TODO: Check if the password meets minimum security criteria (example: at least 6 characters)
+
+  // TODO: neighborhood existence check?
 
   const activationToken = crypto.randomBytes(20).toString("hex");
 
   // Set expiration to 12 hours from now (per requirement RF1)
   const activationExpires = Date.now() + 12 * 60 * 60 * 1000;
-
+  // create the user with the neighborhood only if provided
   let user = new User({
     name: req.body.name,
     surname: req.body.surname,
     email: req.body.email,
     password: req.body.password,
-    neighborhood: req.body.neighborhood,
-    active: false,
+    neighborhood: req.body.neighborhood || null,
     activationToken: activationToken,
     activationTokenExpires: activationExpires,
   });
@@ -66,6 +89,60 @@ router.post("/register", async (req, res) => {
     // TODO: Implement actual email sending later
     // const activationLink = `http://localhost:8080/api/v1/users/activate?token=${activationToken}`;
 
+    res.status(201).json();
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: "Error creating user" });
+  }
+});
+
+// POST /api/v1/users/operator (Registration for an operator - RF1)
+router.post("/operator", tokenChecker, async (req, res) => {
+  // Check if the user has admin privileges
+  if (!req.loggedUser || req.loggedUser.role !== "admin") {
+    return res
+      .status(403)
+      .json({ error: "Forbidden: Insufficient privileges" });
+  }
+  if (
+    !req.body ||
+    !req.body.name ||
+    !req.body.surname ||
+    !req.body.email ||
+    !req.body.password
+  ) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  const existing = await User.findOne({ email: req.body.email });
+  if (existing) return res.status(409).json({ error: "Email already exists" });
+
+  // Check if the email is in a valid format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(req.body.email)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+
+  // TODO: Check if the password meets minimum security criteria (at least 6 characters)
+
+  const activationToken = crypto.randomBytes(20).toString("hex");
+
+  // Set expiration to 12 hours from now (per requirement RF1)
+  const activationExpires = Date.now() + 12 * 60 * 60 * 1000;
+  // create the user with the neighborhood only if provided
+  let user = new User({
+    name: req.body.name,
+    surname: req.body.surname,
+    email: req.body.email,
+    password: req.body.password,
+    role: "operator",
+    activationToken: activationToken,
+    activationTokenExpires: activationExpires,
+  });
+
+  try {
+    user = await user.save();
+    // TODO: Implement actual email sending later
+    // const activationLink = `http://localhost:8080/api/v1/users/activate?token=${activationToken}`;
     res.status(201).json();
   } catch (err) {
     console.error(err);

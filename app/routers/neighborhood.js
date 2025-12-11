@@ -1,5 +1,5 @@
 import express from "express";
-import Neighborhood from "./models/neighborhood.js";
+import Neighborhood from "../models/neighborhood.js";
 
 const router = express.Router();
 

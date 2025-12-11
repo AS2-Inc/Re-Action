@@ -6,9 +6,9 @@ import express from "express";
 import yaml from "js-yaml";
 import swaggerUi from "swagger-ui-express";
 import errorHandler from "./errorHandler.js";
-import neighborhood from "./neighborhood.js";
-import tasks from "./task.js";
-import users from "./users.js";
+import neighborhood from "./routers/neighborhood.js";
+import tasks from "./routers/task.js";
+import users from "./routers/users.js";
 
 const app = express();
 

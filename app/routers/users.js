@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import express from "express";
 import jwt from "jsonwebtoken";
-import User from "./models/user.js";
-import tokenChecker from "./tokenChecker.js";
+import User from "../models/user.js";
+import tokenChecker from "../tokenChecker.js";
 
 const router = express.Router();
 

@@ -1,9 +1,9 @@
 import express from "express";
-import Neighborhood from "./models/neighborhood.js";
-import Task from "./models/task.js";
-import TaskSubmission from "./models/taskSubmission.js";
-import User from "./models/user.js";
-import tokenChecker from "./tokenChecker.js";
+import Neighborhood from "../models/neighborhood.js";
+import Task from "../models/task.js";
+import TaskSubmission from "../models/taskSubmission.js";
+import User from "../models/user.js";
+import tokenChecker from "../tokenChecker.js";
 
 const router = express.Router();
 

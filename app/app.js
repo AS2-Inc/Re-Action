@@ -5,7 +5,7 @@ import cors from "cors";
 import express from "express";
 import yaml from "js-yaml";
 import swaggerUi from "swagger-ui-express";
-import errorHandler from "./errorHandler.js";
+import errorHandler from "./middleware/errorHandler.js";
 import neighborhood from "./routers/neighborhood.js";
 import tasks from "./routers/task.js";
 import users from "./routers/users.js";

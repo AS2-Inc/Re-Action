@@ -5,6 +5,8 @@ import cors from "cors";
 import express from "express";
 import yaml from "js-yaml";
 import swaggerUi from "swagger-ui-express";
+import errorHandler from "./errorHandler.js";
+import neighborhood from "./neighborhood.js";
 import tasks from "./task.js";
 import users from "./users.js";
 
@@ -31,16 +33,15 @@ app.use("/", express.static(process.env.FRONTEND || "static"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // --- Route Mounting ---
-
-// Public Routes
-app.use("/api/v1/users", users); // Public routes (Login, Registration)
-
-// Protected Routes (Tasks) - Note: GET could be public, but logic is handled inside
+app.use("/api/v1/users", users);
+app.use("/api/v1/neighborhood", neighborhood);
 app.use("/api/v1/tasks", tasks);
 
 // 404 Handler
 app.use((_req, res) => {
   res.status(404).json({ error: "Not Found" });
 });
+
+app.use(errorHandler);
 
 export default app;

@@ -16,7 +16,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node -r dotenv/config index.js",
+    "dev": "node --watch -r dotenv/config index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "biome format",
     "lint": "biome lint"

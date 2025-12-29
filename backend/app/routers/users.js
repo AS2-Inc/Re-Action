@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
 import express from "express";
 import jwt from "jsonwebtoken";
-import tokenChecker from "../middleware/tokenChecker.js";
+import token_checker from "../middleware/token_checker.js";
 import User from "../models/user.js";
+import Activity from "../models/activity.js";
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.post("/login", async (req, res) => {
   }
 
   // The account must be active
-  if (!user.active) {
+  if (!user.is_active) {
     return res.status(403).json({ error: "Account not activated" });
   }
 
@@ -59,8 +60,8 @@ router.post("/register", async (req, res) => {
   if (existing) return res.status(409).json({ error: "Email already exists" });
 
   // Check if the email is in a valid format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(req.body.email)) {
+  const email_regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email_regex.test(req.body.email)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
@@ -68,19 +69,19 @@ router.post("/register", async (req, res) => {
 
   // TODO: neighborhood existence check?
 
-  const activationToken = crypto.randomBytes(20).toString("hex");
+  const activation_token = crypto.randomBytes(20).toString("hex");
 
   // Set expiration to 12 hours from now (per requirement RF1)
-  const activationExpires = Date.now() + 12 * 60 * 60 * 1000;
+  const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
   // create the user with the neighborhood only if provided
   let user = new User({
-    name: req.body.name,
+    first_name: req.body.name,
     surname: req.body.surname,
     email: req.body.email,
     password: req.body.password,
-    neighborhood: req.body.neighborhood || null,
-    activationToken: activationToken,
-    activationTokenExpires: activationExpires,
+    neighborhood_id: req.body.neighborhood || null,
+    activation_token: activation_token,
+    activation_token_expires: activation_expires,
   });
 
   try {
@@ -97,46 +98,38 @@ router.post("/register", async (req, res) => {
 });
 
 // POST /api/v1/users/operator (Registration for an operator - RF1)
-router.post("/operator", tokenChecker, async (req, res) => {
+router.post("/operator", token_checker, async (req, res) => {
   // Check if the user has admin privileges
-  if (!req.loggedUser || req.loggedUser.role !== "admin") {
+  if (!req.logged_user || req.logged_user.role !== "admin") {
     return res
       .status(403)
       .json({ error: "Forbidden: Insufficient privileges" });
   }
-  if (
-    !req.body ||
-    !req.body.name ||
-    !req.body.surname ||
-    !req.body.email ||
-    !req.body.password
-  ) {
+  if (!req.body || !req.body.name || !req.body.surname || !req.body.email) {
     return res.status(400).json({ error: "Missing required fields" });
   }
   const existing = await User.findOne({ email: req.body.email });
   if (existing) return res.status(409).json({ error: "Email already exists" });
 
   // Check if the email is in a valid format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(req.body.email)) {
+  const email_regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email_regex.test(req.body.email)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
-  // TODO: Check if the password meets minimum security criteria (at least 6 characters)
-
-  const activationToken = crypto.randomBytes(20).toString("hex");
+  const activation_token = crypto.randomBytes(20).toString("hex");
 
   // Set expiration to 12 hours from now (per requirement RF1)
-  const activationExpires = Date.now() + 12 * 60 * 60 * 1000;
-  // create the user with the neighborhood only if provided
+  const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
+  // Create the operator without a password - they will set it during activation
   let user = new User({
     name: req.body.name,
     surname: req.body.surname,
     email: req.body.email,
-    password: req.body.password,
+    password: crypto.randomBytes(32).toString("hex"), // Temporary random password
     role: "operator",
-    activationToken: activationToken,
-    activationTokenExpires: activationExpires,
+    activation_token: activation_token,
+    activation_token_expires: activation_expires,
   });
 
   try {
@@ -152,18 +145,37 @@ router.post("/operator", tokenChecker, async (req, res) => {
 
 // GET /api/v1/users/me (Dashboard Data - RF3/RF5)
 // Requires Token
-router.get("/me", tokenChecker, async (req, res) => {
-  // req.loggedUser is set by tokenChecker
-  const user = await User.findById(req.loggedUser.id).populate("neighborhood");
+router.get("/me", token_checker, async (req, res) => {
+  // req.logged_user is set by tokenChecker
+  // should return 401 when token is invalid
+  if (!req.logged_user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const user = await User.findById(req.logged_user.id).populate(
+    "neighborhood_id",
+  );
   if (!user) return res.status(404).send();
 
-  res.status(200).json({
-    name: user.name,
-    points: user.points,
-    streak: user.streak,
-    neighborhood: user.neighborhood,
-    tasks_completed: user.tasks_completed.length,
+  const tasks_completed = await Activity.countDocuments({
+    user_id: user._id,
+    status: "APPROVED",
   });
+
+  if (user.role === "citizen") {
+    res.status(200).json({
+      name: user.name,
+      points: user.points,
+      streak: user.streak,
+      neighborhood_id: user.neighborhood_id,
+      tasks_completed: tasks_completed,
+    });
+  } else {
+    res.status(200).json({
+      name: user.name,
+      role: user.role,
+    });
+  }
 });
 
 /**
@@ -179,8 +191,8 @@ router.get("/activate", async (req, res) => {
 
   // Find user with this token AND ensure token hasn't expired ($gt = greater than now)
   const user = await User.findOne({
-    activationToken: token,
-    activationTokenExpires: { $gt: Date.now() },
+    activation_token: token,
+    activation_token_expires: { $gt: Date.now() },
   });
 
   if (!user) {
@@ -189,17 +201,75 @@ router.get("/activate", async (req, res) => {
       .json({ error: "Invalid or expired activation token" });
   }
 
-  // Activate user and clear token fields
-  user.active = true;
-  user.activationToken = undefined;
-  user.activationTokenExpires = undefined;
+  // If user is an operator, redirect to password setup page
+  if (user.role === "operator") {
+    // TODO: Redirect to frontend password setup page
+    // res.redirect(`http://localhost:5173/set-password?token=${token}`);
+    return res.status(200).json({
+      message: "Please set your password",
+      token: token,
+      requires_password_setup: true,
+    });
+  }
+
+  // For regular users (citizens), activate immediately
+  user.is_active = true;
+  user.activation_token = undefined;
+  user.activation_token_expires = undefined;
 
   await user.save();
 
   // TODO: Redirect to frontend login page with success message
   // res.redirect('http://localhost:5173/login?activated=true');
 
-  res.status(200).send("<h1>Account activated! You can now log in.</h1>");
+  res
+    .status(200)
+    .send({ message: "Account activated successfully. You can now log in." });
+});
+
+/**
+ * POST /api/v1/users/set-password
+ * Allows operators to set their password during activation
+ */
+router.post("/set-password", async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ error: "Token and password are required" });
+  }
+
+  // TODO Check if the password meets minimum security criteria (at least 6 characters)
+
+  // Find user with this token AND ensure token hasn't expired
+  const user = await User.findOne({
+    activation_token: token,
+    activation_token_expires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return res
+      .status(400)
+      .json({ error: "Invalid or expired activation token" });
+  }
+
+  // Only operators should use this endpoint
+  if (user.role !== "operator") {
+    return res
+      .status(403)
+      .json({ error: "This endpoint is only for operators" });
+  }
+
+  // Set password and activate the account
+  user.password = password; // TODO: hash this in production
+  user.is_active = true;
+  user.activation_token = undefined;
+  user.activation_token_expires = undefined;
+
+  await user.save();
+
+  res
+    .status(200)
+    .json({ message: "Password set successfully. You can now log in." });
 });
 
 export default router;

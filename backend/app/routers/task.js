@@ -1,16 +1,16 @@
 import express from "express";
-import tokenChecker from "../middleware/tokenChecker.js";
+import token_checker from "../middleware/token_checker.js";
 import Neighborhood from "../models/neighborhood.js";
 import Task from "../models/task.js";
-import TaskSubmission from "../models/taskSubmission.js";
+import Activity from "../models/activity.js";
 import User from "../models/user.js";
 
 const router = express.Router();
 
 // Helper Function: Awards points (Refactored to be reusable)
-async function awardPoints(userId, taskId) {
-  const user = await User.findById(userId);
-  const task = await Task.findById(taskId);
+async function award_points(user_id, task_id) {
+  const user = await User.findById(user_id);
+  const task = await Task.findById(task_id);
 
   if (!user || !task) return false;
 
@@ -22,8 +22,8 @@ async function awardPoints(userId, taskId) {
   user.tasks_completed.push(task._id);
   await user.save();
 
-  if (user.neighborhood) {
-    const neighborhood = await Neighborhood.findById(user.neighborhood);
+  if (user.neighborhood_id) {
+    const neighborhood = await Neighborhood.findById(user.neighborhood_id);
     if (neighborhood) {
       // TODO: make the scoring system more complex later
       neighborhood.total_score += task.points;
@@ -34,26 +34,24 @@ async function awardPoints(userId, taskId) {
 }
 
 // GET /api/v1/tasks (Get Tasks for Logged-in User)
-router.get("", tokenChecker, async (req, res) => {
+router.get("", token_checker, async (req, res) => {
   // check if the user is logged in
-  if (!req.loggedUser) {
+  if (!req.logged_user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
   // Fetch tasks available for the user's neighborhood
-  const user = await User.find
-    .findById(req.loggedUser.id)
-    .populate("neighborhood");
+  const user = await User.findById(req.logged_user.id).populate("neighborhood");
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
 
-  const neighborhoodId = user.neighborhood ? user.neighborhood._id : null;
-
+  // get the tasks for the user's neighborhood or global tasks or user task
   const tasks = await Task.find({
     $or: [
-      { neighborhood: neighborhoodId },
-      { neighborhood: null }, // Global tasks
+      { neighborhood_id: user.neighborhood_id },
+      { neighborhood_id: null },
+      { user_id: user._id },
     ],
   });
 
@@ -61,8 +59,8 @@ router.get("", tokenChecker, async (req, res) => {
 });
 
 // POST /api/v1/tasks/create (Create Task - Operators only)
-router.post("/create", tokenChecker, async (req, res) => {
-  if (req.loggedUser.role !== "operator" && req.loggedUser.role !== "admin") {
+router.post("/create", token_checker, async (req, res) => {
+  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
     return res.status(403).json({ error: "Unauthorized: Operators only" });
   }
   const task = new Task(req.body);
@@ -76,16 +74,38 @@ router.post("/create", tokenChecker, async (req, res) => {
  * - If Manual: Goes to "pending".
  * - If GPS/QR: Verified immediately by Server.
  */
-router.post("/:id/submit", tokenChecker, async (req, res) => {
+router.post("/:id/submit", token_checker, async (req, res) => {
   const task = await Task.findById(req.params.id);
   if (!task) return res.status(404).json({ error: "Task not found" });
 
+  // Check for existing submissions and recurrence
+  const last_activity = await Activity.findOne({
+    user: req.logged_user.id,
+    task: task._id,
+    status: { $in: ["approved", "pending"] },
+  }).sort({ submitted_at: -1 });
+
+  if (last_activity) {
+    if (!task.repeatable) {
+      return res
+        .status(400)
+        .json({ error: "Task already completed or pending approval" });
+    } else {
+      const now = new Date();
+      const cooldown_ms = (task.cooldown_hours || 24) * 60 * 60 * 1000;
+      const time_since_last = now - new Date(last_activity.submitted_at);
+      if (time_since_last < cooldown_ms) {
+        return res.status(400).json({ error: "Task is in cooldown" });
+      }
+    }
+  }
+
   // 1. Create the submission record
-  const submission = new TaskSubmission({
-    user: req.loggedUser.id,
+  const submission = new Activity({
+    user: req.logged_user.id,
     task: task._id,
     status: "pending",
-    evidence: req.body.evidence, // Expecting { gps_location: ... } or { qr_code: ... }
+    proof: req.body.proof, // Expecting { gps_location: ... } or { qr_code: ... }
   });
 
   // 2. Logic based on Verification Method
@@ -97,25 +117,26 @@ router.post("/:id/submit", tokenChecker, async (req, res) => {
     });
   } else {
     // CASE B: Automatic (GPS or QR) - Server Verification
-    let isValid = false;
+    let is_valid = false;
 
     if (task.verification_method === "gps") {
       // TODO: Implement distance check here
       // For now, we simulate valid coordinates
       if (req.body.evidence?.gps_location) {
-        isValid = true;
+        is_valid = true;
       }
     } else if (task.verification_method === "qr") {
       // TODO: Validate QR string matches expected value
       if (req.body.evidence?.qr_code_data) {
-        isValid = true;
+        is_valid = true;
       }
     }
 
-    if (isValid) {
+    if (is_valid) {
       submission.status = "approved";
+      submission.completed_at = new Date();
       await submission.save();
-      await awardPoints(req.loggedUser.id, task._id);
+      await award_points(req.loggedUser.id, task._id);
 
       return res.status(200).json({
         points_earned: task.points,
@@ -137,8 +158,8 @@ router.post("/:id/submit", tokenChecker, async (req, res) => {
  * GET /api/v1/tasks/submissions?status=pending
  * Operators view pending tasks
  */
-router.get("/submissions", tokenChecker, async (req, res) => {
-  if (req.loggedUser.role !== "operator" && req.loggedUser.role !== "admin") {
+router.get("/submissions", token_checker, async (req, res) => {
+  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
     return res.status(403).json({ error: "Unauthorized" });
   }
 
@@ -146,9 +167,9 @@ router.get("/submissions", tokenChecker, async (req, res) => {
   if (req.query.status) filter.status = req.query.status;
 
   // Populate user and task details so operator can see who and what
-  const submissions = await TaskSubmission.find(filter)
-    .populate("user", "name surname email")
-    .populate("task", "title description points verification_method");
+  const submissions = await Activity.find(filter)
+    .populate("user_id", "name surname email")
+    .populate("task_id", "title description points verification_method");
 
   res.status(200).json(submissions);
 });
@@ -158,12 +179,12 @@ router.get("/submissions", tokenChecker, async (req, res) => {
  * Operator approves or rejects a manual submission
  * Body: { "verdict": "approved" } or { "verdict": "rejected" }
  */
-router.post("/submissions/:id/verify", tokenChecker, async (req, res) => {
-  if (req.loggedUser.role !== "operator" && req.loggedUser.role !== "admin") {
+router.post("/submissions/:id/verify", token_checker, async (req, res) => {
+  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
     return res.status(403).json({ error: "Unauthorized" });
   }
 
-  const submission = await TaskSubmission.findById(req.params.id);
+  const submission = await Activity.findById(req.params.id);
   if (!submission)
     return res.status(404).json({ error: "Submission not found" });
 
@@ -175,10 +196,11 @@ router.post("/submissions/:id/verify", tokenChecker, async (req, res) => {
 
   if (verdict === "approved") {
     submission.status = "approved";
+    submission.completed_at = new Date();
     await submission.save();
 
     // Award the points now that the operator confirmed
-    await awardPoints(submission.user, submission.task);
+    await award_points(submission.user, submission.task);
 
     return res.status(200).json({});
   } else if (verdict === "rejected") {

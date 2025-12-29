@@ -5,7 +5,7 @@ import cors from "cors";
 import express from "express";
 import yaml from "js-yaml";
 import swaggerUi from "swagger-ui-express";
-import errorHandler from "./middleware/errorHandler.js";
+import error_handler from "./middleware/error_handler.js";
 import neighborhood from "./routers/neighborhood.js";
 import tasks from "./routers/task.js";
 import users from "./routers/users.js";
@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
 // Load OpenAPI (Swagger) document
-const swaggerDocument = yaml.load(
+const swagger_document = yaml.load(
   readFileSync(Path.join(__dirname, "..", "oas3.yml"), "utf8"),
 );
 
@@ -27,12 +27,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors()); // Allow Cross-Origin requests from Vue Frontend
 
 // Serve Static Frontend (If deployed together)
-const FRONTEND = process.env.FRONTEND || Path.join( __dirname, '..', '..', 'frontend', 'dist' );
-app.use('/', express.static( FRONTEND ));
-console.log( "Vue FRONTEND from", FRONTEND, "at http://localhost:" + process.env.PORT || 8080 + "/" )
+const FRONTEND =
+  process.env.FRONTEND || Path.join(__dirname, "..", "..", "frontend", "dist");
+app.use("/", express.static(FRONTEND));
+console.log(
+  "Vue FRONTEND from",
+  FRONTEND,
+  `at http://localhost:${process.env.PORT}` || `${8080}/`,
+);
 
 // Serve API Documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swagger_document));
 
 // --- Route Mounting ---
 app.use("/api/v1/users", users);
@@ -44,6 +49,6 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Not Found" });
 });
 
-app.use(errorHandler);
+app.use(error_handler);
 
 export default app;

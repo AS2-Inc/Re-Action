@@ -1,7 +1,7 @@
 // https://github.com/unitn-software-engineering/EasyLib/blob/master/app/tokenChecker.js
 import jwt from "jsonwebtoken";
 
-const tokenChecker = (req, res, next) => {
+const token_checker = (req, res, next) => {
   // check header or url parameters or post parameters for token
   var token = req.headers["x-access-token"];
 
@@ -16,10 +16,10 @@ const tokenChecker = (req, res, next) => {
       return res.status(403).send({ error: "Failed to authenticate token." });
     } else {
       // if everything is good, save to request for use in other routes
-      req.loggedUser = decoded;
+      req.logged_user = decoded;
       next();
     }
   });
 };
 
-export default tokenChecker;
+export default token_checker;

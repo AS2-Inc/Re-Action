@@ -6,15 +6,22 @@ export default mongoose.model(
     name: { type: String, required: true },
     city: { type: String, required: true },
     total_score: { type: Number, default: 0 }, // Aggregated score from users
+    ranking_position: Number,
+    // Open Data Integration (RF13, RF17)
     environmental_data: {
       air_quality: Number,
       waste_management: Number,
+      last_updated: Date,
     },
-    goals: {
-      target: Number,
-      deadline: Date,
-      reward: String
-    }
+    active_goals: [
+      {
+        description: String,
+        target_points: Number,
+        current_points: Number,
+        is_completed: { type: Boolean, default: false },
+        deadline: Date,
+      },
+    ],
     // TODO: add coordinates or boundaries for mapping purposes
   }),
 );

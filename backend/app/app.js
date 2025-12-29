@@ -27,7 +27,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors()); // Allow Cross-Origin requests from Vue Frontend
 
 // Serve Static Frontend (If deployed together)
-app.use("/", express.static(process.env.FRONTEND || "static"));
+const FRONTEND = process.env.FRONTEND || Path.join( __dirname, '..', '..', 'frontend', 'dist' );
+app.use('/', express.static( FRONTEND ));
+console.log( "Vue FRONTEND from", FRONTEND, "at http://localhost:" + process.env.PORT || 8080 + "/" )
 
 // Serve API Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));

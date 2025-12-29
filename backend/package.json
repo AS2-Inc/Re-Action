@@ -17,9 +17,12 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch -r dotenv/config index.js --host=0.0.0.0",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "format": "biome format",
-    "lint": "biome lint"
+    "test": "npm run lint && npm run format:check && NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:only": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write ."
   },
   "dependencies": {
     "cors": "^2.8.5",

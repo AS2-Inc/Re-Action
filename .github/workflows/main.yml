@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  quality:
+  backend:
+    name: Backend Tests & Linting
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -15,31 +16,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Biome
-        uses: biomejs/setup-biome@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          version: latest
+          node-version: 25
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
 
-      - name: Run Biome
-        run: biome ci .
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Tests (with Lint & Format)
+        working-directory: ./backend
+        run: npm test
+
+  frontend:
+    name: Frontend Build & Linting
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Backend Dependencies
-        working-directory: ./backend
-        run: npm ci
-
-      - name: Install Frontend Dependencies
+      - name: Install Dependencies
         working-directory: ./frontend
         run: npm ci
 
-      - name: Build Frontend
+      - name: Run Linter
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Check Formatting
+        working-directory: ./frontend
+        run: npm run format
+
+      - name: Build
         working-directory: ./frontend
         run: npm run build

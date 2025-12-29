@@ -10,6 +10,11 @@ export default mongoose.model(
       air_quality: Number,
       waste_management: Number,
     },
+    goals: {
+      target: Number,
+      deadline: Date,
+      reward: String
+    }
     // TODO: add coordinates or boundaries for mapping purposes
   }),
 );

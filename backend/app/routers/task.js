@@ -136,7 +136,7 @@ router.post("/:id/submit", token_checker, async (req, res) => {
       submission.status = "approved";
       submission.completed_at = new Date();
       await submission.save();
-      await award_points(req.loggedUser.id, task._id);
+      await award_points(req.logged_user.id, task._id);
 
       return res.status(200).json({
         points_earned: task.points,

@@ -139,9 +139,7 @@ describe("Neighborhood API Endpoints", () => {
     });
 
     it("should handle invalid id format", async () => {
-      mockFindByPk.mockRejectedValue(
-        new Error("Invalid ObjectId format"),
-      );
+      mockFindByPk.mockRejectedValue(new Error("Invalid ObjectId format"));
 
       const response = await request(app).get(
         "/api/v1/neighborhood/invalid-id",

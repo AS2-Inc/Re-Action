@@ -4,33 +4,34 @@ import Neighborhood from "../models/neighborhood.js";
 import Task from "../models/task.js";
 import Activity from "../models/activity.js";
 import User from "../models/user.js";
+import badgeService from "../services/badge_service.js";
 
 const router = express.Router();
 
-// Helper Function: Awards points (Refactored to be reusable)
+// Helper Function: Awards points and checks for badge achievements
 async function award_points(user_id, task_id) {
   const user = await User.findById(user_id);
   const task = await Task.findById(task_id);
 
-  if (!user || !task) return false;
+  if (!user || !task) return { success: false, newBadges: [] };
 
   // TODO: prevent awarding points multiple times for the same task
 
-  user.points += task.points;
-
-  // Add to history if not already there
-  user.tasks_completed.push(task._id);
+  user.points += task.base_points;
   await user.save();
 
   if (user.neighborhood_id) {
     const neighborhood = await Neighborhood.findById(user.neighborhood_id);
     if (neighborhood) {
-      // TODO: make the scoring system more complex later
-      neighborhood.total_score += task.points;
+      neighborhood.total_score += task.base_points;
       await neighborhood.save();
     }
   }
-  return true;
+
+  // Check and award badges after updating user stats
+  const newBadges = badgeService.checkAndAwardBadges(user_id);
+
+  return { success: true, newBadges };
 }
 
 // GET /api/v1/tasks (Get Tasks for Logged-in User)
@@ -47,11 +48,20 @@ router.get("", token_checker, async (req, res) => {
   }
 
   // get the tasks for the user's neighborhood or global tasks or user task
+  // Exclude expired tasks (RF6)
   const tasks = await Task.find({
-    $or: [
-      { neighborhood_id: user.neighborhood_id },
-      { neighborhood_id: null },
-      { user_id: user._id },
+    $and: [
+      {
+        $or: [
+          { neighborhood_id: user.neighborhood_id },
+          { neighborhood_id: null },
+          { user_id: user._id },
+        ],
+      },
+      {
+        $or: [{ expired: false }, { expired: { $exists: false } }],
+      },
+      { is_active: true },
     ],
   });
 
@@ -80,10 +90,10 @@ router.post("/:id/submit", token_checker, async (req, res) => {
 
   // Check for existing submissions and recurrence
   const last_activity = await Activity.findOne({
-    user: req.logged_user.id,
-    task: task._id,
-    status: { $in: ["approved", "pending"] },
-  }).sort({ submitted_at: -1 });
+    user_id: req.logged_user.id,
+    task_id: task._id,
+    status: { $in: ["APPROVED", "PENDING"] },
+  }).sort({ completed_at: -1 });
 
   if (last_activity) {
     if (!task.repeatable) {
@@ -102,30 +112,30 @@ router.post("/:id/submit", token_checker, async (req, res) => {
 
   // 1. Create the submission record
   const submission = new Activity({
-    user: req.logged_user.id,
-    task: task._id,
-    status: "pending",
+    user_id: req.logged_user.id,
+    task_id: task._id,
+    status: "PENDING",
     proof: req.body.proof, // Expecting { gps_location: ... } or { qr_code: ... }
   });
 
   // 2. Logic based on Verification Method
-  if (task.verification_method === "manual") {
+  if (task.verification_method === "MANUAL_REPORT") {
     // CASE A: Manual - Needs Operator Verification
     await submission.save();
     return res.status(200).json({
-      submission_status: "pending",
+      submission_status: "PENDING",
     });
   } else {
     // CASE B: Automatic (GPS or QR) - Server Verification
     let is_valid = false;
 
-    if (task.verification_method === "gps") {
+    if (task.verification_method === "GPS") {
       // TODO: Implement distance check here
       // For now, we simulate valid coordinates
       if (req.body.evidence?.gps_location) {
         is_valid = true;
       }
-    } else if (task.verification_method === "qr") {
+    } else if (task.verification_method === "QR_SCAN") {
       // TODO: Validate QR string matches expected value
       if (req.body.evidence?.qr_code_data) {
         is_valid = true;
@@ -133,20 +143,21 @@ router.post("/:id/submit", token_checker, async (req, res) => {
     }
 
     if (is_valid) {
-      submission.status = "approved";
+      submission.status = "APPROVED";
       submission.completed_at = new Date();
       await submission.save();
-      await award_points(req.logged_user.id, task._id);
+      const { newBadges } = await award_points(req.logged_user.id, task._id);
 
       return res.status(200).json({
-        points_earned: task.points,
-        submission_status: "approved",
+        points_earned: task.base_points,
+        submission_status: "APPROVED",
+        new_badges: newBadges,
       });
     } else {
-      submission.status = "rejected";
+      submission.status = "REJECTED";
       await submission.save();
       return res.status(400).json({
-        submission_status: "rejected",
+        submission_status: "REJECTED",
       });
     }
   }
@@ -188,23 +199,27 @@ router.post("/submissions/:id/verify", token_checker, async (req, res) => {
   if (!submission)
     return res.status(404).json({ error: "Submission not found" });
 
-  if (submission.status !== "pending") {
+  if (submission.status !== "PENDING") {
     return res.status(400).json({ error: "Submission is already processed" });
   }
 
-  const verdict = req.body.verdict; // 'approved' or 'rejected'
-
+  const verdict = req.body.verdict.toLowerCase(); // 'APPROVED' or 'REJECTED'
   if (verdict === "approved") {
-    submission.status = "approved";
+    submission.status = "APPROVED";
     submission.completed_at = new Date();
     await submission.save();
 
     // Award the points now that the operator confirmed
-    await award_points(submission.user, submission.task);
+    const { newBadges } = await award_points(
+      submission.user_id,
+      submission.task_id,
+    );
 
-    return res.status(200).json({});
+    return res.status(200).json({
+      new_badges: newBadges,
+    });
   } else if (verdict === "rejected") {
-    submission.status = "rejected";
+    submission.status = "REJECTED";
     await submission.save();
     return res.status(200).json({});
   } else {

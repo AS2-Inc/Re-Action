@@ -1,6 +1,8 @@
 import { mongoose } from "mongoose";
 import app from "./app/app.js";
 import User from "./app/models/user.js";
+import { startTaskScheduler } from "./app/services/task_scheduler.js";
+import badgeService from "./app/services/badge_service.js";
 
 const port = process.env.PORT || 8080;
 
@@ -8,6 +10,13 @@ app.locals.db = mongoose
   .connect(process.env.DB_URL)
   .then(async () => {
     console.log("Connected to Database");
+
+    // Initialize default badges (RF4)
+    await badgeService.initializeDefaultBadges();
+
+    // Start task scheduler (RF6)
+    startTaskScheduler();
+
     // Create Admin User if not exists from env variables
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;

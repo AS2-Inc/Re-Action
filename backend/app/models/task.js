@@ -36,5 +36,10 @@ export default mongoose.model(
     is_active: { type: Boolean, default: true },
 
     repeatable: { type: Boolean, default: false },
+
+    // Task Expiration & Rotation (RF6)
+    created_at: { type: Date, default: Date.now },
+    expires_at: { type: Date }, // When this task instance expires
+    expired: { type: Boolean, default: false }, // Mark as expired when rotation happens
   }),
 );

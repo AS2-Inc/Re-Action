@@ -27,6 +27,7 @@ export default mongoose.model(
     rejection_reason: String,
 
     points_awarded: { type: Number, default: 0 },
-    completed_at: { type: Date, default: Date.now },
+    submitted_at: { type: Date, default: Date.now },
+    completed_at: { type: Date },
   }),
 );

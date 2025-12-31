@@ -120,10 +120,18 @@ describe("Task API Endpoints", () => {
       expect(response.body).toEqual(mockTasks);
       expect(mockUserFindById).toHaveBeenCalledWith("citizen123");
       expect(mockTaskFind).toHaveBeenCalledWith({
-        $or: [
-          { neighborhood_id: "neighborhood123" },
-          { neighborhood_id: null },
-          { user_id: mockUser._id },
+        $and: [
+          {
+            $or: [
+              { neighborhood_id: "neighborhood123" },
+              { neighborhood_id: null },
+              { user_id: mockUser._id },
+            ],
+          },
+          {
+            $or: [{ expired: false }, { expired: { $exists: false } }],
+          },
+          { is_active: true },
         ],
       });
     });
@@ -243,8 +251,8 @@ describe("Task API Endpoints", () => {
       const mockTask = {
         _id: "task123",
         title: "Clean Park",
-        points: 75,
-        verification_method: "manual",
+        base_points: 75,
+        verification_method: "MANUAL_REPORT",
         repeatable: false,
       };
 
@@ -268,7 +276,7 @@ describe("Task API Endpoints", () => {
         .send({ proof: { image: "base64string" } });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("submission_status", "pending");
+      expect(response.body).toHaveProperty("submission_status", "PENDING");
       expect(mockTaskFindById).toHaveBeenCalledWith("task123");
     });
 
@@ -288,8 +296,8 @@ describe("Task API Endpoints", () => {
       const mockTask = {
         _id: "task123",
         title: "Clean Park",
-        points: 75,
-        verification_method: "manual",
+        base_points: 75,
+        verification_method: "MANUAL_REPORT",
         repeatable: false,
       };
 
@@ -322,8 +330,8 @@ describe("Task API Endpoints", () => {
       const mockTask = {
         _id: "task123",
         title: "Clean Park",
-        points: 75,
-        verification_method: "manual",
+        base_points: 75,
+        verification_method: "MANUAL_REPORT",
         repeatable: true,
         cooldown_hours: 24,
       };
@@ -354,8 +362,8 @@ describe("Task API Endpoints", () => {
       const mockTask = {
         _id: "task123",
         title: "Visit Park",
-        points: 50,
-        verification_method: "gps",
+        base_points: 50,
+        verification_method: "GPS",
         repeatable: false,
       };
 
@@ -400,15 +408,15 @@ describe("Task API Endpoints", () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("points_earned", 50);
-      expect(response.body).toHaveProperty("submission_status", "approved");
+      expect(response.body).toHaveProperty("submission_status", "APPROVED");
     });
 
     it("should auto-reject GPS task without valid location", async () => {
       const mockTask = {
         _id: "task123",
         title: "Visit Park",
-        points: 50,
-        verification_method: "gps",
+        base_points: 50,
+        verification_method: "GPS",
         repeatable: false,
       };
 
@@ -432,15 +440,15 @@ describe("Task API Endpoints", () => {
         .send({ evidence: {} });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty("submission_status", "rejected");
+      expect(response.body).toHaveProperty("submission_status", "REJECTED");
     });
 
     it("should auto-approve QR task with valid QR data", async () => {
       const mockTask = {
         _id: "task123",
         title: "Scan QR Code",
-        points: 25,
-        verification_method: "qr",
+        base_points: 25,
+        verification_method: "QR_SCAN",
         repeatable: false,
       };
 
@@ -476,7 +484,7 @@ describe("Task API Endpoints", () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("points_earned", 25);
-      expect(response.body).toHaveProperty("submission_status", "approved");
+      expect(response.body).toHaveProperty("submission_status", "APPROVED");
     });
   });
 
@@ -569,9 +577,9 @@ describe("Task API Endpoints", () => {
     it("should approve submission and award points", async () => {
       const mockSubmission = {
         _id: "submission123",
-        user: "citizen123",
-        task: "task123",
-        status: "pending",
+        user_id: "citizen123",
+        task_id: "task123",
+        status: "PENDING",
         save: jest.fn().mockResolvedValue(this),
       };
 
@@ -585,7 +593,7 @@ describe("Task API Endpoints", () => {
 
       const mockTask = {
         _id: "task123",
-        points: 75,
+        base_points: 75,
       };
 
       const mockNeighborhood = {
@@ -605,7 +613,7 @@ describe("Task API Endpoints", () => {
         .send({ verdict: "approved" });
 
       expect(response.status).toBe(200);
-      expect(mockSubmission.status).toBe("approved");
+      expect(mockSubmission.status).toBe("APPROVED");
       expect(mockSubmission.save).toHaveBeenCalled();
       expect(mockUser.save).toHaveBeenCalled();
     });
@@ -613,9 +621,9 @@ describe("Task API Endpoints", () => {
     it("should reject submission without awarding points", async () => {
       const mockSubmission = {
         _id: "submission123",
-        user: "citizen123",
-        task: "task123",
-        status: "pending",
+        user_id: "citizen123",
+        task_id: "task123",
+        status: "PENDING",
         save: jest.fn().mockResolvedValue(this),
       };
 
@@ -627,7 +635,7 @@ describe("Task API Endpoints", () => {
         .send({ verdict: "rejected" });
 
       expect(response.status).toBe(200);
-      expect(mockSubmission.status).toBe("rejected");
+      expect(mockSubmission.status).toBe("REJECTED");
       expect(mockSubmission.save).toHaveBeenCalled();
       expect(mockUserFindById).not.toHaveBeenCalled();
     });
@@ -647,9 +655,9 @@ describe("Task API Endpoints", () => {
     it("should return 400 when submission is already processed", async () => {
       const mockSubmission = {
         _id: "submission123",
-        user: "citizen123",
-        task: "task123",
-        status: "approved", // Already processed
+        user_id: "citizen123",
+        task_id: "task123",
+        status: "APPROVED", // Already processed
       };
 
       mockActivityFindById.mockResolvedValue(mockSubmission);
@@ -669,7 +677,7 @@ describe("Task API Endpoints", () => {
     it("should return 400 with invalid verdict", async () => {
       const mockSubmission = {
         _id: "submission123",
-        status: "pending",
+        status: "PENDING",
       };
 
       mockActivityFindById.mockResolvedValue(mockSubmission);
@@ -699,9 +707,9 @@ describe("Task API Endpoints", () => {
     it("should allow admin to verify submissions", async () => {
       const mockSubmission = {
         _id: "submission123",
-        user: "citizen123",
-        task: "task123",
-        status: "pending",
+        user_id: "citizen123",
+        task_id: "task123",
+        status: "PENDING",
         save: jest.fn().mockResolvedValue(this),
       };
 

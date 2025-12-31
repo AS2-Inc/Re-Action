@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import token_checker from "../middleware/token_checker.js";
 import User from "../models/user.js";
 import Activity from "../models/activity.js";
+import badgeService from "../services/badge_service.js";
 
 const router = express.Router();
 
@@ -164,15 +165,18 @@ router.get("/me", token_checker, async (req, res) => {
 
   if (user.role === "citizen") {
     res.status(200).json({
-      name: user.name,
+      name: `${user.first_name} ${user.surname}`,
       points: user.points,
+      level: user.level,
       streak: user.streak,
       neighborhood_id: user.neighborhood_id,
       tasks_completed: tasks_completed,
+      badges_count: user.badges_id.length,
+      ambient: user.ambient,
     });
   } else {
     res.status(200).json({
-      name: user.name,
+      name: `${user.first_name} ${user.surname}`,
       role: user.role,
     });
   }
@@ -381,9 +385,7 @@ router.post("/reset-password", async (req, res) => {
   });
 
   if (!user) {
-    return res
-      .status(400)
-      .json({ error: "Invalid or expired reset token" });
+    return res.status(400).json({ error: "Invalid or expired reset token" });
   }
 
   // Update password and clear reset token
@@ -395,6 +397,72 @@ router.post("/reset-password", async (req, res) => {
   res
     .status(200)
     .json({ message: "Password reset successfully. You can now log in." });
+});
+
+/**
+ * GET /api/v1/users/me/badges
+ * Get all badges with earned status for the logged-in user
+ */
+router.get("/me/badges", token_checker, async (req, res) => {
+  if (!req.logged_user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const badges = await badgeService.getAllBadgesWithStatus(
+      req.logged_user.id,
+    );
+    res.status(200).json(badges);
+  } catch (error) {
+    console.error("Error fetching badges:", error);
+    res.status(500).json({ error: "Failed to fetch badges" });
+  }
+});
+
+/**
+ * GET /api/v1/users/me/badges/earned
+ * Get only the badges earned by the logged-in user
+ */
+router.get("/me/badges/earned", token_checker, async (req, res) => {
+  if (!req.logged_user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const user = await User.findById(req.logged_user.id).populate("badges_id");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json(user.badges_id);
+  } catch (error) {
+    console.error("Error fetching earned badges:", error);
+    res.status(500).json({ error: "Failed to fetch earned badges" });
+  }
+});
+
+/**
+ * POST /api/v1/users/me/badges/check
+ * Manually trigger badge check for the logged-in user
+ * (Useful for testing or manual refresh)
+ */
+router.post("/me/badges/check", token_checker, async (req, res) => {
+  if (!req.logged_user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const newBadges = await badgeService.checkAndAwardBadges(
+      req.logged_user.id,
+    );
+    res.status(200).json({
+      message: "Badge check completed",
+      new_badges: newBadges,
+    });
+  } catch (error) {
+    console.error("Error checking badges:", error);
+    res.status(500).json({ error: "Failed to check badges" });
+  }
 });
 
 export default router;

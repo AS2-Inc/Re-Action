@@ -6,65 +6,141 @@ info:
   license:
     name: MIT
 servers:
-  - url: http://localhost:8080/api/v1
-    description: Localhost
+  - url: http://localhost:5000/api/v1
+    description: Development Server
   # TODO: Add production server
+
+tags:
+  - name: Users
+    description: User authentication, registration, and profile management
+  - name: Tasks
+    description: Task creation, submission, and management
+  - name: Neighborhoods
+    description: Neighborhood information and management
+  - name: Badges
+    description: Badge system and achievements
+
 paths:
   /users/login:
     post:
-      summary: Login
+      summary: User login
+      description: Authenticate user and receive JWT token
       tags: [Users]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
-              properties:
-                email: {type: string}
-                password: {type: string}
               required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
       responses:
         '200':
-          description: Returns JWT Token and user info
+          description: Login successful, returns JWT token
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  token: {type: string}
-                  email: {type: string}
-                  id: {type: string}
-                  self: {type: string}
+                  token:
+                    type: string
+                    description: JWT authentication token
+                  email:
+                    type: string
+                  id:
+                    type: string
+                  self:
+                    type: string
+                    description: Resource link
         '401':
           description: Wrong password
+        '403':
+          description: Account not activated
         '404':
           description: User not found
 
   /users/register:
     post:
-      summary: Register a new user
+      summary: Register new citizen user
+      description: Create a new user account (RF1)
       tags: [Users]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
-              properties:
-                name: {type: string}
-                surname: {type: string}
-                email: {type: string}
-                password: {type: string}
-                neighborhood: {type: string}
               required: [name, surname, email, password]
+              properties:
+                name:
+                  type: string
+                  example: Mario
+                surname:
+                  type: string
+                  example: Rossi
+                email:
+                  type: string
+                  format: email
+                  example: mario.rossi@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                neighborhood:
+                  type: string
+                  description: Neighborhood ID (optional)
       responses:
         '201':
           description: User created successfully
+        '400':
+          description: Missing required fields or invalid email format
+        '409':
+          description: Email already exists
+
+  /users/operator:
+    post:
+      summary: Register new operator user (Admin only)
+      description: Create a new operator account (RF1)
+      tags: [Users]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, surname, email]
+              properties:
+                name:
+                  type: string
+                surname:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '201':
+          description: Operator created successfully
+        '400':
+          description: Missing required fields or invalid email
+        '403':
+          description: Forbidden - Admin privileges required
         '409':
           description: Email already exists
 
   /users/me:
     get:
       summary: Get current user profile
+      description: Get dashboard data for logged-in user (RF3/RF5)
       tags: [Users]
       security:
         - tokenAuth: []
@@ -74,63 +150,321 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  name: {type: string}
-                  points: {type: integer}
-                  streak: {type: integer}
-                  neighborhood: {type: string}
-                  tasks_completed: {type: integer}
+                oneOf:
+                  - type: object
+                    description: Citizen profile
+                    properties:
+                      name:
+                        type: string
+                      points:
+                        type: integer
+                      level:
+                        type: string
+                      streak:
+                        type: integer
+                      neighborhood_id:
+                        type: string
+                      tasks_completed:
+                        type: integer
+                      badges_count:
+                        type: integer
+                      ambient:
+                        type: object
+                        properties:
+                          co2_saved:
+                            type: number
+                          waste_recycled:
+                            type: number
+                          km_green:
+                            type: number
+                  - type: object
+                    description: Operator/Admin profile
+                    properties:
+                      name:
+                        type: string
+                      role:
+                        type: string
+        '401':
+          description: Unauthorized
         '404':
           description: User not found
 
   /users/activate:
     get:
       summary: Activate user account
+      description: Verify activation token and activate user account
       tags: [Users]
       parameters:
         - in: query
           name: token
+          required: true
           schema:
             type: string
-          required: true
-          description: Activation token
+          description: Activation token received via email
       responses:
         '200':
-          description: Account activated
+          description: Account activated successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                      token:
+                        type: string
+                      requires_password_setup:
+                        type: boolean
         '400':
-          description: Invalid or expired token
+          description: Token missing, invalid, or expired
+
+  /users/set-password:
+    post:
+      summary: Set password for operator account
+      description: Allows operators to set password during activation
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '200':
+          description: Password set successfully
+        '400':
+          description: Missing fields or invalid token
+        '403':
+          description: Endpoint only for operators
+
+  /users/change-password:
+    post:
+      summary: Change user password
+      description: Change password for logged-in user
+      tags: [Users]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                new_password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '200':
+          description: Password changed successfully
+        '400':
+          description: Invalid input or passwords match
+        '401':
+          description: Current password incorrect
+        '404':
+          description: User not found
+
+  /users/forgot-password:
+    post:
+      summary: Request password reset
+      description: Generate and send password reset token
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset email sent (or user not found - security)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+                    description: Only present in development
+        '400':
+          description: Email is required
+
+  /users/reset-password:
+    post:
+      summary: Reset password using token
+      description: Reset password using token from forgot-password
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token:
+                  type: string
+                new_password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '200':
+          description: Password reset successfully
+        '400':
+          description: Invalid or expired token, or weak password
+
+  /users/me/badges:
+    get:
+      summary: Get all badges with earned status
+      description: Returns all available badges with indication of which are earned (RF4)
+      tags: [Badges]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of all badges with earned status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BadgeWithStatus'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch badges
+
+  /users/me/badges/earned:
+    get:
+      summary: Get user's earned badges
+      description: Returns only badges earned by the logged-in user
+      tags: [Badges]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of earned badges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Badge'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to fetch earned badges
+
+  /users/me/badges/check:
+    post:
+      summary: Manually trigger badge check
+      description: Check and award any eligible badges for the user
+      tags: [Badges]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: Badge check completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  new_badges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Badge'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to check badges
 
   /tasks:
     get:
-      summary: Get list of tasks
+      summary: Get available tasks for user
+      description: Returns tasks available for user's neighborhood (excludes expired tasks - RF6)
       tags: [Tasks]
+      security:
+        - tokenAuth: []
       responses:
         '200':
-          description: A JSON array of tasks
+          description: List of available tasks
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+
+  /tasks/create:
     post:
-      summary: Create a new task (Operators only)
+      summary: Create new task (Operators/Admins only)
+      description: Create a new task in the system
       tags: [Tasks]
       security:
         - tokenAuth: []
       requestBody:
+        required: true
         content:
           application/json:
-             schema:
-               $ref: '#/components/schemas/Task'
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
       responses:
         '201':
-          description: Task created
+          description: Task created successfully
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URI of the created task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '403':
+          description: Unauthorized - Operators only
 
-  /tasks/{id}/complete:
+  /tasks/{id}/submit:
     post:
-      summary: Mark a task as completed for the logged user
+      summary: Submit task completion
+      description: |
+        User submits a task for verification (RF12).
+        - Manual tasks go to PENDING status
+        - GPS/QR tasks are verified automatically
       tags: [Tasks]
       security:
         - tokenAuth: []
@@ -140,9 +474,171 @@ paths:
           required: true
           schema:
             type: string
+          description: Task ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                proof:
+                  type: object
+                  description: Proof data (stored for manual review)
+                evidence:
+                  type: object
+                  properties:
+                    gps_location:
+                      type: object
+                      properties:
+                        latitude:
+                          type: number
+                        longitude:
+                          type: number
+                    qr_code_data:
+                      type: string
       responses:
         '200':
-          description: Task verified and points added
+          description: Task submitted successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: Manual verification pending
+                    properties:
+                      submission_status:
+                        type: string
+                        enum: [PENDING]
+                  - type: object
+                    description: Automatically approved
+                    properties:
+                      points_earned:
+                        type: integer
+                      submission_status:
+                        type: string
+                        enum: [APPROVED]
+                      new_badges:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Badge'
+        '400':
+          description: Task already completed, in cooldown, or verification failed
+        '404':
+          description: Task not found
+
+  /tasks/submissions:
+    get:
+      summary: Get task submissions (Operators/Admins only)
+      description: View task submissions, optionally filtered by status
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+          description: Filter by submission status
+      responses:
+        '200':
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Submission'
+        '403':
+          description: Unauthorized
+
+  /tasks/submissions/{id}/verify:
+    post:
+      summary: Verify task submission (Operators/Admins only)
+      description: Approve or reject a manual task submission
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Submission ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verdict]
+              properties:
+                verdict:
+                  type: string
+                  enum: [approved, rejected]
+      responses:
+        '200':
+          description: Submission verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  new_badges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Badge'
+        '400':
+          description: Invalid verdict or submission already processed
+        '403':
+          description: Unauthorized
+        '404':
+          description: Submission not found
+
+  /neighborhood:
+    get:
+      summary: List all neighborhoods
+      description: Get list of all available neighborhoods
+      tags: [Neighborhoods]
+      responses:
+        '200':
+          description: List of neighborhoods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Neighborhood'
+        '500':
+          description: Internal server error
+
+  /neighborhood/{id}:
+    get:
+      summary: Get neighborhood by ID
+      description: Get details of a specific neighborhood
+      tags: [Neighborhoods]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Neighborhood ID
+      responses:
+        '200':
+          description: Neighborhood details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Neighborhood'
+        '404':
+          description: Neighborhood not found
+        '500':
+          description: Internal server error
+
+# ==================== COMPONENTS ====================
 
 components:
   securitySchemes:
@@ -150,27 +646,4 @@ components:
       type: apiKey
       in: header
       name: x-access-token
-  schemas:
-    Task:
-      type: object
-      required:
-        - title
-        - points
-      properties:
-        title:
-          type: string
-        description:
-          type: string
-        points:
-          type: integer
-        difficulty:
-          type: string
-          enum: [low, medium, high]
-        category:
-          type: string
-          enum: [mobility, waste, community]
-        verification_method:
-          type: string
-          enum: [gps, qr, manual]
-        active:
-          type: boolean
+      description: JWT token for authentication

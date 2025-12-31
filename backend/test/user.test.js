@@ -447,10 +447,18 @@ describe("User API Endpoints", () => {
     it("should return user dashboard data when authenticated", async () => {
       const mockUser = {
         _id: "user123",
-        name: "John Doe",
+        first_name: "John",
+        surname: "Doe",
         role: "citizen",
         points: 150,
+        level: "Cittadino Base",
         streak: 5,
+        badges_id: [],
+        ambient: {
+          co2_saved: 0,
+          waste_recycled: 0,
+          km_green: 0,
+        },
         neighborhood_id: {
           _id: "neighborhood123",
           name: "Green Valley",
@@ -502,10 +510,11 @@ describe("User API Endpoints", () => {
     it("should return operator dashboard data when authenticated as operator", async () => {
       const mockOperator = {
         _id: "operator123",
-        name: "Jane Smith",
+        first_name: "Jane",
+        surname: "Smith",
         points: 0,
         streak: 0,
-        neighborhood: null,
+        neighborhood_id: null,
         tasks_completed: [],
         role: "operator",
       };
@@ -724,6 +733,322 @@ describe("User API Endpoints", () => {
       expect(response.body).toHaveProperty(
         "error",
         "Invalid or expired activation token",
+      );
+    });
+  });
+
+  describe("POST /api/v1/users/change-password", () => {
+    it("should change password successfully for authenticated user", async () => {
+      const mockUser = {
+        _id: "user123",
+        password: "oldpassword",
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      mockFindById.mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .set("x-access-token", validToken)
+        .send({
+          current_password: "oldpassword",
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty(
+        "message",
+        "Password changed successfully",
+      );
+      expect(mockUser.save).toHaveBeenCalled();
+      expect(mockUser.password).toBe("newpassword123");
+    });
+
+    it("should return 401 when no token is provided", async () => {
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .send({
+          current_password: "oldpassword",
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty("error", "No token provided.");
+    });
+
+    it("should return 400 when current_password is missing", async () => {
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .set("x-access-token", validToken)
+        .send({
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Current password and new password are required",
+      );
+    });
+
+    it("should return 400 when new_password is missing", async () => {
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .set("x-access-token", validToken)
+        .send({
+          current_password: "oldpassword",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Current password and new password are required",
+      );
+    });
+
+    it("should return 404 when user is not found", async () => {
+      mockFindById.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .set("x-access-token", validToken)
+        .send({
+          current_password: "oldpassword",
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty("error", "User not found");
+    });
+
+    it("should return 401 when current password is incorrect", async () => {
+      const mockUser = {
+        _id: "user123",
+        password: "oldpassword",
+      };
+
+      mockFindById.mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .set("x-access-token", validToken)
+        .send({
+          current_password: "wrongpassword",
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Current password is incorrect",
+      );
+    });
+
+    it("should return 400 when new password is too short", async () => {
+      const mockUser = {
+        _id: "user123",
+        password: "oldpassword",
+      };
+
+      mockFindById.mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .set("x-access-token", validToken)
+        .send({
+          current_password: "oldpassword",
+          new_password: "short",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "New password must be at least 6 characters long",
+      );
+    });
+
+    it("should return 400 when new password is same as current", async () => {
+      const mockUser = {
+        _id: "user123",
+        password: "oldpassword",
+      };
+
+      mockFindById.mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post("/api/v1/users/change-password")
+        .set("x-access-token", validToken)
+        .send({
+          current_password: "oldpassword",
+          new_password: "oldpassword",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "New password must be different from current password",
+      );
+    });
+  });
+
+  describe("POST /api/v1/users/forgot-password", () => {
+    it("should generate reset token for valid email", async () => {
+      const mockUser = {
+        _id: "user123",
+        email: "user@example.com",
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      mockFindOne.mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post("/api/v1/users/forgot-password")
+        .send({
+          email: "user@example.com",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty(
+        "message",
+        "If an account with that email exists, a password reset link has been sent",
+      );
+      expect(response.body).toHaveProperty("token");
+      expect(mockUser.save).toHaveBeenCalled();
+      expect(mockUser.reset_password_token).toBeDefined();
+      expect(mockUser.reset_password_expires).toBeDefined();
+    });
+
+    it("should return success message even for non-existent email", async () => {
+      mockFindOne.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post("/api/v1/users/forgot-password")
+        .send({
+          email: "nonexistent@example.com",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty(
+        "message",
+        "If an account with that email exists, a password reset link has been sent",
+      );
+      expect(response.body).not.toHaveProperty("token");
+    });
+
+    it("should return 400 when email is missing", async () => {
+      const response = await request(app)
+        .post("/api/v1/users/forgot-password")
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("error", "Email is required");
+    });
+  });
+
+  describe("POST /api/v1/users/reset-password", () => {
+    it("should reset password successfully with valid token", async () => {
+      const mockUser = {
+        _id: "user123",
+        email: "user@example.com",
+        reset_password_token: "valid-reset-token",
+        reset_password_expires: Date.now() + 10000,
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      mockFindOne.mockResolvedValue(mockUser);
+
+      const response = await request(app)
+        .post("/api/v1/users/reset-password")
+        .send({
+          token: "valid-reset-token",
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty(
+        "message",
+        "Password reset successfully. You can now log in.",
+      );
+      expect(mockUser.save).toHaveBeenCalled();
+      expect(mockUser.password).toBe("newpassword123");
+      expect(mockUser.reset_password_token).toBeUndefined();
+      expect(mockUser.reset_password_expires).toBeUndefined();
+    });
+
+    it("should return 400 when token is missing", async () => {
+      const response = await request(app)
+        .post("/api/v1/users/reset-password")
+        .send({
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Reset token and new password are required",
+      );
+    });
+
+    it("should return 400 when new_password is missing", async () => {
+      const response = await request(app)
+        .post("/api/v1/users/reset-password")
+        .send({
+          token: "valid-reset-token",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Reset token and new password are required",
+      );
+    });
+
+    it("should return 400 when new password is too short", async () => {
+      const response = await request(app)
+        .post("/api/v1/users/reset-password")
+        .send({
+          token: "valid-reset-token",
+          new_password: "short",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Password must be at least 6 characters long",
+      );
+    });
+
+    it("should return 400 when reset token is invalid", async () => {
+      mockFindOne.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post("/api/v1/users/reset-password")
+        .send({
+          token: "invalid-token",
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Invalid or expired reset token",
+      );
+    });
+
+    it("should return 400 when reset token is expired", async () => {
+      mockFindOne.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post("/api/v1/users/reset-password")
+        .send({
+          token: "expired-token",
+          new_password: "newpassword123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(
+        "error",
+        "Invalid or expired reset token",
       );
     });
   });

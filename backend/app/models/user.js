@@ -59,5 +59,9 @@ export default mongoose.model(
     is_active: { type: Boolean, default: false }, // Activated after email verification
     activation_token: String,
     activation_token_expires: Date,
+
+    // Password reset tokens
+    reset_password_token: String,
+    reset_password_expires: Date,
   }),
 );

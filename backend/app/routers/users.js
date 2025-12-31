@@ -272,4 +272,129 @@ router.post("/set-password", async (req, res) => {
     .json({ message: "Password set successfully. You can now log in." });
 });
 
+router.post("/change-password", token_checker, async (req, res) => {
+  const { current_password, new_password } = req.body;
+
+  // Validate input
+  if (!current_password || !new_password) {
+    return res
+      .status(400)
+      .json({ error: "Current password and new password are required" });
+  }
+
+  // Find the logged-in user
+  const user = await User.findById(req.logged_user.id);
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  // Verify current password
+  if (user.password !== current_password) {
+    return res.status(401).json({ error: "Current password is incorrect" });
+  }
+
+  // TODO: Add password strength validation
+  if (new_password.length < 6) {
+    return res
+      .status(400)
+      .json({ error: "New password must be at least 6 characters long" });
+  }
+
+  // Don't allow same password
+  if (current_password === new_password) {
+    return res
+      .status(400)
+      .json({ error: "New password must be different from current password" });
+  }
+
+  // Update password
+  user.password = new_password; // TODO: hash this in production
+  await user.save();
+
+  res.status(200).json({ message: "Password changed successfully" });
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  // Find user by email
+  const user = await User.findOne({ email: email });
+
+  // Always return success even if user doesn't exist (security best practice)
+  // This prevents email enumeration attacks
+  if (!user) {
+    return res.status(200).json({
+      message:
+        "If an account with that email exists, a password reset link has been sent",
+    });
+  }
+
+  // Generate reset token
+  const reset_token = crypto.randomBytes(32).toString("hex");
+  const reset_expires = Date.now() + 60 * 60 * 1000; // 1 hour from now
+
+  // Save reset token to user
+  user.reset_password_token = reset_token;
+  user.reset_password_expires = reset_expires;
+  await user.save();
+
+  // TODO: Implement actual email sending
+  // const resetLink = `http://localhost:5173/reset-password?token=${reset_token}`;
+  // await sendEmail(user.email, 'Password Reset', `Click here to reset your password: ${resetLink}`);
+
+  // For now, return the token in the response (only for development)
+  res.status(200).json({
+    message:
+      "If an account with that email exists, a password reset link has been sent",
+    token: reset_token, // Remove this in production
+  });
+});
+
+/**
+ * POST /api/v1/users/reset-password
+ * Reset password using the token from forgot-password
+ */
+router.post("/reset-password", async (req, res) => {
+  const { token, new_password } = req.body;
+
+  if (!token || !new_password) {
+    return res
+      .status(400)
+      .json({ error: "Reset token and new password are required" });
+  }
+
+  // TODO: Add password strength validation
+  if (new_password.length < 6) {
+    return res
+      .status(400)
+      .json({ error: "Password must be at least 6 characters long" });
+  }
+
+  // Find user with this reset token AND ensure token hasn't expired
+  const user = await User.findOne({
+    reset_password_token: token,
+    reset_password_expires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return res
+      .status(400)
+      .json({ error: "Invalid or expired reset token" });
+  }
+
+  // Update password and clear reset token
+  user.password = new_password; // TODO: hash this in production
+  user.reset_password_token = undefined;
+  user.reset_password_expires = undefined;
+  await user.save();
+
+  res
+    .status(200)
+    .json({ message: "Password reset successfully. You can now log in." });
+});
+
 export default router;

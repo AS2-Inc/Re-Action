@@ -77,7 +77,8 @@ router.post("/register", async (req, res) => {
     !req.body.name ||
     !req.body.surname ||
     !req.body.email ||
-    !req.body.password
+    !req.body.password || 
+    !req.body.age
   ) {
     return res.status(400).json({ error: "Missing required fields" });
   }
@@ -108,6 +109,7 @@ router.post("/register", async (req, res) => {
     surname: req.body.surname,
     email: req.body.email,
     password: hashed_password,
+    age: req.body.age,
     neighborhood_id: req.body.neighborhood || null,
     activation_token: activation_token,
     activation_token_expires: activation_expires,

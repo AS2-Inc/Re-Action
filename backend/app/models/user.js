@@ -9,6 +9,7 @@ export default mongoose.model(
     surname: String,
     age: Number,
     email: { type: String, required: true, unique: true },
+    age: { type: Number, required: true },
     // null if using OAuth
     password: { type: String, required: true }, // TODO: hash this
     auth_provider: {

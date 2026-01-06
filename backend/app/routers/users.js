@@ -5,9 +5,14 @@ import token_checker from "../middleware/token_checker.js";
 import User from "../models/user.js";
 import Activity from "../models/activity.js";
 import badgeService from "../services/badge_service.js";
-
+import bcrypt from "bcrypt";
 const router = express.Router();
 
+async function hash_password(plain_text_password) {
+  const salt_rounds = 10;
+  const hashed_password = await bcrypt.hash(plain_text_password, salt_rounds);
+  return hashed_password;
+}
 
 function isPasswordWeak(password) {
   // Example criteria: at least 6 characters
@@ -95,11 +100,14 @@ router.post("/register", async (req, res) => {
   // Set expiration to 12 hours from now (per requirement RF1)
   const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
   // create the user with the neighborhood only if provided
+  const hashed_password = await hash_password(req.body.password);
+
+
   let user = new User({
     first_name: req.body.name,
     surname: req.body.surname,
     email: req.body.email,
-    password: req.body.password,
+    password: hashed_password,
     neighborhood_id: req.body.neighborhood || null,
     activation_token: activation_token,
     activation_token_expires: activation_expires,
@@ -286,7 +294,7 @@ router.post("/set-password", async (req, res) => {
   }
 
   // Set password and activate the account
-  user.password = password; // TODO: hash this in production
+  user.password = await hash_password(password);
   user.is_active = true;
   user.activation_token = undefined;
   user.activation_token_expires = undefined;
@@ -315,15 +323,12 @@ router.post("/change-password", token_checker, async (req, res) => {
   }
 
   // Verify current password
-  if (user.password !== current_password) {
+  if (user.password !== hash_password(current_password)) {
     return res.status(401).json({ error: "Current password is incorrect" });
   }
 
-  // TODO: Add password strength validation
-  if (new_password.length < 6) {
-    return res
-      .status(400)
-      .json({ error: "New password must be at least 6 characters long" });
+  if(isPasswordWeak(new_password)) {
+    return res.status(400).json({ error: "Password is too weak" });
   }
 
   // Don't allow same password
@@ -334,7 +339,7 @@ router.post("/change-password", token_checker, async (req, res) => {
   }
 
   // Update password
-  user.password = new_password; // TODO: hash this in production
+  user.password = hash_password(new_password);
   await user.save();
 
   res.status(200).json({ message: "Password changed successfully" });
@@ -394,10 +399,8 @@ router.post("/reset-password", async (req, res) => {
   }
 
   // TODO: Add password strength validation
-  if (new_password.length < 6) {
-    return res
-      .status(400)
-      .json({ error: "Password must be at least 6 characters long" });
+  if(isPasswordWeak(new_password)) {  
+    return res.status(400).json({ error: "Password is too weak" });
   }
 
   // Find user with this reset token AND ensure token hasn't expired
@@ -411,7 +414,9 @@ router.post("/reset-password", async (req, res) => {
   }
 
   // Update password and clear reset token
-  user.password = new_password; // TODO: hash this in production
+  const hashed_password = await hash_password(new_password);
+
+  user.password = hashed_password;
   user.reset_password_token = undefined;
   user.reset_password_expires = undefined;
   await user.save();
@@ -474,6 +479,7 @@ router.post("/me/badges/check", token_checker, async (req, res) => {
   }
 
   try {
+    // TODO: refactor
     const newBadges = await badgeService.checkAndAwardBadges(
       req.logged_user.id,
     );

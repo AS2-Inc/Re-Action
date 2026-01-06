@@ -8,6 +8,25 @@ import badgeService from "../services/badge_service.js";
 
 const router = express.Router();
 
+
+function isPasswordWeak(password) {
+  // Example criteria: at least 6 characters
+  if (!password) return true;
+  if(password.length < 6) {
+    return true;
+  }
+  // at least 1 lowercase letter 1 uppercase letter, 1 digit, 1 special character
+  const lowercase_regex = /[a-z]/;
+  const uppercase_regex = /[A-Z]/;
+  const digit_regex = /[0-9]/;
+  const specialchar_regex = /[!@#$%^&*(),.?":{}|<>]/;
+  if(!lowercase_regex.test(password)) return true;
+  if(!uppercase_regex.test(password)) return true;
+  if(!digit_regex.test(password)) return true;
+  if(!specialchar_regex.test(password)) return true;
+  return false;
+}
+
 // TODO: implement the auth with Google OAuth2
 // POST /api/v1/users/login
 router.post("/login", async (req, res) => {
@@ -66,8 +85,9 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
-  // TODO: Check if the password meets minimum security criteria (example: at least 6 characters)
-
+  if(isPasswordWeak(req.body.password)) {
+    return res.status(400).json({ error: "Password is too weak" });
+  }
   // TODO: neighborhood existence check?
 
   const activation_token = crypto.randomBytes(20).toString("hex");
@@ -242,7 +262,9 @@ router.post("/set-password", async (req, res) => {
     return res.status(400).json({ error: "Token and password are required" });
   }
 
-  // TODO Check if the password meets minimum security criteria (at least 6 characters)
+  if(isPasswordWeak(password)) {
+    return res.status(400).json({ error: "Password is too weak" });
+  }
 
   // Find user with this token AND ensure token hasn't expired
   const user = await User.findOne({

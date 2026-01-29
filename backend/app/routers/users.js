@@ -169,8 +169,7 @@ router.post("/operator", token_checker, async (req, res) => {
 
   try {
     user = await user.save();
-    // TODO: Implement actual email sending later
-    // const activationLink = `http://localhost:8080/api/v1/users/activate?token=${activationToken}`;
+    await EmailService.sendActivationEmail(user.email, user.activation_token);
     res.status(201).json();
   } catch (err) {
     console.error(err);
@@ -403,7 +402,6 @@ router.post("/reset-password", async (req, res) => {
       .json({ error: "Reset token and new password are required" });
   }
 
-  // TODO: Add password strength validation
   if (isPasswordWeak(new_password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
@@ -484,7 +482,8 @@ router.get("/me/badges/earned", token_checker, async (req, res) => {
 });
 
 /**
- Delete the account
+ * DELETE /api/v1/users/me
+ * Delete the account
  */
 router.delete("/me", token_checker, async (req, res) => {
   if (!req.logged_user) {

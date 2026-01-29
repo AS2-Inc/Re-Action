@@ -1,10 +1,37 @@
 import { jest } from "@jest/globals";
-import request from "supertest";
-import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
-import app from "../app/app.js";
-import User from "../app/models/user.js";
-import Activity from "../app/models/activity.js";
+
+// Define mocks BEFORE importing the app
+jest.unstable_mockModule("../app/services/email_service.js", () => ({
+  default: {
+    sendActivationEmail: jest.fn().mockResolvedValue(true),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+    sendEmail: jest.fn().mockResolvedValue(true),
+  },
+}));
+
+jest.unstable_mockModule("../app/services/badgeService.js", () => ({
+  default: {
+    onPointsUpdated: jest.fn().mockResolvedValue([]),
+    onTaskCompleted: jest.fn().mockResolvedValue([]),
+    onStreakUpdated: jest.fn().mockResolvedValue([]),
+    onEnvironmentalStatsUpdated: jest.fn().mockResolvedValue([]),
+    _getAllBadges: jest.fn().mockResolvedValue([]),
+    initializeBadges: jest.fn().mockResolvedValue(),
+  },
+}));
+
+// Now import the app and other dependencies
+const request = (await import("supertest")).default;
+const mongoose = (await import("mongoose")).default;
+const jwt = (await import("jsonwebtoken")).default;
+const app = (await import("../app/app.js")).default;
+const User = (await import("../app/models/user.js")).default;
+const Activity = (await import("../app/models/activity.js")).default;
+const bcrypt = (await import("bcrypt")).default;
+
+// Mock bcrypt
+jest.spyOn(bcrypt, "compareSync").mockReturnValue(true); // Always match passwords
+jest.spyOn(bcrypt, "hash").mockResolvedValue("hashed_password");
 
 // Mock the User model methods
 const mockFindOne = jest.fn();
@@ -66,7 +93,7 @@ describe("User API Endpoints", () => {
       const mockUser = {
         _id: "user123",
         email: "user@example.com",
-        password: "password123",
+        password: "password123!A!A",
         is_active: true,
         role: "citizen",
       };
@@ -77,7 +104,7 @@ describe("User API Endpoints", () => {
 
       const response = await request(app).post("/api/v1/users/login").send({
         email: "user@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(200);
@@ -95,7 +122,7 @@ describe("User API Endpoints", () => {
 
       const response = await request(app).post("/api/v1/users/login").send({
         email: "nonexistent@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(404);
@@ -106,7 +133,7 @@ describe("User API Endpoints", () => {
       const mockUser = {
         _id: "user123",
         email: "user@example.com",
-        password: "password123",
+        password: "password123!A!A",
         is_active: true,
       };
 
@@ -114,9 +141,12 @@ describe("User API Endpoints", () => {
         exec: jest.fn().mockResolvedValue(mockUser),
       });
 
+      // Override mock to return false
+      bcrypt.compareSync.mockReturnValueOnce(false);
+
       const response = await request(app).post("/api/v1/users/login").send({
         email: "user@example.com",
-        password: "wrongpassword",
+        password: "wrongpassword!A!A",
       });
 
       expect(response.status).toBe(401);
@@ -127,7 +157,7 @@ describe("User API Endpoints", () => {
       const mockUser = {
         _id: "user123",
         email: "user@example.com",
-        password: "password123",
+        password: "password123!A!A",
         is_active: false,
       };
 
@@ -137,7 +167,7 @@ describe("User API Endpoints", () => {
 
       const response = await request(app).post("/api/v1/users/login").send({
         email: "user@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(403);
@@ -163,7 +193,7 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         email: "john@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(201);
@@ -188,7 +218,7 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         email: "john@example.com",
-        password: "password123",
+        password: "password123!A!A",
         neighborhood_id: "neighborhood123",
       });
 
@@ -199,7 +229,7 @@ describe("User API Endpoints", () => {
       const response = await request(app).post("/api/v1/users/register").send({
         surname: "Doe",
         email: "john@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(400);
@@ -210,7 +240,7 @@ describe("User API Endpoints", () => {
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
         email: "john@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(400);
@@ -221,7 +251,7 @@ describe("User API Endpoints", () => {
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
         surname: "Doe",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(400);
@@ -251,7 +281,7 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         email: "john@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(409);
@@ -265,11 +295,47 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         email: "invalid-email",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty("error", "Invalid email format");
+    });
+
+    it("should return 400 when password has no uppercase", async () => {
+      const response = await request(app).post("/api/v1/users/register").send({
+        name: "John",
+        surname: "Doe",
+        email: "john@example.com",
+        password: "password123!",
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("error", "Password is too weak");
+    });
+
+    it("should return 400 when password has no number", async () => {
+      const response = await request(app).post("/api/v1/users/register").send({
+        name: "John",
+        surname: "Doe",
+        email: "john@example.com",
+        password: "Password!",
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("error", "Password is too weak");
+    });
+
+    it("should return 400 when password has no special character", async () => {
+      const response = await request(app).post("/api/v1/users/register").send({
+        name: "John",
+        surname: "Doe",
+        email: "john@example.com",
+        password: "Password123",
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("error", "Password is too weak");
     });
 
     it("should return 400 when database error occurs", async () => {
@@ -284,7 +350,7 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         email: "john@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.status).toBe(400);
@@ -638,7 +704,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/set-password")
         .send({
           token: "operator-token",
-          password: "newpassword123",
+          password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(200);
@@ -653,7 +719,7 @@ describe("User API Endpoints", () => {
       const response = await request(app)
         .post("/api/v1/users/set-password")
         .send({
-          password: "newpassword123",
+          password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(400);
@@ -684,7 +750,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/set-password")
         .send({
           token: "invalid-token",
-          password: "newpassword123",
+          password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(400);
@@ -709,7 +775,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/set-password")
         .send({
           token: "citizen-token",
-          password: "newpassword123",
+          password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(403);
@@ -726,7 +792,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/set-password")
         .send({
           token: "expired-token",
-          password: "newpassword123",
+          password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(400);
@@ -752,7 +818,7 @@ describe("User API Endpoints", () => {
         .set("x-access-token", validToken)
         .send({
           current_password: "oldpassword",
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(200);
@@ -761,7 +827,7 @@ describe("User API Endpoints", () => {
         "Password changed successfully",
       );
       expect(mockUser.save).toHaveBeenCalled();
-      expect(mockUser.password).toBe("newpassword123");
+      expect(mockUser.password).toBe("hashed_password");
     });
 
     it("should return 401 when no token is provided", async () => {
@@ -769,7 +835,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/change-password")
         .send({
           current_password: "oldpassword",
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(401);
@@ -781,7 +847,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/change-password")
         .set("x-access-token", validToken)
         .send({
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(400);
@@ -814,7 +880,7 @@ describe("User API Endpoints", () => {
         .set("x-access-token", validToken)
         .send({
           current_password: "oldpassword",
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(404);
@@ -824,17 +890,20 @@ describe("User API Endpoints", () => {
     it("should return 401 when current password is incorrect", async () => {
       const mockUser = {
         _id: "user123",
-        password: "oldpassword",
+        password: "hashed_password",
       };
 
       mockFindById.mockResolvedValue(mockUser);
+
+      // Override mock to return false
+      bcrypt.compareSync.mockReturnValueOnce(false);
 
       const response = await request(app)
         .post("/api/v1/users/change-password")
         .set("x-access-token", validToken)
         .send({
-          current_password: "wrongpassword",
-          new_password: "newpassword123",
+          current_password: "wrongpassword!A!A",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(401);
@@ -861,10 +930,7 @@ describe("User API Endpoints", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty(
-        "error",
-        "New password must be at least 6 characters long",
-      );
+      expect(response.body).toHaveProperty("error", "Password is too weak");
     });
 
     it("should return 400 when new password is same as current", async () => {
@@ -879,8 +945,8 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/change-password")
         .set("x-access-token", validToken)
         .send({
-          current_password: "oldpassword",
-          new_password: "oldpassword",
+          current_password: "StrongPassword1!",
+          new_password: "StrongPassword1!",
         });
 
       expect(response.status).toBe(400);
@@ -961,7 +1027,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/reset-password")
         .send({
           token: "valid-reset-token",
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(200);
@@ -970,7 +1036,7 @@ describe("User API Endpoints", () => {
         "Password reset successfully. You can now log in.",
       );
       expect(mockUser.save).toHaveBeenCalled();
-      expect(mockUser.password).toBe("newpassword123");
+      expect(mockUser.password).toBe("hashed_password");
       expect(mockUser.reset_password_token).toBeUndefined();
       expect(mockUser.reset_password_expires).toBeUndefined();
     });
@@ -979,7 +1045,7 @@ describe("User API Endpoints", () => {
       const response = await request(app)
         .post("/api/v1/users/reset-password")
         .send({
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(400);
@@ -1012,10 +1078,7 @@ describe("User API Endpoints", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty(
-        "error",
-        "Password must be at least 6 characters long",
-      );
+      expect(response.body).toHaveProperty("error", "Password is too weak");
     });
 
     it("should return 400 when reset token is invalid", async () => {
@@ -1025,7 +1088,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/reset-password")
         .send({
           token: "invalid-token",
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(400);
@@ -1042,7 +1105,7 @@ describe("User API Endpoints", () => {
         .post("/api/v1/users/reset-password")
         .send({
           token: "expired-token",
-          new_password: "newpassword123",
+          new_password: "newpassword123!A!A!A",
         });
 
       expect(response.status).toBe(400);
@@ -1058,7 +1121,7 @@ describe("User API Endpoints", () => {
       const mockUser = {
         _id: "user123",
         email: "user@example.com",
-        password: "password123",
+        password: "password123!A!A",
         active: true,
         role: "citizen",
       };
@@ -1069,7 +1132,7 @@ describe("User API Endpoints", () => {
 
       const response = await request(app).post("/api/v1/users/login").send({
         email: "user@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.headers["content-type"]).toMatch(/json/);
@@ -1083,7 +1146,7 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         email: "john@example.com",
-        password: "password123",
+        password: "password123!A!A",
       });
 
       expect(response.headers["content-type"]).toMatch(/json/);

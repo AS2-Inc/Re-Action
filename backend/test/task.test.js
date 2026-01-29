@@ -1,12 +1,34 @@
 import { jest } from "@jest/globals";
-import request from "supertest";
-import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
-import app from "../app/app.js";
-import Task from "../app/models/task.js";
-import Activity from "../app/models/activity.js";
-import User from "../app/models/user.js";
-import Neighborhood from "../app/models/neighborhood.js";
+
+// Define mocks BEFORE importing the app
+jest.unstable_mockModule("../app/services/email_service.js", () => ({
+  default: {
+    sendActivationEmail: jest.fn().mockResolvedValue(true),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+    sendEmail: jest.fn().mockResolvedValue(true),
+  },
+}));
+
+jest.unstable_mockModule("../app/services/badgeService.js", () => ({
+  default: {
+    onPointsUpdated: jest.fn().mockResolvedValue([]),
+    onTaskCompleted: jest.fn().mockResolvedValue([]),
+    onStreakUpdated: jest.fn().mockResolvedValue([]),
+    onEnvironmentalStatsUpdated: jest.fn().mockResolvedValue([]),
+    _getAllBadges: jest.fn().mockResolvedValue([]),
+    initializeBadges: jest.fn().mockResolvedValue(),
+  },
+}));
+
+// Now import the app and other dependencies
+const request = (await import("supertest")).default;
+const mongoose = (await import("mongoose")).default;
+const jwt = (await import("jsonwebtoken")).default;
+const app = (await import("../app/app.js")).default;
+const Task = (await import("../app/models/task.js")).default;
+const Activity = (await import("../app/models/activity.js")).default;
+const User = (await import("../app/models/user.js")).default;
+const Neighborhood = (await import("../app/models/neighborhood.js")).default;
 
 // Mock the model methods
 const mockTaskFindById = jest.fn();
@@ -409,6 +431,68 @@ describe("Task API Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("points_earned", 50);
       expect(response.body).toHaveProperty("submission_status", "APPROVED");
+    });
+
+    it("should update user ambient stats when task is approved", async () => {
+      const mockTask = {
+        _id: "task123",
+        title: "Clean Park",
+        base_points: 50,
+        verification_method: "GPS",
+        repeatable: false,
+        impact_metrics: {
+          co2_saved: 5,
+          waste_recycled: 2,
+          distance: 1,
+        },
+      };
+
+      mockTaskFindById.mockResolvedValue(mockTask);
+      mockActivityFindOne.mockReturnValue({
+        sort: jest.fn().mockResolvedValue(null),
+      });
+
+      const mockUser = {
+        _id: "citizen123",
+        points: 100,
+        neighborhood_id: null,
+        ambient: {
+          co2_saved: 10,
+          waste_recycled: 5,
+          km_green: 2,
+        },
+        save: jest.fn().mockResolvedValue(this),
+      };
+
+      const mockNeighborhood = {
+        _id: "neigh1",
+        total_score: 0,
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      mockUserFindById.mockResolvedValue(mockUser);
+      mockNeighborhoodFindById.mockResolvedValue(mockNeighborhood);
+
+      const savedActivity = {
+        _id: "activity123",
+        user: "citizen123",
+        task: "task123",
+        status: "approved",
+      };
+      jest.spyOn(Activity.prototype, "save").mockResolvedValue(savedActivity);
+
+      const response = await request(app)
+        .post("/api/v1/tasks/task123/submit")
+        .set("x-access-token", citizenToken)
+        .send({
+          evidence: { gps_location: { lat: 0, lng: 0 } },
+        });
+
+      expect(response.status).toBe(200);
+      expect(mockUser.ambient.co2_saved).toBe(15);
+      expect(mockUser.ambient.waste_recycled).toBe(7);
+      expect(mockUser.ambient.km_green).toBe(3);
+      expect(mockUser.save).toHaveBeenCalled();
     });
 
     it("should auto-reject GPS task without valid location", async () => {

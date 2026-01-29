@@ -1,21 +1,42 @@
 import { jest } from "@jest/globals";
-import request from "supertest";
-import mongoose from "mongoose";
-import app from "../app/app.js";
-import Neighborhood from "../app/models/neighborhood.js";
+// Define mocks BEFORE importing the app
+jest.unstable_mockModule("../app/services/email_service.js", () => ({
+  default: {
+    sendActivationEmail: jest.fn().mockResolvedValue(true),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+    sendEmail: jest.fn().mockResolvedValue(true),
+  },
+}));
+
+jest.unstable_mockModule("../app/services/badgeService.js", () => ({
+  default: {
+    onPointsUpdated: jest.fn().mockResolvedValue([]),
+    onTaskCompleted: jest.fn().mockResolvedValue([]),
+    onStreakUpdated: jest.fn().mockResolvedValue([]),
+    onEnvironmentalStatsUpdated: jest.fn().mockResolvedValue([]),
+    _getAllBadges: jest.fn().mockResolvedValue([]),
+    initializeBadges: jest.fn().mockResolvedValue(),
+  },
+}));
+
+// Now import the app and other dependencies
+const request = (await import("supertest")).default;
+const mongoose = (await import("mongoose")).default;
+const app = (await import("../app/app.js")).default;
+const Neighborhood = (await import("../app/models/neighborhood.js")).default;
 
 // Mock the Neighborhood model methods
 const mockFind = jest.fn();
-const mockFindByPk = jest.fn();
+const mockFindById = jest.fn();
 
 Neighborhood.find = mockFind;
-Neighborhood.findByPk = mockFindByPk;
+Neighborhood.findById = mockFindById;
 
 describe("Neighborhood API Endpoints", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFind.mockReset();
-    mockFindByPk.mockReset();
+    mockFindById.mockReset();
   });
 
   afterAll(async () => {
@@ -109,28 +130,28 @@ describe("Neighborhood API Endpoints", () => {
         },
       };
 
-      mockFindByPk.mockResolvedValue(mockNeighborhood);
+      mockFindById.mockResolvedValue(mockNeighborhood);
 
       const response = await request(app).get("/api/v1/neighborhood/123");
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual(mockNeighborhood);
-      expect(mockFindByPk).toHaveBeenCalledWith("123");
-      expect(mockFindByPk).toHaveBeenCalledTimes(1);
+      expect(mockFindById).toHaveBeenCalledWith("123");
+      expect(mockFindById).toHaveBeenCalledTimes(1);
     });
 
     it("should return 404 when neighborhood is not found", async () => {
-      mockFindByPk.mockResolvedValue(null);
+      mockFindById.mockResolvedValue(null);
 
       const response = await request(app).get("/api/v1/neighborhood/999");
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty("error", "Neighborhood Not Found");
-      expect(mockFindByPk).toHaveBeenCalledWith("999");
+      expect(mockFindById).toHaveBeenCalledWith("999");
     });
 
     it("should return 500 when database error occurs", async () => {
-      mockFindByPk.mockRejectedValue(new Error("Database error"));
+      mockFindById.mockRejectedValue(new Error("Database error"));
 
       const response = await request(app).get("/api/v1/neighborhood/123");
 
@@ -139,7 +160,7 @@ describe("Neighborhood API Endpoints", () => {
     });
 
     it("should handle invalid id format", async () => {
-      mockFindByPk.mockRejectedValue(new Error("Invalid ObjectId format"));
+      mockFindById.mockRejectedValue(new Error("Invalid ObjectId format"));
 
       const response = await request(app).get(
         "/api/v1/neighborhood/invalid-id",
@@ -158,7 +179,7 @@ describe("Neighborhood API Endpoints", () => {
     });
 
     it("should match correct route pattern for getting neighborhood by id", async () => {
-      mockFindByPk.mockResolvedValue({ _id: "123", name: "Test" });
+      mockFindById.mockResolvedValue({ _id: "123", name: "Test" });
       const response = await request(app).get("/api/v1/neighborhood/123");
       expect(response.status).not.toBe(404);
     });
@@ -184,7 +205,7 @@ describe("Neighborhood API Endpoints", () => {
         name: "Green Valley",
         city: "Portland",
       };
-      mockFindByPk.mockResolvedValue(mockNeighborhood);
+      mockFindById.mockResolvedValue(mockNeighborhood);
       const response = await request(app).get("/api/v1/neighborhood/123");
       expect(response.headers["content-type"]).toMatch(/json/);
     });

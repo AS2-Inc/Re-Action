@@ -7,6 +7,8 @@ import User from "../models/user.js";
 
 const router = express.Router();
 
+import BadgeService from "../services/badgeService.js";
+
 // Helper Function: Awards points and checks for badge achievements
 async function award_points(user_id, task_id) {
   const user = await User.findById(user_id);
@@ -17,6 +19,13 @@ async function award_points(user_id, task_id) {
   // TODO: prevent awarding points multiple times for the same task
 
   user.points += task.base_points;
+
+  // Update Ambient Stats
+  if (task.impact_metrics) {
+    user.ambient.co2_saved += task.impact_metrics.co2_saved || 0;
+    user.ambient.waste_recycled += task.impact_metrics.waste_recycled || 0;
+    user.ambient.km_green += task.impact_metrics.distance || 0;
+  }
 
   // Level Update Logic
   // TODO: Move this to a centralized service or config if it gets complex

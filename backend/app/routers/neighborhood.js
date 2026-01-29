@@ -25,7 +25,7 @@ router.get("", async (_req, res) => {
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const neighborhood = await Neighborhood.findByPk(id);
+    const neighborhood = await Neighborhood.findById(id);
     if (neighborhood) {
       res.status(200).json(neighborhood);
     } else {

@@ -82,8 +82,7 @@ router.post("/register", async (req, res) => {
     !req.body.name ||
     !req.body.surname ||
     !req.body.email ||
-    !req.body.password ||
-    !req.body.age
+    !req.body.password
   ) {
     return res.status(400).json({ error: "Missing required fields" });
   }
@@ -328,7 +327,7 @@ router.post("/change-password", token_checker, async (req, res) => {
   }
 
   // Verify current password
-  if (user.password !== hash_password(current_password)) {
+  if (!bcrypt.compareSync(current_password, user.password)) {
     return res.status(401).json({ error: "Current password is incorrect" });
   }
 
@@ -344,7 +343,7 @@ router.post("/change-password", token_checker, async (req, res) => {
   }
 
   // Update password
-  user.password = hash_password(new_password);
+  user.password = await hash_password(new_password);
   await user.save();
 
   res.status(200).json({ message: "Password changed successfully" });

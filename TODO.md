@@ -4,7 +4,6 @@
 
 ### RF1: Registrazione nuovo utente
 - Provider esterni (Google, SPID) per autenticazione
-- Invio effettivo email di conferma (solo generazione token)
 ---
 
 ### RF2: Login utente
@@ -45,10 +44,6 @@
 
 ---
 
-## Requisiti Funzionali Comune
-- Invio effettivo email con link attivazione
-
----
 
 ### RF8: Registrazione admin
 - Documentazione chiara del processo in README

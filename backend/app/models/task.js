@@ -31,6 +31,13 @@ export default mongoose.model(
       quiz_id: Schema.Types.ObjectId, // If it's a quiz
     },
 
+    // Impact Metrics for User Ambient Stats (RF4)
+    impact_metrics: {
+      co2_saved: { type: Number, default: 0 }, // kg
+      waste_recycled: { type: Number, default: 0 }, // kg
+      distance: { type: Number, default: 0 }, // km
+    },
+
     // Scheduling
     frequency: { type: String, enum: ["Daily", "Weekly", "OneTime"] },
     is_active: { type: Boolean, default: true },

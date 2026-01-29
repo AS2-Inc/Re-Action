@@ -7,11 +7,10 @@ export default mongoose.model(
     first_name: String,
     last_name: String,
     surname: String,
-    age: Number,
     email: { type: String, required: true, unique: true },
     age: { type: Number, required: true },
     // null if using OAuth
-    password: { type: String, required: true }, // TODO: hash this
+    password: { type: String, required: true },
     auth_provider: {
       type: String,
       enum: ["local", "google", "spid"],
@@ -43,6 +42,16 @@ export default mongoose.model(
       co2_saved: { type: Number, default: 0 }, // in kg
       waste_recycled: { type: Number, default: 0 }, // in kg
       km_green: { type: Number, default: 0 }, // km
+    },
+
+    // Aggregated stats for badge efficiency
+    stats: {
+      total_tasks_completed: { type: Number, default: 0 },
+      tasks_by_category: {
+        type: Map,
+        of: Number,
+        default: {},
+      },
     },
 
     notification_preferences: {

@@ -4,8 +4,9 @@ import jwt from "jsonwebtoken";
 import token_checker from "../middleware/token_checker.js";
 import User from "../models/user.js";
 import Activity from "../models/activity.js";
-import badgeService from "../services/badge_service.js";
+import Badge from "../models/badge.js";
 import bcrypt from "bcrypt";
+import EmailService from "../services/email_service.js";
 const router = express.Router();
 
 async function hash_password(plain_text_password) {
@@ -17,7 +18,7 @@ async function hash_password(plain_text_password) {
 function isPasswordWeak(password) {
   // Example criteria: at least 6 characters
   if (!password) return true;
-  if(password.length < 6) {
+  if (password.length < 6) {
     return true;
   }
   // at least 1 lowercase letter 1 uppercase letter, 1 digit, 1 special character
@@ -25,16 +26,20 @@ function isPasswordWeak(password) {
   const uppercase_regex = /[A-Z]/;
   const digit_regex = /[0-9]/;
   const specialchar_regex = /[!@#$%^&*(),.?":{}|<>]/;
-  if(!lowercase_regex.test(password)) return true;
-  if(!uppercase_regex.test(password)) return true;
-  if(!digit_regex.test(password)) return true;
-  if(!specialchar_regex.test(password)) return true;
+  if (!lowercase_regex.test(password)) return true;
+  if (!uppercase_regex.test(password)) return true;
+  if (!digit_regex.test(password)) return true;
+  if (!specialchar_regex.test(password)) return true;
   return false;
 }
 
 // TODO: implement the auth with Google OAuth2
 // POST /api/v1/users/login
 router.post("/login", async (req, res) => {
+  if (!req.body || !req.body.email || !req.body.password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
   // Find user by email
   const user = await User.findOne({ email: req.body.email }).exec();
 
@@ -43,7 +48,7 @@ router.post("/login", async (req, res) => {
   }
 
   // Check password (Plain text for lab, use bcrypt for production)
-  if (user.password !== req.body.password) {
+  if (!bcrypt.compareSync(req.body.password, user.password)) {
     return res.status(401).json({ error: "Wrong password" });
   }
 
@@ -77,7 +82,7 @@ router.post("/register", async (req, res) => {
     !req.body.name ||
     !req.body.surname ||
     !req.body.email ||
-    !req.body.password || 
+    !req.body.password ||
     !req.body.age
   ) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -91,7 +96,7 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
-  if(isPasswordWeak(req.body.password)) {
+  if (isPasswordWeak(req.body.password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
   // TODO: neighborhood existence check?
@@ -100,9 +105,8 @@ router.post("/register", async (req, res) => {
 
   // Set expiration to 12 hours from now (per requirement RF1)
   const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
-  // create the user with the neighborhood only if provided
-  const hashed_password = await hash_password(req.body.password);
 
+  const hashed_password = await hash_password(req.body.password);
 
   let user = new User({
     first_name: req.body.name,
@@ -118,8 +122,8 @@ router.post("/register", async (req, res) => {
   try {
     user = await user.save();
 
-    // TODO: Implement actual email sending later
-    // const activationLink = `http://localhost:8080/api/v1/users/activate?token=${activationToken}`;
+    // Send Activation Email
+    await EmailService.sendActivationEmail(user.email, user.activation_token);
 
     res.status(201).json();
   } catch (err) {
@@ -272,7 +276,7 @@ router.post("/set-password", async (req, res) => {
     return res.status(400).json({ error: "Token and password are required" });
   }
 
-  if(isPasswordWeak(password)) {
+  if (isPasswordWeak(password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
 
@@ -329,7 +333,7 @@ router.post("/change-password", token_checker, async (req, res) => {
     return res.status(401).json({ error: "Current password is incorrect" });
   }
 
-  if(isPasswordWeak(new_password)) {
+  if (isPasswordWeak(new_password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
 
@@ -375,9 +379,8 @@ router.post("/forgot-password", async (req, res) => {
   user.reset_password_expires = reset_expires;
   await user.save();
 
-  // TODO: Implement actual email sending
-  // const resetLink = `http://localhost:5173/reset-password?token=${reset_token}`;
-  // await sendEmail(user.email, 'Password Reset', `Click here to reset your password: ${resetLink}`);
+  // Send Reset Email
+  await EmailService.sendPasswordResetEmail(user.email, reset_token);
 
   // For now, return the token in the response (only for development)
   res.status(200).json({
@@ -401,7 +404,7 @@ router.post("/reset-password", async (req, res) => {
   }
 
   // TODO: Add password strength validation
-  if(isPasswordWeak(new_password)) {  
+  if (isPasswordWeak(new_password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
 
@@ -438,9 +441,19 @@ router.get("/me/badges", token_checker, async (req, res) => {
   }
 
   try {
-    const badges = await badgeService.getAllBadgesWithStatus(
-      req.logged_user.id,
-    );
+    const user = await User.findById(req.logged_user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const allBadges = await Badge.find({}).sort({ display_order: 1 });
+    const userBadgeIds = user.badges_id.map((id) => id.toString());
+
+    const badges = allBadges.map((badge) => ({
+      ...badge.toObject(),
+      earned: userBadgeIds.includes(badge._id.toString()),
+    }));
+
     res.status(200).json(badges);
   } catch (error) {
     console.error("Error fetching badges:", error);
@@ -471,27 +484,23 @@ router.get("/me/badges/earned", token_checker, async (req, res) => {
 });
 
 /**
- * POST /api/v1/users/me/badges/check
- * Manually trigger badge check for the logged-in user
- * (Useful for testing or manual refresh)
+ Delete the account
  */
-router.post("/me/badges/check", token_checker, async (req, res) => {
+router.delete("/me", token_checker, async (req, res) => {
   if (!req.logged_user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
   try {
-    // TODO: refactor
-    const newBadges = await badgeService.checkAndAwardBadges(
-      req.logged_user.id,
-    );
-    res.status(200).json({
-      message: "Badge check completed",
-      new_badges: newBadges,
-    });
+    const user = await User.findByIdAndDelete(req.logged_user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
-    console.error("Error checking badges:", error);
-    res.status(500).json({ error: "Failed to check badges" });
+    console.error("Error deleting user:", error);
+    res.status(500).json({ error: "Failed to delete user" });
   }
 });
 

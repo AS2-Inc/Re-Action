@@ -1,4 +1,5 @@
 const error_handler = (err, _req, res, _next) => {
+  if (!res.status_code) res.status_code = 500;
   res.status(res.status_code);
   res.json({
     error: err.message,

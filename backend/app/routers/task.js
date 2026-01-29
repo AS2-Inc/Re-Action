@@ -4,7 +4,6 @@ import Neighborhood from "../models/neighborhood.js";
 import Task from "../models/task.js";
 import Activity from "../models/activity.js";
 import User from "../models/user.js";
-import badgeService from "../services/badge_service.js";
 
 const router = express.Router();
 
@@ -18,6 +17,15 @@ async function award_points(user_id, task_id) {
   // TODO: prevent awarding points multiple times for the same task
 
   user.points += task.base_points;
+
+  // Level Update Logic
+  // TODO: Move this to a centralized service or config if it gets complex
+  if (user.points >= 5000) user.level = "King della Sostenibilità";
+  else if (user.points >= 1000) user.level = "Eroe Locale";
+  else if (user.points >= 500) user.level = "Cittadino Attivo";
+  else if (user.points >= 100) user.level = "Nuovo Arrivato";
+  else user.level = "Cittadino Base";
+
   await user.save();
 
   if (user.neighborhood_id) {
@@ -28,8 +36,11 @@ async function award_points(user_id, task_id) {
     }
   }
 
-  // Check and award badges after updating user stats
-  const newBadges = badgeService.checkAndAwardBadges(user_id);
+  // Event Driven Badge Checks
+  const pointsBadges = await BadgeService.onPointsUpdated(user);
+  const taskBadges = await BadgeService.onTaskCompleted(user, task);
+
+  const newBadges = [...pointsBadges, ...taskBadges];
 
   return { success: true, newBadges };
 }

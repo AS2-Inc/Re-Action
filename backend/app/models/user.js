@@ -1,11 +1,9 @@
 import mongoose, { Schema } from "mongoose";
 
-// Users include Citizens, Operators, and Admins
 export default mongoose.model(
   "User",
   new Schema({
-    first_name: String,
-    last_name: String,
+    name: String,
     surname: String,
     email: { type: String, required: true, unique: true },
     age: { type: Number },
@@ -16,12 +14,7 @@ export default mongoose.model(
       enum: ["local", "google", "spid"],
       default: "local",
     },
-    role: {
-      type: String,
-      enum: ["citizen", "operator", "admin"],
-      default: "citizen",
-      required: true,
-    },
+
     neighborhood_id: { type: Schema.Types.ObjectId, ref: "Neighborhood" },
 
     // Gamification State (RF4)

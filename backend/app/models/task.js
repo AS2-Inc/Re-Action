@@ -4,6 +4,9 @@ import mongoose, { Schema } from "mongoose";
 export default mongoose.model(
   "Task",
   new Schema({
+    // Optional Neighborhood Specificity
+    neighborhood_id: { type: Schema.Types.ObjectId, ref: "Neighborhood" },
+
     title: { type: String, required: true },
     description: { type: String },
 
@@ -39,14 +42,17 @@ export default mongoose.model(
     },
 
     // Scheduling
-    frequency: { type: String, enum: ["Daily", "Weekly", "OneTime"] },
+    frequency: {
+      type: String,
+      enum: ["daily", "weekly", "monthly", "on_demand"],
+      default: "on_demand",
+    },
     is_active: { type: Boolean, default: true },
 
     repeatable: { type: Boolean, default: false },
+    cooldown_hours: { type: Number, default: 24 }, // Only if repeatable
 
-    // Task Expiration & Rotation (RF6)
+    // Admin Metadata
     created_at: { type: Date, default: Date.now },
-    expires_at: { type: Date }, // When this task instance expires
-    expired: { type: Boolean, default: false }, // Mark as expired when rotation happens
   }),
 );

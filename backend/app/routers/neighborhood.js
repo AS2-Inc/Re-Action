@@ -36,4 +36,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// TODO: add ranking by points, km green, waste recycled, co2 saved, etc.
+
 export default router;

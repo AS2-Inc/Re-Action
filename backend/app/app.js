@@ -10,6 +10,7 @@ import neighborhood from "./routers/neighborhood.js";
 import tasks from "./routers/task.js";
 import users from "./routers/users.js";
 import rewards from "./routers/rewards.js";
+import operators from "./routers/operators.js";
 
 const app = express();
 
@@ -45,10 +46,11 @@ app.use("/api/v1/users", users);
 app.use("/api/v1/neighborhood", neighborhood);
 app.use("/api/v1/tasks", tasks);
 app.use("/api/v1/rewards", rewards);
+app.use("/api/v1/operators", operators);
 
 // 404 Handler
 app.use((_req, res) => {
-  res.status(404).json({ error: "Not Found" });
+  res.status(404).json({ error: "Endpoint Not Found" });
 });
 
 app.use(error_handler);

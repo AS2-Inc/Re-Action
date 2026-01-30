@@ -1,201 +1,296 @@
-import { BADGE_CATEGORIES, DEFAULT_BADGES } from "../config/badges.config.js";
 import Badge from "../models/badge.js";
+import User from "../models/user.js";
+import Activity from "../models/submission.js";
+import { DEFAULT_BADGES, LEVEL_THRESHOLDS } from "../config/badges.config.js";
 
-// Service to handle badge logic
-// Source of Truth: The Database.
-// Config is used ONLY for initial seeding.
-
+/**
+ * Badge Service - Manages automatic badge awarding based on user achievements
+ *
+ * This service handles:
+ * - Initializing default badges in the database
+ * - Checking user eligibility for badges
+ * - Awarding new badges to users
+ * - Updating user levels based on points
+ * - Retrieving badge information with earned status
+ */
 class BadgeService {
-  constructor() {
-    this.badges_cache = null;
-    this.init_promise = this.initialize_badges();
-  }
-
   /**
-   * Initializes the badges in the database from the config if they don't exist.
-   * Also populates the in-memory cache.
+   * Initialize default badges in the database
+   * Should be called once during application setup
+   * Uses upsert to update existing badges or create new ones
+   *
+   * @returns {Promise<void>}
+   * @throws {Error} If database operation fails
    */
-  async initialize_badges() {
+  async initializeDefaultBadges() {
     try {
-      const count = await Badge.countDocuments();
-      if (count === 0) {
-        console.log("🌱 Seeding badges from config...");
-        await Badge.insertMany(DEFAULT_BADGES);
-        console.log("✅ Badges seeded.");
+      for (const badgeData of DEFAULT_BADGES) {
+        await Badge.findOneAndUpdate({ name: badgeData.name }, badgeData, {
+          upsert: true,
+          new: true,
+        });
       }
-      // Load all badges into cache for runtime efficiency
-      this.badges_cache = await Badge.find({});
+      console.log("✅ Default badges initialized successfully");
     } catch (error) {
       console.error("❌ Error initializing badges:", error);
-      this.badges_cache = []; // Fallback to empty to prevent crashes
+      throw error;
     }
   }
 
   /**
-   * Helper: Ensure initialization is complete and return all badges
+   * Build user context for badge checking
+   * Aggregates all relevant user statistics and activities
+   *
+   * @param {Object} user - User document
+   * @param {Array} completedActivities - Array of approved activities
+   * @returns {Object} Context object with user stats
+   * @private
    */
-  async _get_all_badges() {
-    if (!this.badges_cache || this.badges_cache.length === 0) {
-      await this.initialize_badges();
-    }
-    return this.badges_cache;
+  _buildUserContext(user, completedActivities) {
+    const tasksByCategory = {
+      Mobility: 0,
+      Waste: 0,
+      Community: 0,
+      Volunteering: 0,
+    };
+
+    completedActivities.forEach((activity) => {
+      if (activity.task_id?.category) {
+        tasksByCategory[activity.task_id.category] =
+          (tasksByCategory[activity.task_id.category] || 0) + 1;
+      }
+    });
+
+    return {
+      user,
+      tasksByCategory,
+      totalTasksCompleted: completedActivities.length,
+    };
   }
 
   /**
-   * Helper: Add badge to user if they don't have it
+   * Get user's existing badge IDs as strings
+   *
+   * @param {Array} badges_id - Array of badge references (ObjectIds or objects)
+   * @returns {Array<string>} Array of badge ID strings
+   * @private
    */
-  async _award_badge(user, badge) {
-    // Check if user already has this specific badge
-    const has_badge = user.badges_id.some(
-      (b) => b.toString() === badge._id.toString(),
+  _getUserBadgeIds(badges_id) {
+    return badges_id.map((badge) =>
+      typeof badge === "object" ? badge._id.toString() : badge.toString(),
     );
-
-    if (!has_badge) {
-      user.badges_id.push(badge._id);
-      console.log(`🎖️ Badge "${badge.name}" awarded to user ${user.email}`);
-      return badge;
-    }
-    return null;
   }
 
   /**
-   * EVENT: Points Updated
+   * Update user's level based on points
+   * Uses thresholds defined in badges configuration
+   *
+   * @param {Object} user - User document to update
+   * @private
    */
-  async on_points_updated(user) {
-    const all_badges = await this._get_all_badges();
-    const point_badges = all_badges.filter(
-      (b) => b.category === BADGE_CATEGORIES.POINTS,
-    );
-    const new_badges = [];
+  _updateUserLevel(user) {
+    for (const { points, level } of LEVEL_THRESHOLDS) {
+      if (user.points >= points) {
+        user.level = level;
+        break;
+      }
+    }
+  }
 
-    for (const badge of point_badges) {
-      if (badge.requirements?.min_points !== undefined) {
-        if (user.points >= badge.requirements.min_points) {
-          const awarded = await this._award_badge(user, badge);
-          if (awarded) new_badges.push(awarded);
+  /**
+   * Check if a user meets the requirements for a badge
+   *
+   * @param {Object} badge - Badge document
+   * @param {Object} context - User context object
+   * @returns {boolean} True if requirements are met
+   * @private
+   */
+  _checkBadgeRequirements(badge, context) {
+    const { user, tasksByCategory, totalTasksCompleted } = context;
+    const reqs = badge.requirements;
+
+    if (!reqs) return false;
+
+    // Check points requirements
+    if (reqs.min_points && user.points < reqs.min_points) {
+      return false;
+    }
+
+    // Check task completion count
+    if (
+      reqs.min_tasks_completed &&
+      totalTasksCompleted < reqs.min_tasks_completed
+    ) {
+      return false;
+    }
+
+    // Check task category requirements
+    if (reqs.tasks_by_category) {
+      for (const [category, count] of Object.entries(reqs.tasks_by_category)) {
+        if ((tasksByCategory[category] || 0) < count) {
+          return false;
         }
       }
     }
-    return new_badges;
+
+    // Check streak requirements
+    if (reqs.min_streak && (user.streak || 0) < reqs.min_streak) {
+      return false;
+    }
+
+    // Check environmental impact requirements
+    if (
+      reqs.min_co2_saved &&
+      (user.ambient?.co2_saved || 0) < reqs.min_co2_saved
+    ) {
+      return false;
+    }
+
+    if (
+      reqs.min_waste_recycled &&
+      (user.ambient?.waste_recycled || 0) < reqs.min_waste_recycled
+    ) {
+      return false;
+    }
+
+    if (
+      reqs.min_km_green &&
+      (user.ambient?.km_green || 0) < reqs.min_km_green
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
-   * EVENT: Task Completed
+   * Check and award badges to a user based on their current statistics
+   *
+   * This method:
+   * 1. Fetches user data and completed activities
+   * 2. Builds context with user statistics
+   * 3. Checks each badge against requirements using strategy pattern
+   * 4. Awards new badges and updates user level
+   *
+   * @param {string} userId - The user's MongoDB ID
+   * @returns {Promise<Array>} Array of newly awarded badges
+   * @throws {Error} If user not found or database error occurs
    */
-  async on_task_completed(user, task) {
-    // 1. Update User Stats
-    if (!user.stats) {
-      user.stats = { total_tasks_completed: 0, tasks_by_category: new Map() };
-    }
+  async checkAndAwardBadges(userId) {
+    try {
+      const user = await User.findById(userId).populate("badges_id");
+      if (!user) {
+        throw new Error("User not found");
+      }
 
-    // Increment total
-    user.stats.total_tasks_completed =
-      (user.stats.total_tasks_completed || 0) + 1;
+      // Fetch all badges and user's completed activities
+      const [allBadges, completedActivities] = await Promise.all([
+        Badge.find({}),
+        Activity.find({
+          user_id: userId,
+          status: "APPROVED",
+        }).populate("task_id"),
+      ]);
 
-    // Increment Category
-    const category = task.category;
-    const current_cat_count = user.stats.tasks_by_category.get(category) || 0;
-    user.stats.tasks_by_category.set(category, current_cat_count + 1);
+      // Build context for badge checking
+      const userContext = this._buildUserContext(user, completedActivities);
+      const userBadgeIds = this._getUserBadgeIds(user.badges_id);
 
-    // 2. Check Badges from DB
-    const all_badges = await this._get_all_badges();
-    const task_badges = all_badges.filter(
-      (b) => b.category === BADGE_CATEGORIES.TASKS,
-    );
-    const new_badges = [];
+      // Check each badge and award if qualified
+      const newlyAwardedBadges = [];
 
-    for (const badge of task_badges) {
-      const req = badge.requirements;
-      let eligible = true;
+      for (const badge of allBadges) {
+        // Skip if user already has this badge
+        if (userBadgeIds.includes(badge._id.toString())) {
+          continue;
+        }
 
-      // Check Total Tasks
-      if (req.min_tasks_completed !== undefined) {
-        if (user.stats.total_tasks_completed < req.min_tasks_completed) {
-          eligible = false;
+        // Check if user qualifies for this badge
+        if (this._checkBadgeRequirements(badge, userContext)) {
+          user.badges_id.push(badge._id);
+          newlyAwardedBadges.push(badge);
+          console.log(`🎖️ Badge "${badge.name}" awarded to user ${user.email}`);
         }
       }
 
-      // Check Category Tasks
-      if (req.tasks_by_category) {
-        for (const [cat, count] of Object.entries(req.tasks_by_category)) {
-          const user_count = user.stats.tasks_by_category.get(cat) || 0;
-          if (user_count < count) {
-            eligible = false;
-            break;
-          }
-        }
+      // Update user level based on points
+      this._updateUserLevel(user);
+
+      // Save user if new badges were awarded
+      if (newlyAwardedBadges.length > 0) {
+        await user.save();
       }
 
-      if (eligible) {
-        const awarded = await this._award_badge(user, badge);
-        if (awarded) new_badges.push(awarded);
-      }
+      return newlyAwardedBadges;
+    } catch (error) {
+      console.error("Error checking badges:", error);
+      throw error;
     }
-
-    await user.save();
-    return new_badges;
   }
 
   /**
-   * EVENT: Streak Updated
+   * Get all badges with user's earned status
+   *
+   * Retrieves all available badges from the database and marks
+   * which ones the user has already earned
+   *
+   * @param {string} userId - The user's MongoDB ID
+   * @returns {Promise<Array>} Array of all badges with earned flag
+   * @throws {Error} If user not found or database error occurs
    */
-  async on_streak_updated(user) {
-    const all_badges = await this._get_all_badges();
-    const streak_badges = all_badges.filter(
-      (b) => b.category === BADGE_CATEGORIES.STREAK,
-    );
-    const new_badges = [];
-
-    for (const badge of streak_badges) {
-      if (badge.requirements?.min_streak !== undefined) {
-        if (user.streak >= badge.requirements.min_streak) {
-          const awarded = await this._award_badge(user, badge);
-          if (awarded) new_badges.push(awarded);
-        }
+  async getAllBadgesWithStatus(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error("User not found");
       }
+
+      const allBadges = await Badge.find({}).sort({ display_order: 1 });
+      const userBadgeIds = user.badges_id.map((id) => id.toString());
+
+      return allBadges.map((badge) => ({
+        ...badge.toObject(),
+        earned: userBadgeIds.includes(badge._id.toString()),
+      }));
+    } catch (error) {
+      console.error("Error getting badges:", error);
+      throw error;
     }
-    return new_badges;
   }
 
   /**
-   * EVENT: Environmental Stats Updated
+   * Get user's earned badges
+   *
+   * @param {string} userId - The user's MongoDB ID
+   * @returns {Promise<Array>} Array of earned badge documents
+   * @throws {Error} If user not found
    */
-  async on_environmental_stats_updated(user) {
-    const all_badges = await this._get_all_badges();
-    const env_badges = all_badges.filter(
-      (b) => b.category === BADGE_CATEGORIES.ENVIRONMENTAL,
-    );
-    const new_badges = [];
-
-    for (const badge of env_badges) {
-      const req = badge.requirements;
-      let eligible = true;
-
-      if (
-        req.min_co2_saved !== undefined &&
-        user.ambient.co2_saved < req.min_co2_saved
-      ) {
-        eligible = false;
-      }
-      if (
-        req.min_waste_recycled !== undefined &&
-        user.ambient.waste_recycled < req.min_waste_recycled
-      ) {
-        eligible = false;
-      }
-      if (
-        req.min_km_green !== undefined &&
-        user.ambient.km_green < req.min_km_green
-      ) {
-        eligible = false;
+  async getUserBadges(userId) {
+    try {
+      const user = await User.findById(userId).populate("badges_id");
+      if (!user) {
+        throw new Error("User not found");
       }
 
-      if (eligible) {
-        const awarded = await this._award_badge(user, badge);
-        if (awarded) new_badges.push(awarded);
-      }
+      return user.badges_id;
+    } catch (error) {
+      console.error("Error getting user badges:", error);
+      throw error;
     }
-    return new_badges;
+  }
+  /**
+   * Check if user leveled up after earning badges
+   *
+   * @param {Object} user - User document
+   * @returns {boolean} True if user leveled up
+   */
+  check_level_up(user) {
+    const currentLevel = user.level;
+    const nextLevel = currentLevel + 1;
+    const nextLevelThreshold =
+      LEVEL_THRESHOLDS.find((t) => t.level === nextLevel)?.points || Infinity;
+
+    return user.points >= nextLevelThreshold;
   }
 }
 

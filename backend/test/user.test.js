@@ -3,20 +3,20 @@ import { jest } from "@jest/globals";
 // Define mocks BEFORE importing the app
 jest.unstable_mockModule("../app/services/email_service.js", () => ({
   default: {
-    sendActivationEmail: jest.fn().mockResolvedValue(true),
-    sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+    send_activation_email: jest.fn().mockResolvedValue(true),
+    send_password_reset_email: jest.fn().mockResolvedValue(true),
     sendEmail: jest.fn().mockResolvedValue(true),
   },
 }));
 
-jest.unstable_mockModule("../app/services/badgeService.js", () => ({
+jest.unstable_mockModule("../app/services/badge_service.js", () => ({
   default: {
-    onPointsUpdated: jest.fn().mockResolvedValue([]),
-    onTaskCompleted: jest.fn().mockResolvedValue([]),
-    onStreakUpdated: jest.fn().mockResolvedValue([]),
-    onEnvironmentalStatsUpdated: jest.fn().mockResolvedValue([]),
-    _getAllBadges: jest.fn().mockResolvedValue([]),
-    initializeBadges: jest.fn().mockResolvedValue(),
+    on_points_updated: jest.fn().mockResolvedValue([]),
+    on_task_completed: jest.fn().mockResolvedValue([]),
+    on_streak_updated: jest.fn().mockResolvedValue([]),
+    on_environmental_stats_updated: jest.fn().mockResolvedValue([]),
+    _get_all_badges: jest.fn().mockResolvedValue([]),
+    initialize_badges: jest.fn().mockResolvedValue(),
   },
 }));
 

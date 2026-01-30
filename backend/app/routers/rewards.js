@@ -79,12 +79,12 @@ router.post("/:id/redeem", token_checker, async (req, res) => {
 
     const unique_code = crypto.randomBytes(8).toString("hex").toUpperCase();
 
-    const userReward = new UserReward({
+    const user_reward = new UserReward({
       user_id: user._id,
       reward_id: reward._id,
       unique_code: unique_code,
     });
-    await userReward.save();
+    await user_reward.save();
 
     res.status(200).json({
       message: "Reward redeemed successfully",
@@ -108,11 +108,11 @@ router.get("/my-rewards", token_checker, async (req, res) => {
   }
 
   try {
-    const myRewards = await UserReward.find({ user_id: req.logged_user.id })
+    const my_rewards = await UserReward.find({ user_id: req.logged_user.id })
       .populate("reward_id")
       .sort({ redeemed_at: -1 });
 
-    res.status(200).json(myRewards);
+    res.status(200).json(my_rewards);
   } catch (error) {
     console.error("Error fetching my rewards:", error);
     res.status(500).json({ error: "Failed to fetch my rewards" });

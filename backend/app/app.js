@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import yaml from "js-yaml";
-import swaggerUi from "swagger-ui-express";
+import swagger_ui from "swagger-ui-express";
 import error_handler from "./middleware/error_handler.js";
 import neighborhood from "./routers/neighborhood.js";
 import tasks from "./routers/task.js";
@@ -38,7 +38,7 @@ console.log(
 );
 
 // Serve API Documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swagger_document));
+app.use("/api-docs", swagger_ui.serve, swagger_ui.setup(swagger_document));
 
 // --- Route Mounting ---
 app.use("/api/v1/users", users);

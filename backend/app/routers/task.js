@@ -7,14 +7,14 @@ import User from "../models/user.js";
 
 const router = express.Router();
 
-import BadgeService from "../services/badgeService.js";
+import BadgeService from "../services/badge_service.js";
 
 // Helper Function: Awards points and checks for badge achievements
 async function award_points(user_id, task_id) {
   const user = await User.findById(user_id);
   const task = await Task.findById(task_id);
 
-  if (!user || !task) return { success: false, newBadges: [] };
+  if (!user || !task) return { success: false, new_badges: [] };
 
   // TODO: prevent awarding points multiple times for the same task
 
@@ -46,12 +46,12 @@ async function award_points(user_id, task_id) {
   }
 
   // Event Driven Badge Checks
-  const pointsBadges = await BadgeService.onPointsUpdated(user);
-  const taskBadges = await BadgeService.onTaskCompleted(user, task);
+  const points_badges = await BadgeService.on_points_updated(user);
+  const task_badges = await BadgeService.on_task_completed(user, task);
 
-  const newBadges = [...pointsBadges, ...taskBadges];
+  const new_badges = [...points_badges, ...task_badges];
 
-  return { success: true, newBadges };
+  return { success: true, new_badges };
 }
 
 // GET /api/v1/tasks (Get Tasks for Logged-in User)
@@ -166,12 +166,12 @@ router.post("/:id/submit", token_checker, async (req, res) => {
       submission.status = "APPROVED";
       submission.completed_at = new Date();
       await submission.save();
-      const { newBadges } = await award_points(req.logged_user.id, task._id);
+      const { new_badges } = await award_points(req.logged_user.id, task._id);
 
       return res.status(200).json({
         points_earned: task.base_points,
         submission_status: "APPROVED",
-        new_badges: newBadges,
+        new_badges: new_badges,
       });
     } else {
       submission.status = "REJECTED";
@@ -230,13 +230,13 @@ router.post("/submissions/:id/verify", token_checker, async (req, res) => {
     await submission.save();
 
     // Award the points now that the operator confirmed
-    const { newBadges } = await award_points(
+    const { new_badges } = await award_points(
       submission.user_id,
       submission.task_id,
     );
 
     return res.status(200).json({
-      new_badges: newBadges,
+      new_badges: new_badges,
     });
   } else if (verdict === "rejected") {
     submission.status = "REJECTED";

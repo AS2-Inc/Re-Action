@@ -15,7 +15,7 @@ async function hash_password(plain_text_password) {
   return hashed_password;
 }
 
-function isPasswordWeak(password) {
+function is_password_weak(password) {
   // Example criteria: at least 6 characters
   if (!password) return true;
   if (password.length < 6) {
@@ -95,7 +95,7 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
-  if (isPasswordWeak(req.body.password)) {
+  if (is_password_weak(req.body.password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
   // TODO: neighborhood existence check?
@@ -122,7 +122,7 @@ router.post("/register", async (req, res) => {
     user = await user.save();
 
     // Send Activation Email
-    await EmailService.sendActivationEmail(user.email, user.activation_token);
+    await EmailService.send_activation_email(user.email, user.activation_token);
 
     res.status(201).json();
   } catch (err) {
@@ -168,7 +168,7 @@ router.post("/operator", token_checker, async (req, res) => {
 
   try {
     user = await user.save();
-    await EmailService.sendActivationEmail(user.email, user.activation_token);
+    await EmailService.send_activation_email(user.email, user.activation_token);
     res.status(201).json();
   } catch (err) {
     console.error(err);
@@ -274,7 +274,7 @@ router.post("/set-password", async (req, res) => {
     return res.status(400).json({ error: "Token and password are required" });
   }
 
-  if (isPasswordWeak(password)) {
+  if (is_password_weak(password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
 
@@ -331,7 +331,7 @@ router.post("/change-password", token_checker, async (req, res) => {
     return res.status(401).json({ error: "Current password is incorrect" });
   }
 
-  if (isPasswordWeak(new_password)) {
+  if (is_password_weak(new_password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
 
@@ -378,7 +378,7 @@ router.post("/forgot-password", async (req, res) => {
   await user.save();
 
   // Send Reset Email
-  await EmailService.sendPasswordResetEmail(user.email, reset_token);
+  await EmailService.send_password_reset_email(user.email, reset_token);
 
   // For now, return the token in the response (only for development)
   res.status(200).json({
@@ -401,7 +401,7 @@ router.post("/reset-password", async (req, res) => {
       .json({ error: "Reset token and new password are required" });
   }
 
-  if (isPasswordWeak(new_password)) {
+  if (is_password_weak(new_password)) {
     return res.status(400).json({ error: "Password is too weak" });
   }
 
@@ -443,12 +443,12 @@ router.get("/me/badges", token_checker, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const allBadges = await Badge.find({}).sort({ display_order: 1 });
-    const userBadgeIds = user.badges_id.map((id) => id.toString());
+    const all_badges = await Badge.find({}).sort({ display_order: 1 });
+    const user_badge_ids = user.badges_id.map((id) => id.toString());
 
-    const badges = allBadges.map((badge) => ({
+    const badges = all_badges.map((badge) => ({
       ...badge.toObject(),
-      earned: userBadgeIds.includes(badge._id.toString()),
+      earned: user_badge_ids.includes(badge._id.toString()),
     }));
 
     res.status(200).json(badges);

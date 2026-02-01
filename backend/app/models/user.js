@@ -8,7 +8,7 @@ export default mongoose.model(
     email: { type: String, required: true, unique: true },
     age: { type: Number },
     // null if using OAuth
-    password: { type: String, required: true },
+    password: { type: String, required: false },
     auth_provider: {
       type: String,
       enum: ["local", "google", "spid"],

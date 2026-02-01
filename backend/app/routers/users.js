@@ -10,7 +10,10 @@ import {
   is_password_weak,
   is_password_valid,
 } from "../utils/security.js";
+import { OAuth2Client } from "google-auth-library";
+
 const router = express.Router();
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // TODO: implement the auth with Google OAuth2
 // POST /api/v1/users/login
@@ -47,6 +50,62 @@ router.post("/login", async (req, res) => {
     id: user._id,
     self: `/api/v1/users/${user._id}`,
   });
+});
+
+/**
+ * POST /api/v1/users/auth/google
+ * Google OAuth2 Authentication
+ * Verifies the Google ID token and logs in or registers the user.
+ */
+router.post("/auth/google", async (req, res) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    return res.status(400).json({ error: "Missing Google token" });
+  }
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { email, given_name, family_name } = payload;
+
+    // Check if user already exists
+    let user = await User.findOne({ email: email }).exec();
+
+    if (!user) {
+      user = new User({
+        name: given_name,
+        surname: family_name,
+        email: email,
+        auth_provider: "google",
+        is_active: true,
+      });
+      await user.save();
+    }
+
+    // Create Token Payload (Same as login)
+    const jwtPayload = {
+      email: user.email,
+      id: user._id,
+      role: "citizen",
+    };
+
+    const options = { expiresIn: 86400 };
+    const token = jwt.sign(jwtPayload, process.env.SUPER_SECRET, options);
+
+    res.json({
+      token: token,
+      email: user.email,
+      id: user._id,
+      self: `/api/v1/users/${user._id}`,
+    });
+  } catch (error) {
+    console.error("Google Auth Error:", error);
+    res.status(401).json({ error: "Invalid Google token" });
+  }
 });
 
 // POST /api/v1/users/register (Registration for a user- RF1)

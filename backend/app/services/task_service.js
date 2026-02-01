@@ -40,7 +40,42 @@ export const award_points = async (user_id, task_id) => {
 
   if (!user || !task) return { success: false, new_badges: [] };
 
-  user.points += task.base_points;
+  // Streak Logic
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const last_activity = user.last_activity_date
+    ? new Date(user.last_activity_date)
+    : null;
+  if (last_activity) last_activity.setHours(0, 0, 0, 0);
+
+  let multiplier = 1.0;
+
+  if (!last_activity) {
+    // First ever activity
+    user.streak = 1;
+  } else {
+    const diff_time = Math.abs(today - last_activity);
+    const diff_days = Math.ceil(diff_time / (1000 * 60 * 60 * 24));
+
+    if (diff_days === 1) {
+      // Consecutive day
+      user.streak += 1;
+    } else if (diff_days > 1) {
+      // Missed a day (or more)
+      user.streak = 1;
+    }
+    // If diff_days === 0, do nothing (same day)
+  }
+  user.last_activity_date = new Date();
+
+  // Multiplier Logic
+  if (user.streak > 30) multiplier = 1.5;
+  else if (user.streak > 7) multiplier = 1.25;
+  else if (user.streak > 3) multiplier = 1.1;
+
+  const points_to_award = Math.round(task.base_points * multiplier);
+  user.points += points_to_award;
 
   if (task.impact_metrics) {
     user.ambient.co2_saved += task.impact_metrics.co2_saved || 0;
@@ -56,14 +91,14 @@ export const award_points = async (user_id, task_id) => {
   if (user.neighborhood_id) {
     const neighborhood = await Neighborhood.findById(user.neighborhood_id);
     if (neighborhood) {
-      neighborhood.total_score += task.base_points;
+      neighborhood.total_score += points_to_award;
       await neighborhood.save();
     }
   }
 
   const new_badges = await BadgeService.checkAndAwardBadges(user.id);
 
-  return { success: true, new_badges };
+  return { success: true, new_badges, points_awarded: points_to_award };
 };
 
 /**
@@ -259,9 +294,9 @@ export const submit_task = async (user_id, task_id, proof) => {
   const response = { submission_status: status };
 
   if (status === "APPROVED") {
-    const { new_badges } = await award_points(user_id, task_id);
+    const { new_badges, points_awarded } = await award_points(user_id, task_id);
     response.new_badges = new_badges;
-    response.points_earned = task.base_points;
+    response.points_earned = points_awarded;
 
     // Mark UserTask completed
     if (user_task) {

@@ -2,14 +2,6 @@
 
 ## Requisiti Funzionali Utente
 
-### RF1: Registrazione nuovo utente
-- Provider esterni (Google, SPID) per autenticazione
----
-
-### RF2: Login utente
-- Provider esterni (Google, SPID)
----
-
 ### RF3: Visualizzazione dashboard utente
 - Grafici interattivi (implementazione frontend)
 - Storico completo azioni (endpoint API)
@@ -18,8 +10,6 @@
 ---
 
 ### RF4: Sistema di rewarding dell'utente
-- **Logica calcolo streak**: aggiornamento automatico streak giorni consecutivi
-- **Moltiplicatore punti basato su streak**: punti extra per streak attiva
 - Endpoint per riscatto premi (spendere punti)
 - Sezione "Premi" con lista sconti/premi disponibili
 - Ricompense collettive per quartiere (miglioramenti infrastrutturali)
@@ -44,14 +34,7 @@
 
 ---
 
-
-### RF8: Registrazione admin
-- Documentazione chiara del processo in README
-
----
-
-
-### RF10: Interfaccia lato comun
+### RF10: Interfaccia lato comune
 - Dashboard dedicata operatori (frontend)
 - Visualizzazione dati aggregati per quartiere
 - Indicatori ambientali dashboard operatore
@@ -103,7 +86,6 @@
 ## Priorità Implementazione
 
 ### ALTA PRIORITÀ
-1. **RF4 - Sistema Streak completo**: Calcolo automatico streak e moltiplicatore punti
 2. **RF5 - Sistema Notifiche**: Modello, servizio e scheduler notifiche
 4. **RF12 - Verifica Task completa**: GPS, QR, Photo, Quiz verification
 5. **RF17 - Classifica Territoriale**: Endpoint ranking e aggiornamento real-time
@@ -116,6 +98,5 @@
 ### BASSA PRIORITÀ
 10. **RF13 - Open Data Integration**: API integrazione dati comunali
 11. **RF13 - Anonimizzazione**: Privacy compliance
-12. **RF2 - OAuth Providers**: Google, SPID authentication
 13. **RF2 - Password Hashing**: Bcrypt implementation
 14. **Frontend**: Implementazione completa tutte le view

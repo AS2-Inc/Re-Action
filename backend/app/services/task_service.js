@@ -23,9 +23,9 @@ const _haversine = (coords1, coords2) => {
   const a =
     Math.sin(delta_phi / 2) * Math.sin(delta_phi / 2) +
     Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(delta_lambda / 2) *
-      Math.sin(delta_lambda / 2);
+    Math.cos(phi2) *
+    Math.sin(delta_lambda / 2) *
+    Math.sin(delta_lambda / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -92,6 +92,16 @@ export const award_points = async (user_id, task_id) => {
     const neighborhood = await Neighborhood.findById(user.neighborhood_id);
     if (neighborhood) {
       neighborhood.total_score += points_to_award;
+
+      // Automatic Contribution to Active Goal (RF4 Enhancement)
+      const active_goal = neighborhood.active_goals.find(g => !g.is_completed);
+      if (active_goal) {
+        active_goal.current_points += points_to_award;
+        if (active_goal.current_points >= active_goal.target_points) {
+          active_goal.is_completed = true;
+        }
+      }
+
       await neighborhood.save();
     }
   }

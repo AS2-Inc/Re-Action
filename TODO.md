@@ -9,12 +9,6 @@
 - Task attive visualizzate direttamente nella dashboard
 ---
 
-### RF4: Sistema di rewarding dell'utente
-- Endpoint per riscatto premi (spendere punti)
-- Sezione "Premi" con lista sconti/premi disponibili
-- Ricompense collettive per quartiere (miglioramenti infrastrutturali)
----
-
 ### RF5: Sistema di Notifiche
 - **Modello Notification** per salvare notifiche
 - **Servizio notifiche** con categorizzazione (Feedback, Informative, Motivazionali)
@@ -75,9 +69,7 @@
 ---
 
 ### RF17: Classifica territoriale
-- **Calcolo automatico classifica** basato su punteggi
 - **Aggiornamento in tempo reale** (± 10 secondi)
-- **Endpoint GET `/api/v1/neighborhoods/ranking`** per ottenere classifica
 - Visualizzazione grafica (tabelle, mappe, grafici)
 - Integrazione indicatori ambientali da open data
 
@@ -86,17 +78,16 @@
 ## Priorità Implementazione
 
 ### ALTA PRIORITÀ
-2. **RF5 - Sistema Notifiche**: Modello, servizio e scheduler notifiche
-4. **RF12 - Verifica Task completa**: GPS, QR, Photo, Quiz verification
-5. **RF17 - Classifica Territoriale**: Endpoint ranking e aggiornamento real-time
+1. **RF5 - Sistema Notifiche**: Modello, servizio e scheduler notifiche
+2. **RF12 - Verifica Task completa**: GPS, QR, Photo, Quiz verification
 
 ### MEDIA PRIORITÀ
-6. **RF6 - Gestione Task**: Sostituzione automatica task scadute/completate
-7. **RF4 - Riscatto Premi**: Endpoint redemption e gestione stock
-8. **RF10 - Dashboard Operatore**: Visualizzazione dati aggregati
+3. **RF6 - Gestione Task**: Sostituzione automatica task scadute/completate
+4. **RF4 - Riscatto Premi**: Endpoint redemption e gestione stock
+5. **RF10 - Dashboard Operatore**: Visualizzazione dati aggregati
 
 ### BASSA PRIORITÀ
-10. **RF13 - Open Data Integration**: API integrazione dati comunali
-11. **RF13 - Anonimizzazione**: Privacy compliance
-13. **RF2 - Password Hashing**: Bcrypt implementation
-14. **Frontend**: Implementazione completa tutte le view
+6. **RF13 - Open Data Integration**: API integrazione dati comunali
+7. **RF13 - Anonimizzazione**: Privacy compliance
+8. **RF2 - Password Hashing**: Bcrypt implementation
+9. **Frontend**: Implementazione completa tutte le view

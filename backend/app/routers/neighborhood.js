@@ -19,6 +19,27 @@ router.get("", async (_req, res) => {
 });
 
 /**
+ * GET /api/v1/neighborhood/ranking
+ * Get neighborhoods ranked by total score
+ */
+router.get("/ranking", async (_req, res) => {
+  try {
+    const neighborhoods = await Neighborhood.find().sort({ total_score: -1 });
+
+    // Add rank index
+    const ranked = neighborhoods.map((n, index) => ({
+      ...n.toObject(),
+      rank: index + 1,
+    }));
+
+    res.status(200).json(ranked);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/**
  * GET /api/v1/neighborhood/:id
  * Get neighborhood by ID
  */
@@ -35,7 +56,5 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-// TODO: add ranking by points, km green, waste recycled, co2 saved, etc.
 
 export default router;

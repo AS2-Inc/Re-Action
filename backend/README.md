@@ -1,114 +1,120 @@
 # Re:Action Backend
 
-The backend API for Re:Action, a neighborhood-based gamification platform that encourages community engagement through tasks, rewards, and badges.
+The backend API for Re:Action, a neighborhood-based gamification platform. This project provides a RESTful API built with Node.js and Express, connected to a MongoDB database.
 
 ## Table of Contents
 
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
-- [API Documentation](#api-documentation)
+- [Configuration](#configuration)
+- [Development](#development)
 - [Testing](#testing)
-- [Scripts](#scripts)
+- [API Documentation](#api-documentation)
 
+## Architecture
+
+This project follows a **Layered Architecture** pattern to ensure separation of concerns:
+
+1.  **Routers** (`app/routers/`): Handle HTTP requests, validate input, and route to the appropriate service. They define the API endpoints.
+2.  **Services** (`app/services/`): Contain the core business logic. They interact with data models and other services. They are reusable and framework-agnostic where possible.
+3.  **Models** (`app/models/`): Define the MongoDB data schemas using Mongoose.
+4.  **Middleware** (`app/middleware/`): Handle cross-cutting concerns like authentication (`token_checker`) and error handling (`error_handler`).
+
+### Key Technologies
+
+-   **Runtime**: Node.js (>= 25.0.0)
+-   **Framework**: Express.js
+-   **Database**: MongoDB with Mongoose ODM
+-   **Authentication**: JSON Web Tokens (JWT)
+-   **Testing**: Jest and Supertest
+-   **Code Quality**: Biome (Linting & Formatting)
+
+## Project Structure
+
+```
+backend/
+├── app/
+│   ├── config/         # Configuration files (DB connection, etc.)
+│   ├── middleware/     # Custom Express middleware
+│   ├── models/         # Mongoose schemas and models
+│   ├── routers/        # API route definitions
+│   ├── services/       # Business logic layer
+│   └── utils/          # Utility functions
+├── test/               # Integration and unit tests
+├── index.js            # Application entry point
+├── oas3.yml            # OpenAPI Specification
+└── package.json        # Dependencies and scripts
+```
 
 ## Getting Started
 
 ### Prerequisites
-
-- Node.js >= 25.0.0
-- MongoDB instance (local or cloud)
-- npm or yarn
+-   Node.js (v25+)
+-   npm
+-   MongoDB instance (local or Atlas)
 
 ### Installation
 
-1. **Navigate to the backend directory:**
-   ```bash
-   cd backend
-   ```
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+2.  **Environment Setup:**
+    ```bash
+    cp .env.example .env
+    ```
+    Update `.env` with your specific configuration (see [Configuration](#configuration)).
 
-3. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+3.  **Start Development Server:**
+    ```bash
+    npm run dev
+    ```
+    The server will start on port 5000 (default) with hot-reloading enabled.
 
-4. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
+## Configuration
 
-The API will be available at `http://localhost:5000` (or your configured PORT).
+The application is configured via environment variables.
 
-## API Documentation
+| Variable | Description | Required | Default |
+| :--- | :--- | :--- | :--- |
+| `PORT` | API server port | No | `5000` |
+| `DB_URL` | MongoDB connection string | Yes | - |
+| `NODE_ENV` | Environment (`development`/`production`) | No | `development` |
+| `SUPER_SECRET` | Secret key for signing JWTs | Yes | - |
+| `ADMIN_EMAIL` | Email for the initial admin account | Yes | - |
+| `ADMIN_PASSWORD` | Password for the initial admin account | Yes | - |
+| `SMTP_HOST` | SMTP server host | Yes | - |
+| `SMTP_PORT` | SMTP server port | Yes | - |
+| `SMTP_SECURE` | Use SSL/TLS for SMTP | Yes | - |
+| `SMTP_USER` | SMTP username | Yes | - |
+| `SMTP_PASS` | SMTP password | Yes | - |
+| `SMTP_FROM` | Email address for outgoing mails | Yes | - |
 
-Interactive API documentation is available via Swagger UI once the server is running:
-
-- **Swagger UI**: [http://localhost:5000/api-docs](http://localhost:5000/api-docs)
-- **OpenAPI Spec**: [oas3.yml](./oas3.yml)
-
-## Testing
-
-The project uses Jest and Supertest for testing.
-
-### Run Tests
-
-```bash
-# Run all tests (includes linting and formatting checks)
-npm test
-
-# Run only test suites (skip linting)
-npm run test:only
-
-# Run tests with coverage
-npm run test:only -- --coverage
-```
-
-### Test Coverage
-
-Coverage reports are generated in the `coverage/` directory:
-- `lcov-report/index.html`: HTML coverage report
-- `coverage-final.json`: JSON coverage data
-- `lcov.info`: LCOV format for CI tools
-
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm start` | Start production server |
-| `npm run dev` | Start development server with hot reload |
-| `npm test` | Run tests, linting, and formatting checks |
-| `npm run test:only` | Run tests only |
-| `npm run lint` | Check for linting errors |
-| `npm run lint:fix` | Fix linting errors automatically |
-| `npm run format` | Format code with Biome |
-| `npm run format:check` | Check code formatting |
-
-## Development Guidelines
+## Development
 
 ### Code Quality
 
-This project uses [Biome](https://biomejs.dev/) for consistent code quality:
-- Automatic formatting
-- Linting rules enforcement
-- Import organization
+We use [Biome](https://biomejs.dev/) for fast linting and formatting.
 
-Always run linting and formatting before committing:
-```bash
-npm run lint:fix
-npm run format
-```
+-   **Check Format**: `npm run format:check`
+-   **Fix Format**: `npm run format`
+-   **Lint**: `npm run lint`
+-   **Fix Lint**: `npm run lint:fix`
 
-### Error Handling
 
-Global error handling is implemented via the `error_handler` middleware. All errors are caught and formatted consistently.
+## Testing
 
-### Authentication
+We use **Jest** as the test runner and **Supertest** for API integration testing.
 
-Protected routes use the `token_checker` middleware. Include JWT token in request headers:
-```
-Authorization: Bearer <your_jwt_token>
-```
+-   **Run all tests**: `npm test` (includes linting)
+-   **Run tests only**: `npm run test:only`
+-   **With Coverage**: `npm run test:only -- --coverage`
+
+Tests are located in the `test/` directory.
+
+## API Documentation
+
+-   **Swagger UI**: Available at `/api-docs` when the server is running (e.g., `http://localhost:5000/api-docs`).
+-   **Spec File**: The OpenAPI 3.0 specification is located at `oas3.yml`.

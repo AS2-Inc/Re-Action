@@ -91,20 +91,6 @@
 - Link accesso e registrazione
 ---
 
-### RF15: Recupero password
-- **Endpoint POST `/api/v1/users/forgot-password`** per richiedere recupero
-- **Endpoint POST `/api/v1/users/reset-password`** per reimpostare password
-- Generazione token temporaneo 1 ora
-- Invio email con link recupero
-
----
-
-### RF16: Modifica Password
-- Validazione forza nuova password
-- Sezione "profilo" nel frontend
-
----
-
 ### RF17: Classifica territoriale
 - **Calcolo automatico classifica** basato su punteggi
 - **Aggiornamento in tempo reale** (± 10 secondi)
@@ -119,7 +105,6 @@
 ### ALTA PRIORITÀ
 1. **RF4 - Sistema Streak completo**: Calcolo automatico streak e moltiplicatore punti
 2. **RF5 - Sistema Notifiche**: Modello, servizio e scheduler notifiche
-3. **RF15 - Recupero Password**: Endpoint forgot/reset password
 4. **RF12 - Verifica Task completa**: GPS, QR, Photo, Quiz verification
 5. **RF17 - Classifica Territoriale**: Endpoint ranking e aggiornamento real-time
 
@@ -127,7 +112,6 @@
 6. **RF6 - Gestione Task**: Sostituzione automatica task scadute/completate
 7. **RF4 - Riscatto Premi**: Endpoint redemption e gestione stock
 8. **RF10 - Dashboard Operatore**: Visualizzazione dati aggregati
-9. **RF1 - Invio Email**: Servizio email per conferme e notifiche
 
 ### BASSA PRIORITÀ
 10. **RF13 - Open Data Integration**: API integrazione dati comunali
@@ -135,34 +119,3 @@
 12. **RF2 - OAuth Providers**: Google, SPID authentication
 13. **RF2 - Password Hashing**: Bcrypt implementation
 14. **Frontend**: Implementazione completa tutte le view
-
----
-
-## Note Tecniche
-
-### Dipendenze da Aggiungere
-- `nodemailer` - Invio email
-- `multer` - Upload foto task
-- Libreria OAuth (Google, SPID)
-
-### Miglioramenti Architetturali
-- Implementare middleware di validazione input
-- Aggiungere rate limiting
-- Implementare caching per classifiche
-- WebSocket per aggiornamenti real-time
-- Logging strutturato
-
----
-
-## Tasks Originali (Da Completare)
-Classifica in Tempo Reale
-Riscatto Premi endpoint
-Open Data API
-Anonimizzazione (RF13)
-Dashboard Comune & Report (PDF/CSV)
-Hash delle password
-Frontend
-Notifiche
-Provider esterni per l'autenticazione (es. Google, SPID)
-Invio delle email
-Verifica delle task

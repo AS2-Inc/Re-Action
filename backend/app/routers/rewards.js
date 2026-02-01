@@ -119,10 +119,12 @@ router.get("/my-rewards", token_checker, async (req, res) => {
   }
 });
 
-// Admin Route: Create Reward
+// Admin/Operator Route: Create Reward
 router.post("/", token_checker, async (req, res) => {
-  if (req.logged_user.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized: Admins only" });
+  if (req.logged_user.role !== "admin" && req.logged_user.role !== "operator") {
+    return res
+      .status(403)
+      .json({ error: "Unauthorized: Admins/Operators only" });
   }
 
   try {
@@ -131,6 +133,79 @@ router.post("/", token_checker, async (req, res) => {
     res.status(201).json(reward);
   } catch (_error) {
     res.status(400).json({ error: "Error creating reward" });
+  }
+});
+
+/**
+ * GET /api/v1/rewards/all
+ * List ALL rewards (active and inactive) for operators/admins
+ */
+router.get("/all", token_checker, async (req, res) => {
+  if (req.logged_user.role !== "admin" && req.logged_user.role !== "operator") {
+    return res
+      .status(403)
+      .json({ error: "Unauthorized: Admins/Operators only" });
+  }
+
+  try {
+    const rewards = await Reward.find().sort({ active: -1, created_at: -1 });
+    res.status(200).json(rewards);
+  } catch (error) {
+    console.error("Error fetching all rewards:", error);
+    res.status(500).json({ error: "Failed to fetch rewards" });
+  }
+});
+
+/**
+ * PUT /api/v1/rewards/:id
+ * Update a reward
+ */
+router.put("/:id", token_checker, async (req, res) => {
+  if (req.logged_user.role !== "admin" && req.logged_user.role !== "operator") {
+    return res
+      .status(403)
+      .json({ error: "Unauthorized: Admins/Operators only" });
+  }
+
+  try {
+    const reward = await Reward.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!reward) {
+      return res.status(404).json({ error: "Reward not found" });
+    }
+    res.status(200).json(reward);
+  } catch (error) {
+    console.error("Error updating reward:", error);
+    res.status(400).json({ error: "Error updating reward" });
+  }
+});
+
+/**
+ * DELETE /api/v1/rewards/:id
+ * Soft delete (deactivate) a reward
+ */
+router.delete("/:id", token_checker, async (req, res) => {
+  if (req.logged_user.role !== "admin" && req.logged_user.role !== "operator") {
+    return res
+      .status(403)
+      .json({ error: "Unauthorized: Admins/Operators only" });
+  }
+
+  try {
+    const reward = await Reward.findByIdAndUpdate(
+      req.params.id,
+      { active: false },
+      { new: true },
+    );
+    if (!reward) {
+      return res.status(404).json({ error: "Reward not found" });
+    }
+    res.status(200).json({ message: "Reward deactivated successfully" });
+  } catch (error) {
+    console.error("Error deleting reward:", error);
+    res.status(500).json({ error: "Failed to deactivate reward" });
   }
 });
 

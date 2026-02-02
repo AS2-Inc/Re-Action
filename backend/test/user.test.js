@@ -620,10 +620,7 @@ describe("User API Endpoints", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty(
-        "error",
-        "Current password and new password are required",
-      );
+      expect(response.body).toHaveProperty("error", "Missing required fields");
     });
 
     it("should return 400 when new_password is missing", async () => {
@@ -635,10 +632,8 @@ describe("User API Endpoints", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty(
-        "error",
-        "Current password and new password are required",
-      );
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("error", "Missing required fields");
     });
 
     it("should return 404 when user is not found", async () => {
@@ -776,7 +771,7 @@ describe("User API Endpoints", () => {
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty("error", "Email is required");
+      expect(response.body).toHaveProperty("error", "Missing required fields");
     });
   });
 

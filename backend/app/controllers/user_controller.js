@@ -3,10 +3,6 @@ import * as UserService from "../services/user_service.js";
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "Missing email or password" });
-    }
-
     const result = await UserService.login(email, password);
     res.status(200).json(result);
   } catch (error) {
@@ -25,9 +21,6 @@ export const login = async (req, res) => {
 export const google_auth = async (req, res) => {
   try {
     const { credential } = req.body;
-    if (!credential) {
-      return res.status(400).json({ error: "Missing Google token" });
-    }
     const result = await UserService.google_auth(credential);
     res.status(200).json(result);
   } catch (error) {
@@ -38,16 +31,6 @@ export const google_auth = async (req, res) => {
 
 export const register = async (req, res) => {
   try {
-    const { name, surname, email, password, age } = req.body;
-    if (!name || !surname || !email || !password || !age) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const email_regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email_regex.test(email)) {
-      return res.status(400).json({ error: "Invalid email format" });
-    }
-
     await UserService.register(req.body);
     res.status(201).json();
   } catch (error) {
@@ -94,11 +77,6 @@ export const activate = async (req, res) => {
 export const change_password = async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
-    if (!current_password || !new_password) {
-      return res
-        .status(400)
-        .json({ error: "Current password and new password are required" });
-    }
 
     const result = await UserService.change_password(
       req.logged_user.id,
@@ -128,9 +106,6 @@ export const change_password = async (req, res) => {
 export const forgot_password = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
     const result = await UserService.forgot_password(email);
     res.status(200).json(result);
   } catch (error) {

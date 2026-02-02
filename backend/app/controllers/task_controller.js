@@ -1,14 +1,6 @@
 import * as TaskService from "../services/task_service.js";
 
 export const get_user_tasks = async (req, res) => {
-  if (!req.logged_user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  if (req.logged_user.role !== "citizen") {
-    return res.status(403).json({ error: "Unauthorized: Citizens only" });
-  }
-
   try {
     const tasks = await TaskService.get_user_tasks(req.logged_user.id);
     res.status(200).json(tasks);
@@ -22,14 +14,6 @@ export const get_user_tasks = async (req, res) => {
 };
 
 export const submit_task = async (req, res) => {
-  if (!req.logged_user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  if (req.logged_user.role !== "citizen") {
-    return res.status(403).json({ error: "Unauthorized: Citizens only" });
-  }
-
   try {
     const task_id = req.body.task_id;
     let proof = {};
@@ -87,10 +71,6 @@ export const submit_task = async (req, res) => {
 };
 
 export const create_task = async (req, res) => {
-  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized: Operators only" });
-  }
-  // TODO: add validation
   try {
     const task = await TaskService.create_task(req.body);
     res.location(`/api/v1/tasks/${task.id}`).status(201).json(task);
@@ -101,10 +81,6 @@ export const create_task = async (req, res) => {
 };
 
 export const get_submissions = async (req, res) => {
-  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-
   const filter = {};
   if (req.body?.status) filter.status = req.body.status;
 
@@ -118,14 +94,6 @@ export const get_submissions = async (req, res) => {
 };
 
 export const verify_submission = async (req, res) => {
-  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-
-  if (!req.body.verdict) {
-    return res.status(400).json({ error: "Verdict required" });
-  }
-
   try {
     const result = await TaskService.verify_submission(
       req.params.id,

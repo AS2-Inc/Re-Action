@@ -1,17 +1,34 @@
 import express from "express";
 import token_checker from "../middleware/token_checker.js";
 import * as UserController from "../controllers/user_controller.js";
+import {
+  validate_required,
+  validate_email_format,
+} from "../middleware/validation.js";
 
 const router = express.Router();
 
 // POST /api/v1/users/login
-router.post("/login", UserController.login);
+router.post(
+  "/login",
+  validate_required(["email", "password"]),
+  UserController.login,
+);
 
 // POST /api/v1/users/auth/google
-router.post("/auth/google", UserController.google_auth);
+router.post(
+  "/auth/google",
+  validate_required(["credential"]),
+  UserController.google_auth,
+);
 
 // POST /api/v1/users/register
-router.post("/register", UserController.register);
+router.post(
+  "/register",
+  validate_required(["name", "surname", "email", "password", "age"]),
+  validate_email_format,
+  UserController.register,
+);
 
 // GET /api/v1/users/me
 router.get("/me", token_checker, UserController.get_me);
@@ -20,10 +37,19 @@ router.get("/me", token_checker, UserController.get_me);
 router.get("/activate", UserController.activate);
 
 // POST /api/v1/users/change-password
-router.post("/change-password", token_checker, UserController.change_password);
+router.post(
+  "/change-password",
+  token_checker,
+  validate_required(["current_password", "new_password"]),
+  UserController.change_password,
+);
 
 // POST /api/v1/users/forgot-password
-router.post("/forgot-password", UserController.forgot_password);
+router.post(
+  "/forgot-password",
+  validate_required(["email"]),
+  UserController.forgot_password,
+);
 
 // GET /api/v1/users/me/badges
 router.get("/me/badges", token_checker, UserController.get_my_badges);

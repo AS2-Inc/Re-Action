@@ -127,6 +127,6 @@ describe("Google Authentication", () => {
     const res = await request(app).post("/api/v1/users/auth/google").send({}); // No credential
 
     expect(res.statusCode).toEqual(400);
-    expect(res.body.error).toEqual("Missing Google token");
+    expect(res.body.error).toEqual("Missing required fields");
   });
 });

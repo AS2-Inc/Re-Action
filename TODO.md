@@ -10,12 +10,6 @@
 ---
 
 ### RF5: Sistema di Notifiche
-- **Modello Notification** per salvare notifiche
-- **Servizio notifiche** con categorizzazione (Feedback, Informative, Motivazionali)
-- **Scheduler notifiche giornaliere**
-- Push notifications
-- Invio email notifiche
-- Logica motivazionale per utenti inattivi
 - Notifiche per nuovi eventi/challenge
 - Notifiche per progressi/feedback positivo
 
@@ -78,16 +72,15 @@
 ## Priorità Implementazione
 
 ### ALTA PRIORITÀ
-1. **RF5 - Sistema Notifiche**: Modello, servizio e scheduler notifiche
-2. **RF12 - Verifica Task completa**: GPS, QR, Photo, Quiz verification
+1. **RF12 - Verifica Task completa**: GPS, QR, Photo, Quiz verification
 
 ### MEDIA PRIORITÀ
-3. **RF6 - Gestione Task**: Sostituzione automatica task scadute/completate
-4. **RF4 - Riscatto Premi**: Endpoint redemption e gestione stock
-5. **RF10 - Dashboard Operatore**: Visualizzazione dati aggregati
+2. **RF6 - Gestione Task**: Sostituzione automatica task scadute/completate
+3. **RF4 - Riscatto Premi**: Endpoint redemption e gestione stock
+4. **RF10 - Dashboard Operatore**: Visualizzazione dati aggregati
 
 ### BASSA PRIORITÀ
-6. **RF13 - Open Data Integration**: API integrazione dati comunali
-7. **RF13 - Anonimizzazione**: Privacy compliance
-8. **RF2 - Password Hashing**: Bcrypt implementation
-9. **Frontend**: Implementazione completa tutte le view
+5. **RF13 - Open Data Integration**: API integrazione dati comunali
+6. **RF13 - Anonimizzazione**: Privacy compliance
+7. **RF2 - Password Hashing**: Bcrypt implementation
+8. **Frontend**: Implementazione completa tutte le view

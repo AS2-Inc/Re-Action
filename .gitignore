@@ -39,3 +39,5 @@ coverage
 
 # Vitest
 __screenshots__/
+
+backend/uploads

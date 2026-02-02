@@ -1,5 +1,6 @@
 import express from "express";
 import token_checker from "../middleware/token_checker.js";
+import { upload } from "../middleware/upload.js"; // Import upload middleware
 import * as TaskService from "../services/task_service.js";
 
 const router = express.Router();
@@ -26,8 +27,9 @@ router.get("", token_checker, async (req, res) => {
 /**
  * POST /api/v1/tasks/submit
  * User submits a task.
+ * Supports multipart/form-data for photo uploads.
  */
-router.post("/submit", token_checker, async (req, res) => {
+router.post("/submit", token_checker, upload.single("photo"), async (req, res) => {
   if (!req.logged_user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -37,28 +39,50 @@ router.post("/submit", token_checker, async (req, res) => {
   }
 
   try {
+    const task_id = req.body.task_id;
+    let proof = {};
+
+    // Handle Proof data
+    // If it's multipart/form-data, non-file fields are in req.body
+    if (req.body.proof) {
+      // Try parsing if it came as a JSON string (common in some clients sending multipart)
+      try {
+        proof = typeof req.body.proof === 'string' ? JSON.parse(req.body.proof) : req.body.proof;
+      } catch (e) {
+        proof = req.body.proof;
+      }
+    }
+
+    // Attach photo if present
+    if (req.file) {
+      proof.photo_url = `/uploads/${req.file.filename}`;
+    }
+
     const result = await TaskService.submit_task(
       req.logged_user.id,
-      req.body.task_id,
-      req.body.proof, // proof/evidence
+      task_id,
+      proof,
     );
     res.status(200).json(result);
   } catch (error) {
     // If validation fails
     if (
       error.message === "Verification failed" ||
-      error.message === "Task not assigned or expired" ||
-      error.message === "Task already completed or pending approval" ||
-      error.message === "Task is in cooldown" ||
+      //   error.message === "Task not assigned or expired" || // Let general catch handle these?
+      //   error.message === "Task already completed or pending approval" ||
+      //   error.message === "Task is in cooldown" ||
       error.message.includes("Distance") ||
-      error.message.includes("QR Code")
+      error.message.includes("QR Code") ||
+      error.message.includes("Quiz") ||
+      error.message.includes("Photo") ||
+      error.message.includes("Missing")
     ) {
       return res.status(400).json({ error: error.message });
-    } else if (error.message === "Task not found") {
-      return res.status(404).json({ error: "Task not found" });
+    } else if (error.message === "Task not found" || error.message === "Quiz not found") {
+      return res.status(404).json({ error: error.message });
     }
     console.error("Error submitting task:", error);
-    res.status(500).json({ error: "Failed to submit task" });
+    res.status(500).json({ error: "Failed to submit task: " + error.message });
   }
 });
 

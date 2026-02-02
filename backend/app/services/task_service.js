@@ -4,6 +4,7 @@ import Submission from "../models/submission.js";
 import User from "../models/user.js";
 import BadgeService from "./badge_service.js";
 import Neighborhood from "../models/neighborhood.js";
+import Quiz from "../models/quiz.js";
 
 // Helper to calculate distance
 const _haversine = (coords1, coords2) => {
@@ -23,9 +24,9 @@ const _haversine = (coords1, coords2) => {
   const a =
     Math.sin(delta_phi / 2) * Math.sin(delta_phi / 2) +
     Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(delta_lambda / 2) *
-      Math.sin(delta_lambda / 2);
+    Math.cos(phi2) *
+    Math.sin(delta_lambda / 2) *
+    Math.sin(delta_lambda / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -270,23 +271,74 @@ export const submit_task = async (user_id, task_id, proof) => {
   // 1. Verify
   let is_valid = true; // Manual tasks auto-pending, handled later
   let status = "PENDING";
+  let points_to_award = 0;
 
   if (task.verification_method === "GPS") {
+    // GPS Verification
     const target = task.verification_criteria?.target_location; // [lat, lon]
     const user_loc = proof?.gps_location; // [lat, lon]
     if (!target || !user_loc) {
       is_valid = false;
+      throw new Error("Missing GPS location data");
     } else {
       const dist = _haversine(target, user_loc);
-      const min_dist = task.verification_criteria?.min_distance_meters || 100; // default 100m radius
-      if (dist > min_dist) is_valid = false;
+      const min_dist = task.verification_criteria?.min_distance_meters || 100;
+      if (dist > min_dist) {
+        is_valid = false;
+        throw new Error(`Distance ${Math.round(dist)}m exceeds limit ${min_dist}m`);
+      }
     }
     status = is_valid ? "APPROVED" : "REJECTED";
+
   } else if (task.verification_method === "QR_SCAN") {
+    // QR Code Verification
     if (proof?.qr_code_data !== task.verification_criteria?.qr_code_secret) {
       is_valid = false;
+      throw new Error("Invalid QR Code");
     }
     status = is_valid ? "APPROVED" : "REJECTED";
+
+  } else if (task.verification_method === "PHOTO_UPLOAD") {
+    // Photo Verification - Manual Approval
+    if (!proof?.photo_url) {
+      throw new Error("Photo proof required");
+    }
+    status = "PENDING";
+    is_valid = true; // Needs operator approval
+
+  } else if (task.verification_method === "QUIZ") {
+    // Quiz Verification
+    if (!task.verification_criteria?.quiz_id) {
+      throw new Error("Task misconfiguration: No Quiz ID");
+    }
+    const quiz = await Quiz.findById(task.verification_criteria.quiz_id);
+    if (!quiz) {
+      throw new Error("Quiz not found");
+    }
+
+    const user_answers = proof?.quiz_answers; // Array of option indices
+    if (!user_answers || !Array.isArray(user_answers) || user_answers.length !== quiz.questions.length) {
+      throw new Error("Incomplete or missing quiz answers");
+    }
+
+    let correct_count = 0;
+    quiz.questions.forEach((q, index) => {
+      if (user_answers[index] === q.correct_option_index) {
+        correct_count++;
+      }
+    });
+
+    const score = correct_count / quiz.questions.length;
+    proof.quiz_score = score; // Store score in proof
+
+    if (score >= quiz.passing_score) {
+      is_valid = true;
+      status = "APPROVED";
+    } else {
+      is_valid = false;
+      throw new Error(`Quiz score ${(score * 100).toFixed(0)}% is below passing score ${(quiz.passing_score * 100).toFixed(0)}%`);
+    }
+
   } else if (task.verification_method === "MANUAL_REPORT") {
     status = "PENDING";
     is_valid = true; // Tentatively valid until operator rejects
@@ -316,11 +368,12 @@ export const submit_task = async (user_id, task_id, proof) => {
       await user_task.save();
     }
   } else if (
-    status === "REJECTED" &&
-    task.verification_method !== "MANUAL_REPORT"
+    status === "REJECTED"
+    // Note: We already throw Errors for auto-rejection above, so this might be redundant 
+    // but good for safety if we change logic flow.
   ) {
-    // Auto rejection
-    throw new Error("Verification failed");
+    // If we reached here with REJECTED status and didn't throw, it's an error state
+    // But currently we throw inside the blocks.
   }
 
   return response;

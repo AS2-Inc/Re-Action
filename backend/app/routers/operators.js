@@ -64,7 +64,7 @@ router.post("/login", async (req, res) => {
     return res.status(404).json({ error: "Operator not found" });
   }
 
-  if (!is_password_valid(req.body.password, operator.password)) {
+  if (!(await is_password_valid(req.body.password, operator.password))) {
     return res.status(401).json({ error: "Wrong password" });
   }
 

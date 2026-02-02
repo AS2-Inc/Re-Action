@@ -6,12 +6,7 @@ import express from "express";
 import yaml from "js-yaml";
 import swagger_ui from "swagger-ui-express";
 import error_handler from "./middleware/error_handler.js";
-import neighborhood from "./routers/neighborhood.js";
-import tasks from "./routers/task.js";
-import users from "./routers/users.js";
-import rewards from "./routers/rewards.js";
-import operators from "./routers/operators.js";
-import notifications from "./routers/notifications.js";
+import api_routes from "./routers/index.js";
 
 const app = express();
 
@@ -45,12 +40,7 @@ console.log(
 app.use("/api-docs", swagger_ui.serve, swagger_ui.setup(swagger_document));
 
 // --- Route Mounting ---
-app.use("/api/v1/users", users);
-app.use("/api/v1/neighborhood", neighborhood);
-app.use("/api/v1/tasks", tasks);
-app.use("/api/v1/rewards", rewards);
-app.use("/api/v1/operators", operators);
-app.use("/api/v1/notifications", notifications);
+app.use("/api/v1", api_routes);
 
 // 404 Handler
 app.use((_req, res) => {

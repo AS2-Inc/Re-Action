@@ -11,6 +11,7 @@ import tasks from "./routers/task.js";
 import users from "./routers/users.js";
 import rewards from "./routers/rewards.js";
 import operators from "./routers/operators.js";
+import notifications from "./routers/notifications.js";
 
 const app = express();
 
@@ -31,7 +32,9 @@ app.use(cors()); // Allow Cross-Origin requests from Vue Frontend
 // Serve Static Frontend (If deployed together)
 const FRONTEND =
   process.env.FRONTEND || Path.join(__dirname, "..", "..", "frontend", "dist");
+
 app.use("/", express.static(FRONTEND));
+
 console.log(
   "Vue FRONTEND from",
   FRONTEND,
@@ -47,6 +50,7 @@ app.use("/api/v1/neighborhood", neighborhood);
 app.use("/api/v1/tasks", tasks);
 app.use("/api/v1/rewards", rewards);
 app.use("/api/v1/operators", operators);
+app.use("/api/v1/notifications", notifications);
 
 // 404 Handler
 app.use((_req, res) => {

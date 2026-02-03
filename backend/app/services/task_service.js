@@ -354,3 +354,14 @@ export const verify_submission = async (submission_id, verdict) => {
 
   return { status: verdict };
 };
+
+export const get_task = async (task_id) => {
+  const task = await Task.findById(task_id);
+  if (!task) throw new Error("Task not found");
+  return task;
+};
+
+export const get_active_tasks = async () => {
+  const tasks = await Task.find({ is_active: true });
+  return tasks;
+};

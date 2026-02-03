@@ -113,3 +113,26 @@ export const verify_submission = async (req, res) => {
     res.status(500).json({ error: "Failed to verify submission" });
   }
 };
+
+export const get_task = async (req, res) => {
+  try {
+    const task = await TaskService.get_task(req.params.id);
+    res.status(200).json(task);
+  } catch (error) {
+    if (error.message === "Task not found") {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error("Error fetching task:", error);
+    res.status(500).json({ error: "Failed to fetch task" });
+  }
+};
+
+export const get_active_tasks = async (_req, res) => {
+  try {
+    const tasks = await TaskService.get_active_tasks();
+    res.status(200).json(tasks);
+  } catch (error) {
+    console.error("Error fetching active tasks:", error);
+    res.status(500).json({ error: "Failed to fetch active tasks" });
+  }
+};

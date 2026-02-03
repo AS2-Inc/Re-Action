@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+import * as db from "../db_helper.js";
 
 // Define mock function outside so we can control it in tests
 const verifyIdTokenMock = jest.fn();
@@ -10,36 +11,33 @@ jest.unstable_mockModule("google-auth-library", () => ({
   })),
 }));
 
-// Import modules dynamically
-const { default: request } = await import("supertest");
-const { default: app } = await import("../app/app.js");
-const { default: User } = await import("../app/models/user.js");
+// Mock EmailService to avoid sending emails during tests
+jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+  default: {
+    send_activation_email: jest.fn().mockResolvedValue(true),
+    send_password_reset_email: jest.fn().mockResolvedValue(true),
+    sendEmail: jest.fn().mockResolvedValue(true),
+  },
+}));
+
+const request = (await import("supertest")).default;
+const app = (await import("../../app/app.js")).default;
+const User = (await import("../../app/models/user.js")).default;
 
 describe("Google Authentication", () => {
-  let mockFindOne;
-  let mockSave;
-
-  beforeAll(() => {
-    // Setup Env Vars
+  beforeAll(async () => {
+    await db.connect();
     process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
     process.env.SUPER_SECRET = "test-secret-key";
-
-    // We need to mock User.findOne and User.prototype.save
-    mockFindOne = jest.fn();
-    mockSave = jest.fn();
-
-    User.findOne = mockFindOne;
-    User.prototype.save = mockSave;
   });
 
-  afterAll(() => {
-    jest.restoreAllMocks();
-  });
-
-  beforeEach(() => {
+  afterEach(async () => {
+    await db.clear();
     verifyIdTokenMock.mockReset();
-    mockFindOne.mockReset();
-    mockSave.mockReset();
+  });
+
+  afterAll(async () => {
+    await db.close();
   });
 
   test("POST /api/v1/users/auth/google should register a new user", async () => {
@@ -53,18 +51,6 @@ describe("Google Authentication", () => {
       }),
     });
 
-    // Mock User not found (so it registers)
-    mockFindOne.mockReturnValue({
-      exec: jest.fn().mockResolvedValue(null),
-    });
-
-    mockSave.mockResolvedValue({
-      _id: "new_user_id",
-      email: "newuser@example.com",
-      auth_provider: "google",
-      role: "citizen",
-    });
-
     const res = await request(app)
       .post("/api/v1/users/auth/google")
       .send({ credential: "valid_google_token" });
@@ -73,11 +59,24 @@ describe("Google Authentication", () => {
     expect(res.body).toHaveProperty("token");
     expect(res.body.email).toEqual("newuser@example.com");
 
-    // Verify save was called
-    expect(mockSave).toHaveBeenCalled();
+    const user = await User.findOne({ email: "newuser@example.com" });
+    expect(user).toBeTruthy();
+    expect(user.auth_provider).toBe("google");
+    // expect(user.role).toBe("citizen"); // Role field removed from schema
   });
 
   test("POST /api/v1/users/auth/google should log in existing Google user", async () => {
+    // Create existing user
+    const existingUser = new User({
+      email: "existing@example.com",
+      auth_provider: "google",
+      role: "citizen",
+      is_active: true,
+      name: "Existing",
+      surname: "User",
+    });
+    await existingUser.save();
+
     // Mock successful Google verification
     verifyIdTokenMock.mockResolvedValue({
       getPayload: () => ({
@@ -88,19 +87,6 @@ describe("Google Authentication", () => {
       }),
     });
 
-    // Mock User found
-    const existingUser = {
-      _id: "existing_id",
-      email: "existing@example.com",
-      auth_provider: "google",
-      role: "citizen",
-      is_active: true,
-    };
-
-    mockFindOne.mockReturnValue({
-      exec: jest.fn().mockResolvedValue(existingUser),
-    });
-
     const res = await request(app)
       .post("/api/v1/users/auth/google")
       .send({ credential: "valid_google_token" });
@@ -108,7 +94,7 @@ describe("Google Authentication", () => {
     expect(res.statusCode).toEqual(200);
     expect(res.body).toHaveProperty("token");
     expect(res.body.email).toEqual("existing@example.com");
-    expect(res.body.id).toEqual("existing_id");
+    expect(res.body.id).toEqual(existingUser._id.toString());
   });
 
   test("POST /api/v1/users/auth/google should handle invalid token", async () => {

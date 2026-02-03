@@ -394,3 +394,39 @@ export const get_submissions = async (filter) => {
     .populate("task_id");
   return submissions;
 };
+
+export const verify_submission = async (submission_id, verdict) => {
+  const submission = await Submission.findById(submission_id);
+  if (!submission) throw new Error("Submission not found");
+
+  if (submission.status !== "PENDING") {
+    throw new Error("Submission is already processed");
+  }
+
+  if (!["APPROVED", "REJECTED"].includes(verdict)) {
+    throw new Error("Invalid verdict");
+  }
+
+  submission.status = verdict;
+  if (verdict === "APPROVED") submission.completed_at = new Date();
+  await submission.save();
+
+  if (verdict === "APPROVED") {
+    await award_points(submission.user_id, submission.task_id);
+
+    // Update UserTask if exists
+    // Find assigned user task
+    const user_task = await UserTask.findOne({
+      user_id: submission.user_id,
+      task_id: submission.task_id,
+      status: "ASSIGNED",
+    });
+
+    if (user_task) {
+      user_task.status = "COMPLETED";
+      await user_task.save();
+    }
+  }
+
+  return { status: verdict };
+};

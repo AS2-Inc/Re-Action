@@ -8,7 +8,9 @@ const check_role = (allowed_roles) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    if (!allowed_roles.includes(req.logged_user.role)) {
+    const userRole = req.logged_user.role || "citizen";
+
+    if (!allowed_roles.includes(userRole)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 

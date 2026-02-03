@@ -1,257 +1,211 @@
 import { jest } from "@jest/globals";
-
-// Mocks
-const mockSave = jest.fn();
-const mockFindById = jest.fn();
-const mockFindOne = jest.fn();
-
-// Mock Models
-const MockTask = {
-  findById: mockFindById,
-};
-const MockUser = {
-  findById: mockFindById,
-};
-const MockSubmission = class {
-  constructor(data) {
-    Object.assign(this, data);
-    this.save = mockSave;
-  }
-};
-const MockUserTask = {
-  findOne: mockFindOne,
-  save: mockSave,
-};
-const MockQuiz = {
-  findById: mockFindById,
-};
-const MockNeighborhood = {
-  findById: mockFindById,
-};
+import * as db from "../db_helper.js"; // Path relative to test/services/
 
 // Mock BadgeService
 const mockCheckAndAwardBadges = jest.fn();
 const mockCheckLevelUp = jest.fn();
 
-// Setup Module Mocks
-jest.unstable_mockModule("../../app/models/task.js", () => ({
-  default: MockTask,
-}));
-jest.unstable_mockModule("../../app/models/user.js", () => ({
-  default: MockUser,
-}));
-jest.unstable_mockModule("../../app/models/submission.js", () => ({
-  default: MockSubmission,
-}));
-jest.unstable_mockModule("../../app/models/user_task.js", () => ({
-  default: MockUserTask,
-}));
-jest.unstable_mockModule("../../app/models/quiz.js", () => ({
-  default: MockQuiz,
-}));
-jest.unstable_mockModule("../../app/models/neighborhood.js", () => ({
-  default: MockNeighborhood,
-}));
 jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
   default: {
     checkAndAwardBadges: mockCheckAndAwardBadges,
     check_level_up: mockCheckLevelUp,
+    on_points_updated: jest.fn().mockResolvedValue([]),
+    on_task_completed: jest.fn().mockResolvedValue([]),
+    on_streak_updated: jest.fn().mockResolvedValue([]),
+    on_environmental_stats_updated: jest.fn().mockResolvedValue([]),
+    _get_all_badges: jest.fn().mockResolvedValue([]),
+    initialize_badges: jest.fn().mockResolvedValue(),
   },
 }));
 
-// Import Service (Dynamic import for hoisting)
-let TaskService;
+// Mock EmailService (implicitly used somewhere?)
+jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+  default: {
+    sendActivationEmail: jest.fn().mockResolvedValue(true),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+    sendEmail: jest.fn().mockResolvedValue(true),
+  },
+}));
+
+const Task = (await import("../../app/models/task.js")).default;
+const User = (await import("../../app/models/user.js")).default;
+const Quiz = (await import("../../app/models/quiz.js")).default;
+
+// Import Service after mocks
+const TaskService = await import("../../app/services/task_service.js");
 
 describe("TaskService Verification Logic", () => {
   beforeAll(async () => {
-    TaskService = await import("../../app/services/task_service.js");
+    await db.connect();
   });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockSave.mockResolvedValue(true);
-    mockCheckAndAwardBadges.mockResolvedValue([]);
+  afterEach(async () => {
+    await db.clear();
+    mockCheckAndAwardBadges.mockClear();
   });
+
+  afterAll(async () => {
+    await db.close();
+  });
+
+  const createUser = async () => {
+    const user = new User({
+      name: "Verification",
+      surname: "Tester",
+      email: "verify@test.com",
+      role: "citizen",
+      is_active: true,
+      points: 0,
+      ambient: { co2_saved: 0, waste_recycled: 0, km_green: 0 },
+    });
+    return await user.save();
+  };
+
+  const createTask = async (data = {}) => {
+    const task = new Task({
+      title: "Verify Me",
+      description: "Testing verification",
+      category: "Mobility",
+      difficulty: "Low",
+      base_points: 10,
+      frequency: "on_demand",
+      verification_method: "GPS",
+      impact_metrics: { co2_saved: 1 },
+      ...data,
+    });
+    return await task.save();
+  };
 
   // --- GPS ---
   test("submit_task - GPS Success", async () => {
-    const userId = "user123";
-    const taskId = "task123";
-    const task = {
-      _id: taskId,
-      frequency: "on_demand",
+    const user = await createUser();
+    const task = await createTask({
       verification_method: "GPS",
-      base_points: 10,
       verification_criteria: {
         target_location: [40, -74],
         min_distance_meters: 100,
       },
-    };
-
-    const user = { _id: userId, points: 0, save: mockSave, ambient: {} };
-
-    mockFindById.mockImplementation((id) => {
-      if (id === taskId) return Promise.resolve(task);
-      if (id === userId) return Promise.resolve(user);
-      return Promise.resolve(null);
+      base_points: 10,
     });
+    // On-demand tasks don't strictly require assignment in some logic, but let's assign if needed.
+    // TaskService checks for assignment IF frequency != on_demand.
+    // Here frequency is on_demand (default from helper).
 
     const proof = { gps_location: [40.0001, -74.0001] }; // Close enough
-    const result = await TaskService.submit_task(userId, taskId, proof);
+    const result = await TaskService.submit_task(user._id, task._id, proof);
 
     expect(result.submission_status).toBe("APPROVED");
     expect(result.points_earned).toBeGreaterThan(0);
-    expect(mockSave).toHaveBeenCalled();
+
+    // Refresh user to check points
+    const updatedUser = await User.findById(user._id);
+    expect(updatedUser.points).toBeGreaterThan(0);
   });
 
   test("submit_task - GPS Failure", async () => {
-    const userId = "user123";
-    const taskId = "task123";
-    const task = {
-      _id: taskId,
-      frequency: "on_demand",
+    const user = await createUser();
+    const task = await createTask({
       verification_method: "GPS",
-      base_points: 10,
       verification_criteria: {
         target_location: [40, -74],
         min_distance_meters: 100,
       },
-    };
-
-    mockFindById.mockResolvedValueOnce(task); // Task
+    });
 
     const proof = { gps_location: [41, -75] }; // Far away
 
     await expect(
-      TaskService.submit_task(userId, taskId, proof),
+      TaskService.submit_task(user._id, task._id, proof),
     ).rejects.toThrow(/Distance/);
   });
 
   // --- QR ---
   test("submit_task - QR Success", async () => {
-    const userId = "user123";
-    const taskId = "task123";
-    const task = {
-      _id: taskId,
-      frequency: "on_demand",
+    const user = await createUser();
+    const task = await createTask({
       verification_method: "QR_SCAN",
-      base_points: 10,
       verification_criteria: { qr_code_secret: "SECRET" },
-    };
-    const user = { _id: userId, points: 0, save: mockSave, ambient: {} };
-
-    mockFindById.mockImplementation((id) => {
-      if (id === taskId) return Promise.resolve(task);
-      if (id === userId) return Promise.resolve(user);
-      return Promise.resolve(null);
+      base_points: 10,
     });
 
     const proof = { qr_code_data: "SECRET" };
-    const result = await TaskService.submit_task(userId, taskId, proof);
+    const result = await TaskService.submit_task(user._id, task._id, proof);
     expect(result.submission_status).toBe("APPROVED");
   });
 
   test("submit_task - QR Failure", async () => {
-    const userId = "user123";
-    const taskId = "task123";
-    const task = {
-      _id: taskId,
-      frequency: "on_demand",
+    const user = await createUser();
+    const task = await createTask({
       verification_method: "QR_SCAN",
-      base_points: 10,
       verification_criteria: { qr_code_secret: "SECRET" },
-    };
-
-    mockFindById.mockResolvedValueOnce(task);
+    });
 
     const proof = { qr_code_data: "WRONG" };
     await expect(
-      TaskService.submit_task(userId, taskId, proof),
+      TaskService.submit_task(user._id, task._id, proof),
     ).rejects.toThrow(/Invalid QR Code/);
   });
 
   // --- QUIZ ---
   test("submit_task - Quiz Success", async () => {
-    const userId = "user123";
-    const taskId = "task123";
-    const quizId = "quiz123";
-
-    const quiz = {
-      _id: quizId,
+    const user = await createUser();
+    const quiz = new Quiz({
+      title: "Test Quiz",
       passing_score: 0.5,
-      questions: [{ correct_option_index: 0 }, { correct_option_index: 1 }],
-    };
+      questions: [
+        { text: "Q1", options: ["A", "B"], correct_option_index: 0 },
+        { text: "Q2", options: ["A", "B"], correct_option_index: 1 },
+      ],
+    });
+    await quiz.save();
 
-    const task = {
-      _id: taskId,
-      frequency: "on_demand",
+    const task = await createTask({
       verification_method: "QUIZ",
       base_points: 20,
-      verification_criteria: { quiz_id: quizId },
-    };
-    const user = { _id: userId, points: 0, save: mockSave, ambient: {} };
-
-    mockFindById.mockImplementation((id) => {
-      if (id === taskId) return Promise.resolve(task);
-      if (id === quizId) return Promise.resolve(quiz);
-      if (id === userId) return Promise.resolve(user);
-      return Promise.resolve(null);
+      verification_criteria: { quiz_id: quiz._id },
     });
 
     const proof = { quiz_answers: [0, 1] }; // 100%
-    const result = await TaskService.submit_task(userId, taskId, proof);
+    const result = await TaskService.submit_task(user._id, task._id, proof);
     expect(result.submission_status).toBe("APPROVED");
   });
 
   test("submit_task - Quiz Failure", async () => {
-    const userId = "user123";
-    const taskId = "task123";
-    const quizId = "quiz123";
-
-    const quiz = {
-      _id: quizId,
+    const user = await createUser();
+    const quiz = new Quiz({
+      title: "Test Quiz",
       passing_score: 1.0,
-      questions: [{ correct_option_index: 0 }, { correct_option_index: 1 }],
-    };
+      questions: [
+        { text: "Q1", options: ["A", "B"], correct_option_index: 0 },
+        { text: "Q2", options: ["A", "B"], correct_option_index: 1 },
+      ],
+    });
+    await quiz.save();
 
-    const task = {
-      _id: taskId,
-      frequency: "on_demand",
+    const task = await createTask({
       verification_method: "QUIZ",
       base_points: 20,
-      verification_criteria: { quiz_id: quizId },
-    };
-
-    mockFindById.mockImplementation((id) => {
-      if (id === taskId) return Promise.resolve(task);
-      if (id === quizId) return Promise.resolve(quiz);
-      return Promise.resolve(null);
+      verification_criteria: { quiz_id: quiz._id },
     });
 
     const proof = { quiz_answers: [0, 0] }; // 50%
     await expect(
-      TaskService.submit_task(userId, taskId, proof),
+      TaskService.submit_task(user._id, task._id, proof),
     ).rejects.toThrow(/below passing score/);
   });
 
   // --- PHOTO ---
   test("submit_task - Photo Success (Pending)", async () => {
-    const userId = "user123";
-    const taskId = "task123";
-    const task = {
-      _id: taskId,
-      frequency: "on_demand",
+    const user = await createUser();
+    const task = await createTask({
       verification_method: "PHOTO_UPLOAD",
       base_points: 30,
-    };
-
-    mockFindById.mockResolvedValueOnce(task);
+    });
 
     const proof = { photo_url: "/uploads/img.jpg" };
-    const result = await TaskService.submit_task(userId, taskId, proof);
+    const result = await TaskService.submit_task(user._id, task._id, proof);
 
     expect(result.submission_status).toBe("PENDING");
-    // Points should NOT be awarded yet
     expect(result.points_earned).toBeUndefined();
   });
 });

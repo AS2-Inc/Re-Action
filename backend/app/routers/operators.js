@@ -106,6 +106,7 @@ router.get("/me", token_checker, async (req, res) => {
   res.status(200).json({
     name: operator.name,
     surname: operator.surname,
+    email: operator.email,
     role: operator.role,
     // TODO: add more if necessary for the frontend
   });

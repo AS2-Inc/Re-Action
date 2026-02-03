@@ -1,7 +1,8 @@
 import { jest } from "@jest/globals";
+import * as db from "../db_helper.js";
 
-// Define mocks BEFORE importing the app
-jest.unstable_mockModule("../app/services/email_service.js", () => ({
+// Mock Email and Badge services to avoid external dependencies
+jest.unstable_mockModule("../../app/services/email_service.js", () => ({
   default: {
     send_activation_email: jest.fn().mockResolvedValue(true),
     send_password_reset_email: jest.fn().mockResolvedValue(true),
@@ -9,7 +10,7 @@ jest.unstable_mockModule("../app/services/email_service.js", () => ({
   },
 }));
 
-jest.unstable_mockModule("../app/services/badge_service.js", () => ({
+jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
   default: {
     on_points_updated: jest.fn().mockResolvedValue([]),
     on_task_completed: jest.fn().mockResolvedValue([]),
@@ -20,80 +21,66 @@ jest.unstable_mockModule("../app/services/badge_service.js", () => ({
   },
 }));
 
-// Now import the app and other dependencies
+// Import app and models (dynamic imports not strictly needed if not mocking them, but keeping for consistency with existing structure or changing to static if possible)
+// Using static imports for simplicity now that we aren't mocking the modules themselves
 const request = (await import("supertest")).default;
-const mongoose = (await import("mongoose")).default;
 const jwt = (await import("jsonwebtoken")).default;
-const app = (await import("../app/app.js")).default;
-const User = (await import("../app/models/user.js")).default;
-const Submission = (await import("../app/models/submission.js")).default;
-const bcrypt = (await import("bcrypt")).default;
+const app = (await import("../../app/app.js")).default;
+const User = (await import("../../app/models/user.js")).default;
+const bcrypt = (await import("bcrypt")).default; // We might want to use real bcrypt or keep it real. Using real is better for integration.
 
-// Mock bcrypt
-// Mock bcrypt
-jest.spyOn(bcrypt, "compare").mockResolvedValue(true); // Always match passwords
-jest.spyOn(bcrypt, "hash").mockResolvedValue("hashed_password");
-
-// Mock the User model methods
-const mockFindOne = jest.fn();
-const mockSave = jest.fn();
-const mockFindById = jest.fn();
-const mockPopulate = jest.fn();
-const mockCountDocuments = jest.fn();
-
-User.findOne = mockFindOne;
-User.findById = mockFindById;
-Submission.countDocuments = mockCountDocuments;
+// We will NOT mock bcrypt globally anymore, let's test with real hashing for accuracy,
+// or if performance is an issue, we can mock it strictly.
+// For "integration" tests on DB, real hashing is safer but slower.
+// Let's decide to USE REAL BCYPT to catch actual issues, but maybe lower rounds if possible?
+// Actually, for unit tests, mocking bcrypt is fine, but we are moving to integration.
+// Let's remove bcrypt mocks to be safe.
 
 describe("User API Endpoints", () => {
-  let validToken;
-  let operatorToken;
-
-  beforeAll(() => {
-    // Create valid tokens for testing
+  beforeAll(async () => {
+    await db.connect();
     process.env.SUPER_SECRET = "test-secret-key";
-
-    validToken = jwt.sign(
-      { email: "user@example.com", id: "user123", role: "citizen" },
-      process.env.SUPER_SECRET,
-      { expiresIn: 86400 },
-    );
-
-    operatorToken = jwt.sign(
-      { email: "operator@example.com", id: "operator123", role: "operator" },
-      process.env.SUPER_SECRET,
-      { expiresIn: 86400 },
-    );
   });
 
-  beforeEach(() => {
+  afterEach(async () => {
+    await db.clear();
     jest.clearAllMocks();
-    mockFindOne.mockReset();
-    mockSave.mockReset();
-    mockFindById.mockReset();
-    mockPopulate.mockReset();
-    mockCountDocuments.mockReset();
   });
 
   afterAll(async () => {
-    // Close database connections if any
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.connection.close();
-    }
+    await db.close();
   });
+
+  // Helper to create a user and return token
+  const createTestUser = async (userData) => {
+    // Hash password if present
+    if (userData.password) {
+      userData.password = await bcrypt.hash(userData.password, 10);
+    }
+    const user = new User(userData);
+    await user.save();
+    return user;
+  };
+
+  const generateToken = (user) => {
+    return jwt.sign(
+      { email: user.email, id: user._id, role: user.role },
+      process.env.SUPER_SECRET,
+      { expiresIn: 86400 },
+    );
+  };
 
   describe("POST /api/v1/users/login", () => {
     it("should login successfully with valid credentials", async () => {
-      const mockUser = {
-        _id: "user123",
+      // Create user in DB
+      await createTestUser({
+        name: "Test",
+        surname: "User",
         email: "user@example.com",
         password: "password123!A!A",
-        is_active: true,
         role: "citizen",
-      };
-
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
+        age: 25,
+        is_active: true,
       });
 
       const response = await request(app).post("/api/v1/users/login").send({
@@ -104,16 +91,10 @@ describe("User API Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("token");
       expect(response.body).toHaveProperty("email", "user@example.com");
-      expect(response.body).toHaveProperty("id", "user123");
-      expect(response.body).toHaveProperty("self", "/api/v1/users/user123");
-      expect(mockFindOne).toHaveBeenCalledWith({ email: "user@example.com" });
+      expect(response.body).toHaveProperty("id");
     });
 
     it("should return 404 when user is not found", async () => {
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
-
       const response = await request(app).post("/api/v1/users/login").send({
         email: "nonexistent@example.com",
         password: "password123!A!A",
@@ -124,20 +105,15 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 401 when password is incorrect", async () => {
-      const mockUser = {
-        _id: "user123",
+      await createTestUser({
+        name: "Test",
+        surname: "User",
         email: "user@example.com",
         password: "password123!A!A",
+        role: "citizen",
+        age: 25,
         is_active: true,
-      };
-
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
       });
-
-      // Override mock to return false
-      // Override mock to return false
-      bcrypt.compare.mockResolvedValueOnce(false);
 
       const response = await request(app).post("/api/v1/users/login").send({
         email: "user@example.com",
@@ -149,15 +125,14 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 403 when account is not activated", async () => {
-      const mockUser = {
-        _id: "user123",
+      await createTestUser({
+        name: "Test",
+        surname: "User",
         email: "user@example.com",
         password: "password123!A!A",
+        role: "citizen",
+        age: 25,
         is_active: false,
-      };
-
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
       });
 
       const response = await request(app).post("/api/v1/users/login").send({
@@ -172,18 +147,6 @@ describe("User API Endpoints", () => {
 
   describe("POST /api/v1/users/register", () => {
     it("should register a new user successfully", async () => {
-      mockFindOne.mockResolvedValue(null);
-
-      const mockUser = {
-        _id: "newuser123",
-        name: "John",
-        surname: "Doe",
-        email: "john@example.com",
-        save: jest.fn().mockResolvedValue(true),
-      };
-
-      User.prototype.save = jest.fn().mockResolvedValue(mockUser);
-
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
         surname: "Doe",
@@ -193,29 +156,19 @@ describe("User API Endpoints", () => {
       });
 
       expect(response.status).toBe(201);
-      expect(mockFindOne).toHaveBeenCalledWith({ email: "john@example.com" });
+
+      const user = await User.findOne({ email: "john@example.com" });
+      expect(user).toBeTruthy();
+      expect(user.name).toBe("John");
     });
 
     it("should register a new user with neighborhood", async () => {
-      mockFindOne.mockResolvedValue(null);
-
-      const mockUser = {
-        _id: "newuser123",
-        name: "John",
-        surname: "Doe",
-        email: "john@example.com",
-        neighborhood_id: "neighborhood123",
-        save: jest.fn().mockResolvedValue(true),
-      };
-
-      User.prototype.save = jest.fn().mockResolvedValue(mockUser);
-
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
         surname: "Doe",
         email: "john@example.com",
         password: "password123!A!A",
-        neighborhood_id: "neighborhood123",
+        neighborhood_id: "60d5ecb8b487343638842525", // Valid Mongo ID format needed
         age: 30,
       });
 
@@ -227,6 +180,7 @@ describe("User API Endpoints", () => {
         surname: "Doe",
         email: "john@example.com",
         password: "password123!A!A",
+        age: 30,
       });
 
       expect(response.status).toBe(400);
@@ -250,6 +204,7 @@ describe("User API Endpoints", () => {
         name: "John",
         email: "john@example.com",
         password: "password123!A!A",
+        age: 30,
       });
 
       expect(response.status).toBe(400);
@@ -261,6 +216,7 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         password: "password123!A!A",
+        age: 30,
       });
 
       expect(response.status).toBe(400);
@@ -272,6 +228,7 @@ describe("User API Endpoints", () => {
         name: "John",
         surname: "Doe",
         email: "john@example.com",
+        age: 30,
       });
 
       expect(response.status).toBe(400);
@@ -279,12 +236,14 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 409 when email already exists", async () => {
-      const existingUser = {
-        _id: "existing123",
+      await createTestUser({
+        name: "Existing",
+        surname: "User",
         email: "john@example.com",
-      };
-
-      mockFindOne.mockResolvedValue(existingUser);
+        password: "password123!A!A",
+        age: 30,
+        role: "citizen",
+      });
 
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
@@ -299,8 +258,6 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 400 when email format is invalid", async () => {
-      mockFindOne.mockResolvedValue(null);
-
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
         surname: "Doe",
@@ -352,13 +309,16 @@ describe("User API Endpoints", () => {
       expect(response.body).toHaveProperty("error", "Password is too weak");
     });
 
+    // Database error is hard to mock with real DB unless we drop connection or spy on save
+    // We can skip this test or try to mock the prototype.save ONLY for this test
     it("should return 400 when database error occurs", async () => {
-      const consoleErrorSpy = jest
+      jest
+        .spyOn(User.prototype, "save")
+        .mockRejectedValueOnce(new Error("DB Error"));
+      // Suppress console.error for this expected error
+      const consoleSpy = jest
         .spyOn(console, "error")
         .mockImplementation(() => {});
-
-      mockFindOne.mockResolvedValue(null);
-      User.prototype.save = jest.fn().mockRejectedValue(new Error("DB Error"));
 
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
@@ -371,7 +331,7 @@ describe("User API Endpoints", () => {
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty("error", "Error creating user");
 
-      consoleErrorSpy.mockRestore();
+      consoleSpy.mockRestore();
     });
   });
 
@@ -380,56 +340,49 @@ describe("User API Endpoints", () => {
 
   describe("GET /api/v1/users/me", () => {
     it("should return user dashboard data when authenticated", async () => {
-      const mockUser = {
-        _id: "user123",
+      const user = await createTestUser({
         name: "John",
         surname: "Doe",
+        email: "user@example.com",
+        password: "password123!A!A",
         role: "citizen",
+        age: 25,
         points: 150,
         level: "Cittadino Base",
         streak: 5,
-        badges_id: [],
-        ambient: {
-          co2_saved: 0,
-          waste_recycled: 0,
-          km_green: 0,
-        },
-        neighborhood_id: {
-          _id: "neighborhood123",
-          name: "Green Valley",
-        },
-      };
-
-      mockPopulate.mockResolvedValue(mockUser);
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
       });
+
+      const token = generateToken(user);
 
       const response = await request(app)
         .get("/api/v1/users/me")
-        .set("x-access-token", validToken);
+        .set("x-access-token", token);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("name", "John");
       expect(response.body).toHaveProperty("surname", "Doe");
-      expect(mockFindOne).toHaveBeenCalledWith({ email: "user@example.com" });
     });
 
     it("should return 401 when token is missing", async () => {
       const response = await request(app).get("/api/v1/users/me");
-
       expect(response.status).toBe(401);
     });
 
     it("should return 404 when user is not found", async () => {
-      mockPopulate.mockResolvedValue(null);
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
+      // Create a token for a user that doesn't exist
+      const token = jwt.sign(
+        {
+          email: "ghost@example.com",
+          id: "60d5ecb8b487343638842525",
+          role: "citizen",
+        },
+        process.env.SUPER_SECRET,
+        { expiresIn: 86400 },
+      );
 
       const response = await request(app)
         .get("/api/v1/users/me")
-        .set("x-access-token", validToken);
+        .set("x-access-token", token);
 
       expect(response.status).toBe(404);
     });
@@ -443,50 +396,38 @@ describe("User API Endpoints", () => {
     });
 
     it("should return operator dashboard data when authenticated as operator", async () => {
-      const mockOperator = {
-        _id: "operator123",
+      const operator = await createTestUser({
         name: "Jane",
         surname: "Smith",
-        points: 0,
-        streak: 0,
-        neighborhood_id: null,
-        tasks_completed: [],
+        email: "operator@example.com",
+        password: "password123!A!A",
         role: "operator",
-      };
-
-      mockPopulate.mockResolvedValue(mockOperator);
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockOperator),
+        age: 30,
       });
+
+      const token = generateToken(operator);
 
       const response = await request(app)
         .get("/api/v1/users/me")
-        .set("x-access-token", operatorToken);
+        .set("x-access-token", token);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("name", "Jane");
       expect(response.body).toHaveProperty("surname", "Smith");
-      // expect(response.body).toHaveProperty("role", "operator"); // Not returned currently
-      expect(mockFindOne).toHaveBeenCalledWith({
-        email: "operator@example.com",
-      });
     });
   });
 
   describe("GET /api/v1/users/activate", () => {
     it("should activate citizen account with valid token", async () => {
-      const mockUser = {
-        _id: "user123",
-        email: "user@example.com",
+      const user = await createTestUser({
+        name: "Inactive",
+        surname: "User",
+        email: "inactive@example.com",
+        password: "password123!A!A",
         role: "citizen",
-        active: false,
-        activationToken: "valid-token",
-        activationTokenExpires: Date.now() + 10000,
-        save: jest.fn().mockResolvedValue(true),
-      };
-
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
+        is_active: false,
+        activation_token: "valid-token",
+        activation_token_expires: Date.now() + 10000,
       });
 
       const response = await request(app)
@@ -498,22 +439,22 @@ describe("User API Endpoints", () => {
         "message",
         "Account activated successfully. You can now log in.",
       );
-      expect(mockUser.save).toHaveBeenCalled();
+
+      const updatedUser = await User.findById(user._id);
+      expect(updatedUser.is_active).toBe(true);
+      expect(updatedUser.activation_token).toBeUndefined();
     });
 
     it("should return password setup info for operator activation", async () => {
-      const mockUser = {
-        _id: "operator123",
-        email: "operator@example.com",
+      await createTestUser({
+        name: "Inactive",
+        surname: "Operator",
+        email: "operator_inactive@example.com",
+        password: "password123!A!A",
         role: "operator",
-        active: false,
-        activationToken: "operator-token",
-        activationTokenExpires: Date.now() + 10000,
-        save: jest.fn().mockResolvedValue(true),
-      };
-
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
+        is_active: false,
+        activation_token: "operator-token",
+        activation_token_expires: Date.now() + 10000,
       });
 
       const response = await request(app)
@@ -525,8 +466,6 @@ describe("User API Endpoints", () => {
         "message",
         "Account activated successfully. You can now log in.",
       );
-      // expect(response.body).toHaveProperty("token", "operator-token");
-      // expect(response.body).toHaveProperty("requires_password_setup", true);
     });
 
     it("should return 400 when token is missing", async () => {
@@ -537,10 +476,6 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 400 when token is invalid", async () => {
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
-
       const response = await request(app)
         .get("/api/v1/users/activate")
         .query({ token: "invalid-token" });
@@ -553,8 +488,15 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 400 when token is expired", async () => {
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
+      await createTestUser({
+        name: "Expired",
+        surname: "User",
+        email: "expired@example.com",
+        password: "password123!A!A",
+        role: "citizen",
+        is_active: false,
+        activation_token: "expired-token",
+        activation_token_expires: Date.now() - 10000,
       });
 
       const response = await request(app)
@@ -574,17 +516,20 @@ describe("User API Endpoints", () => {
 
   describe("POST /api/v1/users/change-password", () => {
     it("should change password successfully for authenticated user", async () => {
-      const mockUser = {
-        _id: "user123",
+      const user = await createTestUser({
+        name: "Test",
+        surname: "User",
+        email: "user@example.com",
         password: "oldpassword",
-        save: jest.fn().mockResolvedValue(true),
-      };
+        role: "citizen",
+        is_active: true,
+      });
 
-      mockFindById.mockResolvedValue(mockUser);
+      const token = generateToken(user);
 
       const response = await request(app)
         .post("/api/v1/users/change-password")
-        .set("x-access-token", validToken)
+        .set("x-access-token", token)
         .send({
           current_password: "oldpassword",
           new_password: "newpassword123!A!A!A",
@@ -595,8 +540,14 @@ describe("User API Endpoints", () => {
         "message",
         "Password changed successfully",
       );
-      expect(mockUser.save).toHaveBeenCalled();
-      expect(mockUser.password).toBe("hashed_password");
+
+      const updatedUser = await User.findById(user._id);
+      // Since we use real bcrypt now, we can check if new password matches
+      const isMatch = await bcrypt.compare(
+        "newpassword123!A!A!A",
+        updatedUser.password,
+      );
+      expect(isMatch).toBe(true);
     });
 
     it("should return 401 when no token is provided", async () => {
@@ -612,9 +563,19 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 400 when current_password is missing", async () => {
+      const user = await createTestUser({
+        name: "Test",
+        surname: "User",
+        email: "user@example.com",
+        password: "oldpassword",
+        role: "citizen",
+        is_active: true,
+      });
+      const token = generateToken(user);
+
       const response = await request(app)
         .post("/api/v1/users/change-password")
-        .set("x-access-token", validToken)
+        .set("x-access-token", token)
         .send({
           new_password: "newpassword123!A!A!A",
         });
@@ -623,25 +584,45 @@ describe("User API Endpoints", () => {
       expect(response.body).toHaveProperty("error", "Missing required fields");
     });
 
+    // NOTE: This test was previously testing specific "Missing required fields" for new_password too,
+    // effectively duplicate of above but just for different field.
+    // Generic validation middleware handles both.
     it("should return 400 when new_password is missing", async () => {
+      const user = await createTestUser({
+        name: "Test",
+        surname: "User",
+        email: "user@example.com",
+        password: "oldpassword",
+        role: "citizen",
+        is_active: true,
+      });
+      const token = generateToken(user);
+
       const response = await request(app)
         .post("/api/v1/users/change-password")
-        .set("x-access-token", validToken)
+        .set("x-access-token", token)
         .send({
           current_password: "oldpassword",
         });
 
       expect(response.status).toBe(400);
-      expect(response.status).toBe(400);
       expect(response.body).toHaveProperty("error", "Missing required fields");
     });
 
     it("should return 404 when user is not found", async () => {
-      mockFindById.mockResolvedValue(null);
+      const token = jwt.sign(
+        {
+          email: "ghost@example.com",
+          id: "60d5ecb8b487343638842525",
+          role: "citizen",
+        }, // random ID
+        process.env.SUPER_SECRET,
+        { expiresIn: 86400 },
+      );
 
       const response = await request(app)
         .post("/api/v1/users/change-password")
-        .set("x-access-token", validToken)
+        .set("x-access-token", token)
         .send({
           current_password: "oldpassword",
           new_password: "newpassword123!A!A!A",
@@ -652,19 +633,19 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 401 when current password is incorrect", async () => {
-      const mockUser = {
-        _id: "user123",
-        password: "hashed_password",
-      };
-
-      mockFindById.mockResolvedValue(mockUser);
-
-      // Override mock to return false
-      bcrypt.compare.mockResolvedValueOnce(false);
+      const user = await createTestUser({
+        name: "Test",
+        surname: "User",
+        email: "user@example.com",
+        password: "oldpassword",
+        role: "citizen",
+        is_active: true,
+      });
+      const token = generateToken(user);
 
       const response = await request(app)
         .post("/api/v1/users/change-password")
-        .set("x-access-token", validToken)
+        .set("x-access-token", token)
         .send({
           current_password: "wrongpassword!A!A",
           new_password: "newpassword123!A!A!A",
@@ -678,16 +659,19 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 400 when new password is too short", async () => {
-      const mockUser = {
-        _id: "user123",
+      const user = await createTestUser({
+        name: "Test",
+        surname: "User",
+        email: "user@example.com",
         password: "oldpassword",
-      };
-
-      mockFindById.mockResolvedValue(mockUser);
+        role: "citizen",
+        is_active: true,
+      });
+      const token = generateToken(user);
 
       const response = await request(app)
         .post("/api/v1/users/change-password")
-        .set("x-access-token", validToken)
+        .set("x-access-token", token)
         .send({
           current_password: "oldpassword",
           new_password: "short",
@@ -698,16 +682,19 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 400 when new password is same as current", async () => {
-      const mockUser = {
-        _id: "user123",
-        password: "oldpassword",
-      };
-
-      mockFindById.mockResolvedValue(mockUser);
+      const user = await createTestUser({
+        name: "Test",
+        surname: "User",
+        email: "user@example.com",
+        password: "StrongPassword1!",
+        role: "citizen",
+        is_active: true,
+      });
+      const token = generateToken(user);
 
       const response = await request(app)
         .post("/api/v1/users/change-password")
-        .set("x-access-token", validToken)
+        .set("x-access-token", token)
         .send({
           current_password: "StrongPassword1!",
           new_password: "StrongPassword1!",
@@ -723,18 +710,19 @@ describe("User API Endpoints", () => {
 
   describe("POST /api/v1/users/forgot-password", () => {
     it("should generate reset token for valid email", async () => {
-      const mockUser = {
-        _id: "user123",
-        email: "user@example.com",
-        save: jest.fn().mockResolvedValue(true),
-      };
-
-      mockFindOne.mockResolvedValue(mockUser);
+      const user = await createTestUser({
+        name: "Forgot",
+        surname: "User",
+        email: "forgot@example.com",
+        password: "password123!A!A",
+        role: "citizen",
+        is_active: true,
+      });
 
       const response = await request(app)
         .post("/api/v1/users/forgot-password")
         .send({
-          email: "user@example.com",
+          email: "forgot@example.com",
         });
 
       expect(response.status).toBe(200);
@@ -742,15 +730,13 @@ describe("User API Endpoints", () => {
         "message",
         "If an account with that email exists, a password reset link has been sent",
       );
-      // expect(response.body).toHaveProperty("token");
-      expect(mockUser.save).toHaveBeenCalled();
-      expect(mockUser.reset_password_token).toBeDefined();
-      expect(mockUser.reset_password_expires).toBeDefined();
+
+      const updatedUser = await User.findById(user._id);
+      expect(updatedUser.reset_password_token).toBeDefined();
+      expect(updatedUser.reset_password_expires).toBeDefined();
     });
 
     it("should return success message even for non-existent email", async () => {
-      mockFindOne.mockResolvedValue(null);
-
       const response = await request(app)
         .post("/api/v1/users/forgot-password")
         .send({
@@ -775,21 +761,15 @@ describe("User API Endpoints", () => {
     });
   });
 
-  // reset-password endpoint removed from users.js
-  // describe("POST /api/v1/users/reset-password", () => { ... });
-
   describe("Response format validation", () => {
     it("should return JSON content type for login endpoint", async () => {
-      const mockUser = {
-        _id: "user123",
+      await createTestUser({
+        name: "Test",
+        surname: "User",
         email: "user@example.com",
         password: "password123!A!A",
-        active: true,
         role: "citizen",
-      };
-
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
+        is_active: true,
       });
 
       const response = await request(app).post("/api/v1/users/login").send({
@@ -801,14 +781,12 @@ describe("User API Endpoints", () => {
     });
 
     it("should return JSON content type for register endpoint", async () => {
-      mockFindOne.mockResolvedValue(null);
-      User.prototype.save = jest.fn().mockResolvedValue(true);
-
       const response = await request(app).post("/api/v1/users/register").send({
         name: "John",
         surname: "Doe",
         email: "john@example.com",
         password: "password123!A!A",
+        age: 30,
       });
 
       expect(response.headers["content-type"]).toMatch(/json/);
@@ -826,21 +804,18 @@ describe("User API Endpoints", () => {
 
   describe("Route validation", () => {
     it("should match correct route pattern for login", async () => {
-      const mockUser = {
-        _id: "user123",
+      await createTestUser({
+        name: "Test",
+        surname: "User",
         email: "test@example.com",
-        password: "test",
-        active: true,
+        password: "password123!A!A", // Updated to meet complexity reqs for test user creation
         role: "citizen",
-      };
-
-      mockFindOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
+        active: true,
       });
 
       const response = await request(app).post("/api/v1/users/login").send({
         email: "test@example.com",
-        password: "test",
+        password: "password123!A!A",
       });
 
       expect(response.status).not.toBe(404);

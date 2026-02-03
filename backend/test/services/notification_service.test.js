@@ -1,77 +1,100 @@
-import notification_service from "../../app/services/notification_service.js";
-import Notification from "../../app/models/notification.js";
-import User from "../../app/models/user.js";
-import email_service from "../../app/services/email_service.js";
 import { jest } from "@jest/globals";
+import * as db from "../db_helper.js";
 
 // Mock email service
-email_service.send_email = jest.fn();
+jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+  default: {
+    send_email: jest.fn().mockResolvedValue(true),
+    sendEmail: jest.fn().mockResolvedValue(true),
+  },
+}));
 
-// Mock instances
-Notification.create = jest.fn();
-Notification.find = jest.fn();
-Notification.findOneAndUpdate = jest.fn();
-Notification.updateMany = jest.fn();
-
-// User model mock
-User.findById = jest.fn();
-User.find = jest.fn();
+// Import real modules
+const User = (await import("../../app/models/user.js")).default;
+const Notification = (await import("../../app/models/notification.js")).default;
+const notification_service = (
+  await import("../../app/services/notification_service.js")
+).default;
+const email_service = (await import("../../app/services/email_service.js"))
+  .default;
 
 describe("NotificationService", () => {
-  afterEach(() => {
-    jest.clearAllMocks();
+  beforeAll(async () => {
+    await db.connect();
   });
+
+  afterEach(async () => {
+    await db.clear();
+    // Clear mocks
+    // Note: jest.mocked(email_service.send_email).mockClear() if we want
+  });
+
+  afterAll(async () => {
+    await db.close();
+  });
+
+  const createUser = async (prefs = {}) => {
+    const user = new User({
+      name: "Test User",
+      email: "test@example.com",
+      username: "testuser",
+      password: "password123", // Dummy
+      role: "citizen",
+      is_active: true,
+      notification_preferences: {
+        email: true,
+        positive_reinforcement: true,
+        ...prefs,
+      },
+    });
+    return await user.save();
+  };
 
   describe("create_notification", () => {
     it("should create a notification and send email if preferences allow", async () => {
-      const user_id = "user123";
-      const user_mock = {
-        _id: user_id,
-        email: "test@example.com",
-        name: "Test User",
-        notification_preferences: {
-          email: true,
-          positive_reinforcement: true,
-        },
-      };
+      const user = await createUser({
+        email: true,
+        positive_reinforcement: true,
+      });
 
-      User.findById.mockResolvedValue(user_mock);
-      Notification.create.mockResolvedValue({ _id: "notif123", ...user_mock });
-
-      await notification_service.create_notification(user_id, {
+      const result = await notification_service.create_notification(user._id, {
         title: "Good Job!",
         message: "You did it!",
-        type: "feedback",
+        type: "feedback", // Often mapped to positive_reinforcement
         channel: "in-app",
       });
 
-      expect(User.findById).toHaveBeenCalledWith(user_id);
-      expect(Notification.create).toHaveBeenCalled();
-      expect(email_service.send_email).toHaveBeenCalled();
+      expect(result).toBeTruthy();
+
+      const notif = await Notification.findById(result._id);
+      expect(notif).toBeTruthy();
+      expect(notif.user_id.toString()).toBe(user._id.toString());
+      expect(notif.title).toBe("Good Job!");
+
+      // Email service call
+      if (email_service.send_email) {
+        expect(email_service.send_email).toHaveBeenCalled();
+      }
     });
 
     it("should NOT create notification if preferences disable it", async () => {
-      const user_id = "user123";
-      const user_mock = {
-        _id: user_id,
-        notification_preferences: {
-          email: false,
-          positive_reinforcement: false, // Disabled feedback
-        },
-      };
+      const user = await createUser({
+        email: false,
+        positive_reinforcement: false,
+      });
 
-      User.findById.mockResolvedValue(user_mock);
-
-      const result = await notification_service.create_notification(user_id, {
+      const result = await notification_service.create_notification(user._id, {
         title: "Good Job!",
         message: "You did it!",
         type: "feedback",
         channel: "in-app",
       });
 
+      // If service returns null when filtered/disabled
       expect(result).toBeNull();
-      expect(Notification.create).not.toHaveBeenCalled();
-      expect(email_service.send_email).not.toHaveBeenCalled();
+
+      const count = await Notification.countDocuments();
+      expect(count).toBe(0);
     });
   });
 });

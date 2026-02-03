@@ -245,7 +245,6 @@ export const submit_task = async (user_id, task_id, proof) => {
   }
 
   // 1. Verify
-  let is_valid = true; // Manual tasks auto-pending, handled later
   let status = "PENDING";
 
   if (task.verification_method === "GPS") {

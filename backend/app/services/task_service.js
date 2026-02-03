@@ -4,34 +4,10 @@ import Submission from "../models/submission.js";
 import User from "../models/user.js";
 import BadgeService from "./badge_service.js";
 import Neighborhood from "../models/neighborhood.js";
-import Quiz from "../models/quiz.js";
-
-// Helper to calculate distance
-const _haversine = (coords1, coords2) => {
-  const toRad = (x) => (x * Math.PI) / 180;
-  const R = 6371e3; // metres
-
-  const lat1 = coords1[0];
-  const lon1 = coords1[1];
-  const lat2 = coords2[0];
-  const lon2 = coords2[1];
-
-  const phi1 = toRad(lat1);
-  const phi2 = toRad(lat2);
-  const delta_phi = toRad(lat2 - lat1);
-  const delta_lambda = toRad(lon2 - lon1);
-
-  const a =
-    Math.sin(delta_phi / 2) * Math.sin(delta_phi / 2) +
-    Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(delta_lambda / 2) *
-      Math.sin(delta_lambda / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-};
+import * as GPSVerifier from "./verification/gps_verifier.js";
+import * as QRVerifier from "./verification/qr_verifier.js";
+import * as PhotoVerifier from "./verification/photo_verifier.js";
+import * as QuizVerifier from "./verification/quiz_verifier.js";
 
 // Helper to award points and check badges
 // (Moving logic from route to service)
@@ -274,73 +250,22 @@ export const submit_task = async (user_id, task_id, proof) => {
 
   if (task.verification_method === "GPS") {
     // GPS Verification
-    const target = task.verification_criteria?.target_location; // [lat, lon]
-    const user_loc = proof?.gps_location; // [lat, lon]
-    if (!target || !user_loc) {
-      is_valid = false;
-      throw new Error("Missing GPS location data");
-    } else {
-      const dist = _haversine(target, user_loc);
-      const min_dist = task.verification_criteria?.min_distance_meters || 100;
-      if (dist > min_dist) {
-        is_valid = false;
-        throw new Error(
-          `Distance ${Math.round(dist)}m exceeds limit ${min_dist}m`,
-        );
-      }
-    }
-    status = is_valid ? "APPROVED" : "REJECTED";
+    const result = GPSVerifier.verify(task, proof);
+    status = result.status;
   } else if (task.verification_method === "QR_SCAN") {
     // QR Code Verification
-    if (proof?.qr_code_data !== task.verification_criteria?.qr_code_secret) {
-      is_valid = false;
-      throw new Error("Invalid QR Code");
-    }
-    status = is_valid ? "APPROVED" : "REJECTED";
+    const result = QRVerifier.verify(task, proof);
+    status = result.status;
   } else if (task.verification_method === "PHOTO_UPLOAD") {
     // Photo Verification - Manual Approval
-    if (!proof?.photo_url) {
-      throw new Error("Photo proof required");
-    }
-    status = "PENDING";
-    is_valid = true; // Needs operator approval
+    const result = PhotoVerifier.verify(task, proof);
+    status = result.status;
   } else if (task.verification_method === "QUIZ") {
     // Quiz Verification
-    if (!task.verification_criteria?.quiz_id) {
-      throw new Error("Task misconfiguration: No Quiz ID");
-    }
-    const quiz = await Quiz.findById(task.verification_criteria.quiz_id);
-    if (!quiz) {
-      throw new Error("Quiz not found");
-    }
-
-    const user_answers = proof?.quiz_answers; // Array of option indices
-    if (
-      !user_answers ||
-      !Array.isArray(user_answers) ||
-      user_answers.length !== quiz.questions.length
-    ) {
-      throw new Error("Incomplete or missing quiz answers");
-    }
-
-    let correct_count = 0;
-    quiz.questions.forEach((q, index) => {
-      if (user_answers[index] === q.correct_option_index) {
-        correct_count++;
-      }
-    });
-
-    const score = correct_count / quiz.questions.length;
-    proof.quiz_score = score; // Store score in proof
-
-    if (score >= quiz.passing_score) {
-      is_valid = true;
-      status = "APPROVED";
-    } else {
-      is_valid = false;
-      throw new Error(
-        `Quiz score ${(score * 100).toFixed(0)}% is below passing score ${(quiz.passing_score * 100).toFixed(0)}%`,
-      );
+    const result = await QuizVerifier.verify(task, proof);
+    status = result.status;
+    if (result.enriched_proof) {
+      proof = result.enriched_proof;
     }
   } else if (task.verification_method === "MANUAL_REPORT") {
     status = "PENDING";

@@ -6,7 +6,7 @@ export default mongoose.model(
     name: String,
     surname: String,
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    password: { type: String, required: false },
     role: {
       type: String,
       enum: ["operator", "admin"],

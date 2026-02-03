@@ -53,7 +53,7 @@ router.get("/:id", async (req, res) => {
       res.status(404).json({ error: "Neighborhood Not Found" });
     }
   } catch {
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(400).json({ error: "Invalid ID" });
   }
 });
 

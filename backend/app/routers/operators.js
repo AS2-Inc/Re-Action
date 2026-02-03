@@ -9,53 +9,54 @@ import {
   is_password_valid,
 } from "../utils/security.js";
 import jwt from "jsonwebtoken";
+import check_role from "../middleware/role_checker.js";
 
 const router = express.Router();
 
 // POST /api/v1/operators/register
-router.post("/register", token_checker, async (req, res) => {
-  if (!req.logged_user || req.logged_user.role !== "admin") {
-    return res
-      .status(403)
-      .json({ error: "Forbidden: Insufficient privileges" });
-  }
+router.post(
+  "/register",
+  token_checker,
+  check_role(["admin"]),
+  async (req, res) => {
+    if (!req.body || !req.body.name || !req.body.surname || !req.body.email) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const existing = await Operator.findOne({ email: req.body.email });
+    if (existing)
+      return res.status(409).json({ error: "Email already exists" });
 
-  if (!req.body || !req.body.name || !req.body.surname || !req.body.email) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
-  const existing = await Operator.findOne({ email: req.body.email });
-  if (existing) return res.status(409).json({ error: "Email already exists" });
+    const email_regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email_regex.test(req.body.email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
 
-  const email_regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email_regex.test(req.body.email)) {
-    return res.status(400).json({ error: "Invalid email format" });
-  }
+    const activation_token = crypto.randomBytes(20).toString("hex");
+    const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
 
-  const activation_token = crypto.randomBytes(20).toString("hex");
-  const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
+    let operator = new Operator({
+      name: req.body.name,
+      surname: req.body.surname,
+      email: req.body.email,
+      password: crypto.randomBytes(32).toString("hex"),
+      role: "operator",
+      activation_token: activation_token,
+      activation_token_expires: activation_expires,
+    });
 
-  let operator = new Operator({
-    name: req.body.name,
-    surname: req.body.surname,
-    email: req.body.email,
-    password: crypto.randomBytes(32).toString("hex"),
-    role: "operator",
-    activation_token: activation_token,
-    activation_token_expires: activation_expires,
-  });
-
-  try {
-    operator = await operator.save();
-    await EmailService.send_activation_email(
-      operator.email,
-      operator.activation_token,
-    );
-    res.status(201).json();
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: "Error creating user" });
-  }
-});
+    try {
+      operator = await operator.save();
+      await EmailService.send_activation_email(
+        operator.email,
+        operator.activation_token,
+      );
+      res.status(201).json();
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ error: "Error creating user" });
+    }
+  },
+);
 
 router.post("/login", async (req, res) => {
   const operator = await Operator.findOne({ email: req.body.email }).exec();

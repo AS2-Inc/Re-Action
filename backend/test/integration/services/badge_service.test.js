@@ -151,7 +151,7 @@ describe("BadgeService", () => {
     it("should throw error if user not found", async () => {
       const consoleSpy = jest
         .spyOn(console, "error")
-        .mockImplementation(() => { });
+        .mockImplementation(() => {});
       await expect(
         BadgeService.getAllBadgesWithStatus(new mongoose.Types.ObjectId()),
       ).rejects.toThrow("User not found");

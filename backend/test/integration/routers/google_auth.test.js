@@ -101,12 +101,19 @@ describe("Google Authentication", () => {
     // Mock failed Google verification
     verifyIdTokenMock.mockRejectedValue(new Error("Invalid token"));
 
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
     const res = await request(app)
       .post("/api/v1/users/auth/google")
       .send({ credential: "invalid_token" });
 
     expect(res.statusCode).toEqual(401);
     expect(res.body.error).toEqual("Invalid Google token");
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
   });
 
   test("POST /api/v1/users/auth/google should require credential", async () => {

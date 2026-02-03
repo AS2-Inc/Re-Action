@@ -1,8 +1,8 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js";
+import * as db from "../../db_helper.js";
 
 // Mock EmailService
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     sendActivationEmail: jest.fn().mockResolvedValue(true),
     sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
@@ -11,7 +11,7 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
 }));
 
 // Mock BadgeService
-jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/badge_service.js", () => ({
   default: {
     on_points_updated: jest.fn().mockResolvedValue([]),
     on_task_completed: jest.fn().mockResolvedValue([]),
@@ -27,10 +27,10 @@ jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
 const request = (await import("supertest")).default;
 const mongoose = (await import("mongoose")).default;
 const jwt = (await import("jsonwebtoken")).default;
-const app = (await import("../../app/app.js")).default;
-const Task = (await import("../../app/models/task.js")).default;
-const User = (await import("../../app/models/user.js")).default;
-const UserTask = (await import("../../app/models/user_task.js")).default;
+const app = (await import("../../../app/app.js")).default;
+const Task = (await import("../../../app/models/task.js")).default;
+const User = (await import("../../../app/models/user.js")).default;
+const UserTask = (await import("../../../app/models/user_task.js")).default;
 
 describe("Task API Endpoints", () => {
   let citizenToken;
@@ -111,10 +111,50 @@ describe("Task API Endpoints", () => {
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
-      // Logic might vary: GET /tasks usually returns assigned tasks OR available one-off tasks depending on service logic.
-      // Assuming it returns combined list or specific structure.
-      // Based on previous mocks, it returns a list.
       expect(res.body.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("GET /api/v1/tasks/:id", () => {
+    it("should return a task by ID", async () => {
+      citizenToken = await createTestUser();
+      const task = await createTask({ title: "Specific Task" });
+
+      const res = await request(app)
+        .get(`/api/v1/tasks/${task._id}`)
+        .set("x-access-token", citizenToken);
+
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe("Specific Task");
+    });
+
+    it("should return 404 for non-existent task", async () => {
+      citizenToken = await createTestUser();
+      const fakeId = new mongoose.Types.ObjectId();
+
+      const res = await request(app)
+        .get(`/api/v1/tasks/${fakeId}`)
+        .set("x-access-token", citizenToken);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("GET /api/v1/tasks/active", () => {
+    it("should return active tasks", async () => {
+      citizenToken = await createTestUser();
+      await createTask({ title: "Active Task 1", is_active: true });
+      await createTask({ title: "Inactive Task", is_active: false });
+
+      const res = await request(app)
+        .get("/api/v1/tasks/active")
+        .set("x-access-token", citizenToken);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      const titles = res.body.map((t) => t.title);
+      expect(titles).toContain("Active Task 1");
+      expect(titles).not.toContain("Inactive Task");
     });
   });
 
@@ -157,7 +197,7 @@ describe("Task API Endpoints", () => {
         .set("x-access-token", citizenToken)
         .send({ task_id: task._id, proof: {} }); // Missing quiz answers
 
-      expect(res.status).toBe(400); // or 500 depending on error handling
+      expect(res.status).toBe(400);
     });
   });
 });

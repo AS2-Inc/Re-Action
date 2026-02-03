@@ -1,11 +1,11 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js"; // Path relative to test/services/
+import * as db from "../../db_helper.js"; // Path relative to test/services/
 
 // Mock BadgeService
 const mockCheckAndAwardBadges = jest.fn();
 const mockCheckLevelUp = jest.fn();
 
-jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/badge_service.js", () => ({
   default: {
     checkAndAwardBadges: mockCheckAndAwardBadges,
     check_level_up: mockCheckLevelUp,
@@ -18,8 +18,8 @@ jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
   },
 }));
 
-// Mock EmailService (implicitly used somewhere?)
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+// Mock EmailService
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     sendActivationEmail: jest.fn().mockResolvedValue(true),
     sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
@@ -27,12 +27,11 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
   },
 }));
 
-const Task = (await import("../../app/models/task.js")).default;
-const User = (await import("../../app/models/user.js")).default;
-const Quiz = (await import("../../app/models/quiz.js")).default;
+const Task = (await import("../../../app/models/task.js")).default;
+const User = (await import("../../../app/models/user.js")).default;
+const Quiz = (await import("../../../app/models/quiz.js")).default;
 
-// Import Service after mocks
-const TaskService = await import("../../app/services/task_service.js");
+const TaskService = await import("../../../app/services/task_service.js");
 
 describe("TaskService Verification Logic", () => {
   beforeAll(async () => {
@@ -87,9 +86,6 @@ describe("TaskService Verification Logic", () => {
       },
       base_points: 10,
     });
-    // On-demand tasks don't strictly require assignment in some logic, but let's assign if needed.
-    // TaskService checks for assignment IF frequency != on_demand.
-    // Here frequency is on_demand (default from helper).
 
     const proof = { gps_location: [40.0001, -74.0001] }; // Close enough
     const result = await TaskService.submit_task(user._id, task._id, proof);

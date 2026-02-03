@@ -1,11 +1,12 @@
+import { jest } from "@jest/globals";
 import mongoose from "mongoose";
-import BadgeService from "../../app/services/badge_service.js";
-import Badge from "../../app/models/badge.js";
-import User from "../../app/models/user.js";
-import Activity from "../../app/models/submission.js";
-import Task from "../../app/models/task.js";
-import { connect, close, clear } from "../db_helper.js";
-import { DEFAULT_BADGES } from "../../app/config/badges.config.js";
+import BadgeService from "../../../app/services/badge_service.js";
+import Badge from "../../../app/models/badge.js";
+import User from "../../../app/models/user.js";
+import Activity from "../../../app/models/submission.js";
+import Task from "../../../app/models/task.js";
+import { connect, close, clear } from "../../db_helper.js";
+import { DEFAULT_BADGES } from "../../../app/config/badges.config.js";
 
 describe("BadgeService", () => {
   beforeAll(async () => {
@@ -148,9 +149,14 @@ describe("BadgeService", () => {
     });
 
     it("should throw error if user not found", async () => {
+      const consoleSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => { });
       await expect(
         BadgeService.getAllBadgesWithStatus(new mongoose.Types.ObjectId()),
       ).rejects.toThrow("User not found");
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
   });
 

@@ -12,15 +12,10 @@ const mockGetUserNotifications = jest.fn();
 const mockMarkAsRead = jest.fn();
 const mockMarkAllAsRead = jest.fn();
 
-// We need to mock notification service relative to the router
-// Router is in app/routers/notifications.js
-// It imports ../services/notification_service.js
-// From test/routers/notifications.test.js (where this file is), it is ../../app/services/notification_service.js
-
 // Absolute path mocking to be safe
 const servicePath = path.resolve(
   __dirname,
-  "../../app/services/notification_service.js",
+  "../../../app/services/notification_service.js",
 );
 jest.unstable_mockModule(servicePath, () => ({
   default: {
@@ -38,15 +33,26 @@ const mockTokenChecker = (req, _res, next) => {
 // Router imports middleware/token_checker.js
 const middlewarePath = path.resolve(
   __dirname,
-  "../../app/middleware/token_checker.js",
+  "../../../app/middleware/token_checker.js",
 );
 jest.unstable_mockModule(middlewarePath, () => ({
   default: mockTokenChecker,
 }));
 
+// Mock role_checker middleware
+const mockRoleChecker = (_allow) => (_req, _res, next) => next();
+const roleCheckerPath = path.resolve(
+  __dirname,
+  "../../../app/middleware/role_checker.js",
+);
+jest.unstable_mockModule(roleCheckerPath, () => ({
+  default: mockRoleChecker,
+}));
+
 // Import App Logic
-const NotificationsRouter = (await import("../../app/routers/notifications.js"))
-  .default;
+const NotificationsRouter = (
+  await import("../../../app/routers/notifications.js")
+).default;
 const app = express();
 app.use(express.json());
 app.use("/api/v1/notifications", NotificationsRouter);

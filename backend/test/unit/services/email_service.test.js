@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import EmailService from "../../app/services/email_service.js";
+import EmailService from "../../../app/services/email_service.js";
 
 describe("EmailService", () => {
   let sendMailMock;

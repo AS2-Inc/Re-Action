@@ -1,8 +1,8 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js";
+import * as db from "../../db_helper.js";
 
 // Mock email service
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     send_email: jest.fn().mockResolvedValue(true),
     sendEmail: jest.fn().mockResolvedValue(true),
@@ -10,12 +10,13 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
 }));
 
 // Import real modules
-const User = (await import("../../app/models/user.js")).default;
-const Notification = (await import("../../app/models/notification.js")).default;
+const User = (await import("../../../app/models/user.js")).default;
+const Notification = (await import("../../../app/models/notification.js"))
+  .default;
 const notification_service = (
-  await import("../../app/services/notification_service.js")
+  await import("../../../app/services/notification_service.js")
 ).default;
-const email_service = (await import("../../app/services/email_service.js"))
+const email_service = (await import("../../../app/services/email_service.js"))
   .default;
 
 describe("NotificationService", () => {
@@ -25,8 +26,6 @@ describe("NotificationService", () => {
 
   afterEach(async () => {
     await db.clear();
-    // Clear mocks
-    // Note: jest.mocked(email_service.send_email).mockClear() if we want
   });
 
   afterAll(async () => {
@@ -38,7 +37,7 @@ describe("NotificationService", () => {
       name: "Test User",
       email: "test@example.com",
       username: "testuser",
-      password: "password123", // Dummy
+      password: "password123",
       role: "citizen",
       is_active: true,
       notification_preferences: {
@@ -60,7 +59,7 @@ describe("NotificationService", () => {
       const result = await notification_service.create_notification(user._id, {
         title: "Good Job!",
         message: "You did it!",
-        type: "feedback", // Often mapped to positive_reinforcement
+        type: "feedback",
         channel: "in-app",
       });
 

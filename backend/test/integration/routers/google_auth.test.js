@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js";
+import * as db from "../../db_helper.js";
 
 // Define mock function outside so we can control it in tests
 const verifyIdTokenMock = jest.fn();
@@ -12,7 +12,7 @@ jest.unstable_mockModule("google-auth-library", () => ({
 }));
 
 // Mock EmailService to avoid sending emails during tests
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     send_activation_email: jest.fn().mockResolvedValue(true),
     send_password_reset_email: jest.fn().mockResolvedValue(true),
@@ -21,8 +21,8 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
 }));
 
 const request = (await import("supertest")).default;
-const app = (await import("../../app/app.js")).default;
-const User = (await import("../../app/models/user.js")).default;
+const app = (await import("../../../app/app.js")).default;
+const User = (await import("../../../app/models/user.js")).default;
 
 describe("Google Authentication", () => {
   beforeAll(async () => {

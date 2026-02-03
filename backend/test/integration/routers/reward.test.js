@@ -1,8 +1,8 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js";
+import * as db from "../../db_helper.js";
 
 // Mock EmailService
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     sendActivationEmail: jest.fn().mockResolvedValue(true),
     sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
@@ -11,7 +11,7 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
 }));
 
 // Mock BadgeService
-jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/badge_service.js", () => ({
   default: {
     on_points_updated: jest.fn().mockResolvedValue([]),
     on_task_completed: jest.fn().mockResolvedValue([]),
@@ -25,11 +25,11 @@ jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
 const request = (await import("supertest")).default;
 const mongoose = (await import("mongoose")).default;
 const jwt = (await import("jsonwebtoken")).default;
-const app = (await import("../../app/app.js")).default;
-const Reward = (await import("../../app/models/reward.js")).default;
-const User = (await import("../../app/models/user.js")).default;
-const Operator = (await import("../../app/models/operator.js")).default;
-const UserReward = (await import("../../app/models/user_reward.js")).default;
+const app = (await import("../../../app/app.js")).default;
+const Reward = (await import("../../../app/models/reward.js")).default;
+const User = (await import("../../../app/models/user.js")).default;
+const Operator = (await import("../../../app/models/operator.js")).default;
+const UserReward = (await import("../../../app/models/user_reward.js")).default;
 
 describe("Reward API Endpoints", () => {
   let citizenToken;

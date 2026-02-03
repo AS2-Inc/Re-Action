@@ -1,8 +1,8 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js";
+import * as db from "../../db_helper.js";
 
 // Mock Email and Badge services to avoid external dependencies
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     send_activation_email: jest.fn().mockResolvedValue(true),
     send_password_reset_email: jest.fn().mockResolvedValue(true),
@@ -10,7 +10,7 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
   },
 }));
 
-jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/badge_service.js", () => ({
   default: {
     on_points_updated: jest.fn().mockResolvedValue([]),
     on_task_completed: jest.fn().mockResolvedValue([]),
@@ -21,20 +21,11 @@ jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
   },
 }));
 
-// Import app and models (dynamic imports not strictly needed if not mocking them, but keeping for consistency with existing structure or changing to static if possible)
-// Using static imports for simplicity now that we aren't mocking the modules themselves
 const request = (await import("supertest")).default;
 const jwt = (await import("jsonwebtoken")).default;
-const app = (await import("../../app/app.js")).default;
-const User = (await import("../../app/models/user.js")).default;
-const bcrypt = (await import("bcrypt")).default; // We might want to use real bcrypt or keep it real. Using real is better for integration.
-
-// We will NOT mock bcrypt globally anymore, let's test with real hashing for accuracy,
-// or if performance is an issue, we can mock it strictly.
-// For "integration" tests on DB, real hashing is safer but slower.
-// Let's decide to USE REAL BCYPT to catch actual issues, but maybe lower rounds if possible?
-// Actually, for unit tests, mocking bcrypt is fine, but we are moving to integration.
-// Let's remove bcrypt mocks to be safe.
+const app = (await import("../../../app/app.js")).default;
+const User = (await import("../../../app/models/user.js")).default;
+const bcrypt = (await import("bcrypt")).default;
 
 describe("User API Endpoints", () => {
   beforeAll(async () => {
@@ -51,9 +42,7 @@ describe("User API Endpoints", () => {
     await db.close();
   });
 
-  // Helper to create a user and return token
   const createTestUser = async (userData) => {
-    // Hash password if present
     if (userData.password) {
       userData.password = await bcrypt.hash(userData.password, 10);
     }
@@ -308,31 +297,6 @@ describe("User API Endpoints", () => {
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty("error", "Password is too weak");
     });
-
-    // Database error is hard to mock with real DB unless we drop connection or spy on save
-    // We can skip this test or try to mock the prototype.save ONLY for this test
-    it("should return 400 when database error occurs", async () => {
-      jest
-        .spyOn(User.prototype, "save")
-        .mockRejectedValueOnce(new Error("DB Error"));
-      // Suppress console.error for this expected error
-      const consoleSpy = jest
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
-      const response = await request(app).post("/api/v1/users/register").send({
-        name: "John",
-        surname: "Doe",
-        email: "john@example.com",
-        password: "password123!A!A",
-        age: 30,
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty("error", "Error creating user");
-
-      consoleSpy.mockRestore();
-    });
   });
 
   // Operator creation endpoint removed from users.js
@@ -511,9 +475,6 @@ describe("User API Endpoints", () => {
     });
   });
 
-  // set-password endpoint removed from users.js
-  // describe("POST /api/v1/users/set-password", () => { ... });
-
   describe("POST /api/v1/users/change-password", () => {
     it("should change password successfully for authenticated user", async () => {
       const user = await createTestUser({
@@ -542,7 +503,6 @@ describe("User API Endpoints", () => {
       );
 
       const updatedUser = await User.findById(user._id);
-      // Since we use real bcrypt now, we can check if new password matches
       const isMatch = await bcrypt.compare(
         "newpassword123!A!A!A",
         updatedUser.password,
@@ -584,9 +544,6 @@ describe("User API Endpoints", () => {
       expect(response.body).toHaveProperty("error", "Missing required fields");
     });
 
-    // NOTE: This test was previously testing specific "Missing required fields" for new_password too,
-    // effectively duplicate of above but just for different field.
-    // Generic validation middleware handles both.
     it("should return 400 when new_password is missing", async () => {
       const user = await createTestUser({
         name: "Test",

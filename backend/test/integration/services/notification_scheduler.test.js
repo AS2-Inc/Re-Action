@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { connect, close, clear } from "../db_helper.js";
+import { connect, close, clear } from "../../db_helper.js";
 
 // Define mocks
 const mockSchedule = jest.fn().mockReturnValue({});
@@ -11,20 +11,23 @@ jest.unstable_mockModule("node-cron", () => ({
 }));
 
 // We need to mock the full path or relative path exactly as imported
-jest.unstable_mockModule("../../app/services/notification_service.js", () => ({
-  default: { create_notification: mockCreateNotification },
-}));
+jest.unstable_mockModule(
+  "../../../app/services/notification_service.js",
+  () => ({
+    default: { create_notification: mockCreateNotification },
+  }),
+);
 
 // Dynamic import for module under test
 const NotificationSchedulerModule = await import(
-  "../../app/services/notification_scheduler.js"
+  "../../../app/services/notification_scheduler.js"
 );
 const NotificationScheduler = NotificationSchedulerModule.default;
 
 // Dynamic import for models
-const UserModule = await import("../../app/models/user.js");
+const UserModule = await import("../../../app/models/user.js");
 const User = UserModule.default;
-const NotificationModule = await import("../../app/models/notification.js");
+const NotificationModule = await import("../../../app/models/notification.js");
 const Notification = NotificationModule.default;
 
 describe("NotificationScheduler", () => {

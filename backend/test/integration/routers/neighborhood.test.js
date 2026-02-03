@@ -1,8 +1,8 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js";
+import * as db from "../../db_helper.js";
 
 // Mock EmailService
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     sendActivationEmail: jest.fn().mockResolvedValue(true),
     sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
@@ -11,7 +11,7 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
 }));
 
 // Mock BadgeService
-jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/badge_service.js", () => ({
   default: {
     on_points_updated: jest.fn().mockResolvedValue([]),
     on_task_completed: jest.fn().mockResolvedValue([]),
@@ -24,8 +24,9 @@ jest.unstable_mockModule("../../app/services/badge_service.js", () => ({
 
 const request = (await import("supertest")).default;
 const mongoose = (await import("mongoose")).default;
-const app = (await import("../../app/app.js")).default;
-const Neighborhood = (await import("../../app/models/neighborhood.js")).default;
+const app = (await import("../../../app/app.js")).default;
+const Neighborhood = (await import("../../../app/models/neighborhood.js"))
+  .default;
 
 describe("Neighborhood API Endpoints", () => {
   beforeAll(async () => {
@@ -79,11 +80,6 @@ describe("Neighborhood API Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body).toEqual([]);
     });
-
-    // Cannot easily simulate DB error with real in-memory DB without mocking internal mongoose behavior
-    // which defeats the purpose of "no manual mocks".
-    // We can skip "database error" tests or test invalid inputs if applicable.
-    // For now, we will omit forced DB connection failures as we are testing LOGIC + DB Integration.
   });
 
   describe("GET /api/v1/neighborhood/:id", () => {
@@ -114,17 +110,15 @@ describe("Neighborhood API Endpoints", () => {
         "/api/v1/neighborhood/invalid-id",
       );
 
-      // Mongoose throws CastError for invalid ObjectId, which usually results in 500 or 400 depending on middleware
-      // The current controller likely let it bubble up to 500
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty("error", "Internal Server Error");
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("error", "Invalid ID");
     });
   });
 
   describe("Route validation", () => {
     it("should match correct route pattern for listing neighborhoods", async () => {
       const response = await request(app).get("/api/v1/neighborhood");
-      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(200);
     });
 
     it("should match correct route pattern for getting neighborhood by id", async () => {
@@ -132,7 +126,7 @@ describe("Neighborhood API Endpoints", () => {
       const response = await request(app).get(
         `/api/v1/neighborhood/${neighborhood._id}`,
       );
-      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(200);
     });
 
     it("should return 404 for non-existent routes", async () => {

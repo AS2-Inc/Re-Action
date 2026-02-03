@@ -10,26 +10,21 @@ const mockSubmitTask = jest.fn();
 const mockCreateTask = jest.fn();
 const mockGetSubmissions = jest.fn();
 const mockVerifySubmission = jest.fn();
+const mockGetTask = jest.fn();
+const mockGetActiveTasks = jest.fn();
 
-// Jest's unstable_mockModule uses the string exactly as passed to import() in the generic case,
-// OR if using relative path, it resolves against test file.
-// The issue might be that the Controller imports it via `../services/task_service.js`.
-// Let's try to use the RELATIVE path that matches the controller's resolution from the TEST file perspective
-// which is `../../app/services/task_service.js`.
-// But maybe I should mock the string literal that matches how jest resolves the CONTROLLER'S import?
-// jest usually normalizes to absolute path.
-
-jest.unstable_mockModule("../../app/services/task_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/task_service.js", () => ({
   get_user_tasks: mockGetUserTasks,
   submit_task: mockSubmitTask,
   create_task: mockCreateTask,
   get_submissions: mockGetSubmissions,
   verify_submission: mockVerifySubmission,
+  get_task: mockGetTask,
+  get_active_tasks: mockGetActiveTasks,
 }));
 
-// Re-import the controller to apply mocks
 const TaskControllerModule = await import(
-  "../../app/controllers/task_controller.js"
+  "../../../app/controllers/task_controller.js"
 );
 const Controller = TaskControllerModule;
 
@@ -49,7 +44,6 @@ describe("TaskController", () => {
       location: jest.fn().mockReturnThis(),
     };
     jest.clearAllMocks();
-    // Silence console.error for expected errors
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -208,6 +202,53 @@ describe("TaskController", () => {
       await Controller.verify_submission(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe("get_task", () => {
+    it("should fetch a task by ID", async () => {
+      req.params = { id: "task-1" };
+      const mockTask = { id: "task-1", title: "Task 1" };
+      mockGetTask.mockResolvedValue(mockTask);
+
+      await Controller.get_task(req, res);
+
+      expect(mockGetTask).toHaveBeenCalledWith("task-1");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(mockTask);
+    });
+
+    it("should handle Task not found", async () => {
+      req.params = { id: "task-1" };
+      mockGetTask.mockRejectedValue(new Error("Task not found"));
+
+      await Controller.get_task(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe("get_active_tasks", () => {
+    it("should fetch active tasks", async () => {
+      const mockTasks = [{ id: "task-1", is_active: true }];
+      mockGetActiveTasks.mockResolvedValue(mockTasks);
+
+      await Controller.get_active_tasks(req, res);
+
+      expect(mockGetActiveTasks).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(mockTasks);
+    });
+
+    it("should handle errors", async () => {
+      mockGetActiveTasks.mockRejectedValue(new Error("Database error"));
+
+      await Controller.get_active_tasks(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Failed to fetch active tasks",
+      });
     });
   });
 });

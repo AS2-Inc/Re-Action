@@ -1,9 +1,9 @@
 import { jest } from "@jest/globals";
-import * as db from "../db_helper.js";
+import * as db from "../../db_helper.js";
 
 // Mock EmailService
 const mockSendActivationEmail = jest.fn().mockResolvedValue(true);
-jest.unstable_mockModule("../../app/services/email_service.js", () => ({
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     send_activation_email: mockSendActivationEmail,
     sendEmail: jest.fn().mockResolvedValue(true),
@@ -11,10 +11,10 @@ jest.unstable_mockModule("../../app/services/email_service.js", () => ({
 }));
 
 const request = (await import("supertest")).default;
-const app = (await import("../../app/app.js")).default;
+const app = (await import("../../../app/app.js")).default;
 const jwt = (await import("jsonwebtoken")).default;
 const bcrypt = (await import("bcrypt")).default;
-const Operator = (await import("../../app/models/operator.js")).default;
+const Operator = (await import("../../../app/models/operator.js")).default;
 
 describe("Operator API", () => {
   let admin_token;
@@ -23,13 +23,22 @@ describe("Operator API", () => {
   beforeAll(async () => {
     await db.connect();
     process.env.SUPER_SECRET = "test-secret";
+  });
 
+  beforeEach(async () => {
     // Create Admin Token (Role admin is allowed to register operators)
-    // In real app, we might need a real admin user in DB if middleware checks DB
-    // But check_role middleware usually checks JWT payload.
-    // Let's rely on JWT payload for role check based on previous tests.
+    const admin = new Operator({
+      name: "Admin",
+      surname: "User",
+      email: "admin@test.com",
+      password: operator_password,
+      role: "admin",
+      is_active: true,
+    });
+    await admin.save();
+
     admin_token = jwt.sign(
-      { email: "admin@test.com", id: "admin123", role: "admin" },
+      { email: admin.email, id: admin._id, role: admin.role },
       process.env.SUPER_SECRET,
       { expiresIn: 86400 },
     );
@@ -111,7 +120,6 @@ describe("Operator API", () => {
         name: "Op",
         surname: "Test",
         email: "activateme@test.com",
-        password: "TempPassword123!", // Preliminary password
         role: "operator",
         activation_token: "valid-activation-token",
         activation_token_expires: Date.now() + 3600000,
@@ -133,7 +141,7 @@ describe("Operator API", () => {
 
       const op = await Operator.findById(operator_id);
       expect(op.is_active).toBe(true);
-      expect(op.activation_token).toBeUndefined(); // Or null/undefined depending on implementation
+      expect(op.activation_token).toBeUndefined();
 
       // Check password is changed and hashed
       const isMatch = await bcrypt.compare("StrongPassword123!", op.password);
@@ -163,8 +171,7 @@ describe("Operator API", () => {
           password: "StrongPassword123!",
         });
 
-      expect(response.status).toBe(400); // Or 404 depending on implementation, test said 400
-      // Previous test expected 400 for invalid token
+      expect(response.status).toBe(400);
     });
   });
 

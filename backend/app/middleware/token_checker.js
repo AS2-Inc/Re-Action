@@ -1,4 +1,3 @@
-// https://github.com/unitn-software-engineering/EasyLib/blob/master/app/tokenChecker.js
 import jwt from "jsonwebtoken";
 
 const token_checker = (req, res, next) => {

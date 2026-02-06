@@ -41,7 +41,7 @@ describe("NotificationScheduler (Unit)", () => {
       NotificationScheduler.init();
 
       // Should verify 2 jobs scheduled
-      expect(mockCronSchedule).toHaveBeenCalledTimes(2);
+      expect(mockCronSchedule).toHaveBeenCalledTimes(4);
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "0 10 * * *",
         expect.any(Function),

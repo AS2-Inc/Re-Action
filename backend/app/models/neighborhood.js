@@ -9,8 +9,9 @@ export default mongoose.model(
     ranking_position: Number,
     // Open Data Integration (RF13, RF17)
     environmental_data: {
-      air_quality: Number,
+      air_quality_index: Number,
       waste_management: Number,
+      improvement_trend: Number,
       last_updated: Date,
     },
     active_goals: [

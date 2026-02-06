@@ -1,116 +1,193 @@
 import { jest } from "@jest/globals";
-import express from "express";
-import request from "supertest";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
+import * as db from "../../db_helper.js";
 
-// Helper to get __dirname
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Mocks
-const mockGetUserNotifications = jest.fn();
-const mockMarkAsRead = jest.fn();
-const mockMarkAllAsRead = jest.fn();
-
-// Absolute path mocking to be safe
-const servicePath = path.resolve(
-  __dirname,
-  "../../../app/services/notification_service.js",
-);
-jest.unstable_mockModule(servicePath, () => ({
+// Mock EmailService to avoid real emails during tests
+jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
-    get_user_notifications: mockGetUserNotifications,
-    mark_as_read: mockMarkAsRead,
-    mark_all_as_read: mockMarkAllAsRead,
+    send_email: jest.fn().mockResolvedValue(true),
   },
 }));
 
-// Mock token_checker middleware
-const mockTokenChecker = (req, _res, next) => {
-  req.logged_user = { id: "user-123", role: "citizen" };
-  next();
-};
-// Router imports middleware/token_checker.js
-const middlewarePath = path.resolve(
-  __dirname,
-  "../../../app/middleware/token_checker.js",
-);
-jest.unstable_mockModule(middlewarePath, () => ({
-  default: mockTokenChecker,
-}));
+const request = (await import("supertest")).default;
+const jwt = (await import("jsonwebtoken")).default;
+const app = (await import("../../../app/app.js")).default;
+const User = (await import("../../../app/models/user.js")).default;
+const Notification = (await import("../../../app/models/notification.js"))
+  .default;
 
-// Mock role_checker middleware
-const mockRoleChecker = (_allow) => (_req, _res, next) => next();
-const roleCheckerPath = path.resolve(
-  __dirname,
-  "../../../app/middleware/role_checker.js",
-);
-jest.unstable_mockModule(roleCheckerPath, () => ({
-  default: mockRoleChecker,
-}));
+describe("Notifications Router Integration Tests", () => {
+  let user;
+  let token;
+  let notification;
 
-// Import App Logic
-const NotificationsRouter = (
-  await import("../../../app/routers/notifications.js")
-).default;
-const app = express();
-app.use(express.json());
-app.use("/api/v1/notifications", NotificationsRouter);
+  beforeAll(async () => {
+    await db.connect();
+    process.env.SUPER_SECRET = "test-secret";
+  });
 
-describe("Notifications Router", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+  afterEach(async () => {
+    await db.clear();
+  });
+
+  afterAll(async () => {
+    await db.close();
+  });
+
+  const createTestUser = async () => {
+    const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
+    const newUser = new User({
+      name: "Notif",
+      surname: "Tester",
+      email: `notif-router-${uniqueId}@example.com`,
+      password: "Password123!",
+      role: "citizen",
+      is_active: true,
+      notification_preferences: {
+        email: true,
+        push: true,
+        daily: true,
+        motivational: true,
+      },
+    });
+    await newUser.save();
+    return newUser;
+  };
+
+  const createNotification = async (userId, title = "Test Notif") => {
+    return await Notification.create({
+      user_id: userId,
+      title: title,
+      message: "This is a test notification",
+      type: "info",
+      channel: "in-app",
+    });
+  };
+
+  const generateToken = (userData) => {
+    return jwt.sign(
+      { email: userData.email, id: userData._id, role: userData.role },
+      process.env.SUPER_SECRET,
+      { expiresIn: 86400 },
+    );
+  };
+
+  beforeEach(async () => {
+    user = await createTestUser();
+    token = generateToken(user);
+    notification = await createNotification(user._id);
   });
 
   describe("GET /api/v1/notifications", () => {
     it("should return user notifications", async () => {
-      const mockNotifs = [{ id: 1, title: "Notif 1" }];
-      mockGetUserNotifications.mockResolvedValue(mockNotifs);
+      const res = await request(app)
+        .get("/api/v1/notifications")
+        .set("x-access-token", token);
 
-      const res = await request(app).get("/api/v1/notifications");
-
-      expect(mockGetUserNotifications).toHaveBeenCalledWith("user-123");
       expect(res.status).toBe(200);
-      expect(res.body).toEqual(mockNotifs);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(1);
+      expect(res.body[0].title).toBe("Test Notif");
     });
 
-    it("should handle errors", async () => {
-      mockGetUserNotifications.mockRejectedValue(new Error("DB Error"));
-      const res = await request(app).get("/api/v1/notifications");
-      expect(res.status).toBe(500);
+    it("should return empty list if no notifications", async () => {
+      // Clear notifications
+      await Notification.deleteMany({});
+
+      const res = await request(app)
+        .get("/api/v1/notifications")
+        .set("x-access-token", token);
+
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBe(0);
     });
   });
 
   describe("PATCH /api/v1/notifications/:id/read", () => {
     it("should mark notification as read", async () => {
-      mockMarkAsRead.mockResolvedValue({ id: "notif-1", read: true });
+      const res = await request(app)
+        .patch(`/api/v1/notifications/${notification._id}/read`)
+        .set("x-access-token", token);
 
-      const res = await request(app).patch(
-        "/api/v1/notifications/notif-1/read",
-      );
-
-      expect(mockMarkAsRead).toHaveBeenCalledWith("notif-1", "user-123");
       expect(res.status).toBe(200);
+      expect(res.body.is_read).toBe(true);
+
+      const updated = await Notification.findById(notification._id);
+      expect(updated.is_read).toBe(true);
     });
 
-    it("should return 404 if not found", async () => {
-      mockMarkAsRead.mockResolvedValue(null);
-      const res = await request(app).patch(
-        "/api/v1/notifications/notif-1/read",
-      );
+    it("should return 404 if notification not found or belongs to another user", async () => {
+      const otherUser = await createTestUser(); // Creates a user with different ID
+      const otherNotif = await createNotification(otherUser._id);
+
+      const res = await request(app)
+        .patch(`/api/v1/notifications/${otherNotif._id}/read`)
+        .set("x-access-token", token); // Using original user's token
+
+      // Should fail because original user doesn't own this notification
       expect(res.status).toBe(404);
     });
   });
 
   describe("PATCH /api/v1/notifications/read-all", () => {
-    it("should mark all as read", async () => {
-      mockMarkAllAsRead.mockResolvedValue();
+    it("should mark all notifications as read", async () => {
+      await createNotification(user._id, "Notif 2");
+      await createNotification(user._id, "Notif 3");
 
-      const res = await request(app).patch("/api/v1/notifications/read-all");
+      const res = await request(app)
+        .patch("/api/v1/notifications/read-all")
+        .set("x-access-token", token);
 
-      expect(mockMarkAllAsRead).toHaveBeenCalledWith("user-123");
       expect(res.status).toBe(200);
-      expect(res.body.message).toContain("marked as read");
+
+      const unreadCount = await Notification.countDocuments({
+        user_id: user._id,
+        is_read: false,
+      });
+      expect(unreadCount).toBe(0);
+    });
+  });
+
+  describe("GET /api/v1/notifications/preferences", () => {
+    it("should return current preferences", async () => {
+      const res = await request(app)
+        .get("/api/v1/notifications/preferences")
+        .set("x-access-token", token);
+
+      expect(res.status).toBe(200);
+      expect(res.body.email).toBe(true);
+      expect(res.body.motivational).toBe(true);
+    });
+  });
+
+  describe("PATCH /api/v1/notifications/preferences", () => {
+    it("should update specific preferences", async () => {
+      const res = await request(app)
+        .patch("/api/v1/notifications/preferences")
+        .set("x-access-token", token)
+        .send({
+          motivational: false,
+          daily: false,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.preferences.motivational).toBe(false);
+      expect(res.body.preferences.daily).toBe(false);
+      expect(res.body.preferences.email).toBe(true); // Should remain unchanged
+
+      const updatedUser = await User.findById(user._id);
+      expect(updatedUser.notification_preferences.motivational).toBe(false);
+    });
+
+    it("should update positive_reinforcement preference", async () => {
+      const res = await request(app)
+        .patch("/api/v1/notifications/preferences")
+        .set("x-access-token", token)
+        .send({
+          positive_reinforcement: false,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.preferences.positive_reinforcement).toBe(false);
     });
   });
 });

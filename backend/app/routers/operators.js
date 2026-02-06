@@ -10,6 +10,7 @@ import {
 } from "../utils/security.js";
 import jwt from "jsonwebtoken";
 import check_role from "../middleware/role_checker.js";
+import operator_dashboard_service from "../services/operator_dashboard_service.js";
 
 const router = express.Router();
 
@@ -157,5 +158,122 @@ router.post("/activate", async (req, res) => {
     .status(200)
     .json({ message: "Password set successfully. You can now log in." });
 });
+
+// ============================================
+// Dashboard Endpoints (RF10)
+// ============================================
+
+/**
+ * GET /api/v1/operators/dashboard
+ * Get complete dashboard overview for operators
+ */
+router.get(
+  "/dashboard",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (_req, res) => {
+    try {
+      const data = await operator_dashboard_service.get_dashboard_overview();
+      res.status(200).json(data);
+    } catch (error) {
+      console.error("Dashboard error:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard data" });
+    }
+  },
+);
+
+/**
+ * GET /api/v1/operators/dashboard/neighborhoods
+ * Get summary stats for all neighborhoods
+ */
+router.get(
+  "/dashboard/neighborhoods",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (_req, res) => {
+    try {
+      const neighborhoods =
+        await operator_dashboard_service.get_neighborhoods_summary();
+      res.status(200).json(neighborhoods);
+    } catch (error) {
+      console.error("Neighborhoods error:", error);
+      res.status(500).json({ error: "Failed to fetch neighborhoods" });
+    }
+  },
+);
+
+/**
+ * GET /api/v1/operators/dashboard/neighborhoods/:id
+ * Get detailed stats for a specific neighborhood
+ */
+router.get(
+  "/dashboard/neighborhoods/:id",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (req, res) => {
+    try {
+      const data = await operator_dashboard_service.get_neighborhood_detail(
+        req.params.id,
+      );
+      res.status(200).json(data);
+    } catch (error) {
+      if (error.message === "Neighborhood not found") {
+        return res.status(404).json({ error: error.message });
+      }
+      console.error("Neighborhood detail error:", error);
+      res.status(500).json({ error: "Failed to fetch neighborhood data" });
+    }
+  },
+);
+
+/**
+ * GET /api/v1/operators/dashboard/environmental
+ * Get environmental indicators across all neighborhoods
+ */
+router.get(
+  "/dashboard/environmental",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (_req, res) => {
+    try {
+      const data =
+        await operator_dashboard_service.get_environmental_indicators();
+      res.status(200).json(data);
+    } catch (error) {
+      console.error("Environmental indicators error:", error);
+      res.status(500).json({ error: "Failed to fetch environmental data" });
+    }
+  },
+);
+
+/**
+ * GET /api/v1/operators/reports/stats
+ * Generate stats report for a given period
+ */
+router.get(
+  "/reports/stats",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (req, res) => {
+    try {
+      const { start_date, end_date } = req.query;
+
+      // Default to last 30 days if not specified
+      const end = end_date ? new Date(end_date) : new Date();
+      const start = start_date
+        ? new Date(start_date)
+        : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const report = await operator_dashboard_service.generate_stats_report(
+        start,
+        end,
+      );
+      res.status(200).json(report);
+    } catch (error) {
+      console.error("Report generation error:", error);
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  },
+);
 
 export default router;

@@ -1,4 +1,5 @@
 import * as UserService from "../services/user_service.js";
+import user_dashboard_service from "../services/user_dashboard_service.js";
 
 export const login = async (req, res) => {
   try {
@@ -123,5 +124,68 @@ export const get_my_badges = async (req, res) => {
       return res.status(404).json({ error: error.message });
     console.error("Get Badges Error:", error);
     res.status(500).json({ error: "Failed to fetch badges" });
+  }
+};
+
+/**
+ * GET /api/v1/users/me/dashboard
+ * Returns complete dashboard data for the logged-in user (RF3)
+ */
+export const get_dashboard = async (req, res) => {
+  try {
+    const result = await user_dashboard_service.get_dashboard_data(
+      req.logged_user.id,
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.message === "User not found") {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error("Get Dashboard Error:", error);
+    res.status(500).json({ error: "Failed to fetch dashboard data" });
+  }
+};
+
+/**
+ * GET /api/v1/users/me/history
+ * Returns paginated action history for the logged-in user (RF3)
+ */
+export const get_history = async (req, res) => {
+  try {
+    const { page, limit, type } = req.query;
+    const options = {
+      page: page ? Number.parseInt(page, 10) : 1,
+      limit: limit ? Number.parseInt(limit, 10) : 20,
+      type: type || "all",
+    };
+
+    const result = await user_dashboard_service.get_history(
+      req.logged_user.id,
+      options,
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.message === "User not found") {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error("Get History Error:", error);
+    res.status(500).json({ error: "Failed to fetch history" });
+  }
+};
+
+/**
+ * GET /api/v1/users/me/stats
+ * Returns aggregated statistics for the logged-in user (RF3)
+ */
+export const get_stats = async (req, res) => {
+  try {
+    const result = await user_dashboard_service.get_stats(req.logged_user.id);
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.message === "User not found") {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error("Get Stats Error:", error);
+    res.status(500).json({ error: "Failed to fetch stats" });
   }
 };

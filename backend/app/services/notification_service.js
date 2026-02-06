@@ -91,6 +91,116 @@ class NotificationService {
       { is_read: true },
     );
   }
+
+  /**
+   * Notify user about a new challenge/event (RF5 - Informative)
+   * @param {string} user_id - User ID
+   * @param {Object} challenge - Challenge data { title, description, start_date }
+   */
+  async notify_new_challenge(user_id, challenge) {
+    return this.create_notification(user_id, {
+      title: "Nuova sfida disponibile!",
+      message: `È iniziata una nuova sfida: "${challenge.title}". Partecipa per guadagnare punti extra!`,
+      type: "info",
+      channel: "in-app",
+      metadata: {
+        challenge_id: challenge._id,
+        challenge_title: challenge.title,
+      },
+    });
+  }
+
+  /**
+   * Notify user about progress milestone (RF5 - Feedback)
+   * @param {string} user_id - User ID
+   * @param {Object} progress - Progress data { type, value, message }
+   */
+  async notify_progress(user_id, progress) {
+    const messages = {
+      points_milestone: `Complimenti! Hai raggiunto ${progress.value} punti totali!`,
+      tasks_milestone: `Fantastico! Hai completato ${progress.value} task!`,
+      streak_milestone: `${progress.value} giorni consecutivi! Continua così!`,
+      level_up: `Sei salito al livello "${progress.value}"!`,
+    };
+
+    const message = messages[progress.type] || progress.message;
+
+    return this.create_notification(user_id, {
+      title: "Traguardo raggiunto!",
+      message,
+      type: "feedback",
+      channel: "in-app",
+      metadata: {
+        progress_type: progress.type,
+        progress_value: progress.value,
+      },
+    });
+  }
+
+  /**
+   * Notify user when their streak is at risk (RF5 - Motivational)
+   * @param {string} user_id - User ID
+   * @param {number} current_streak - Current streak count
+   */
+  async notify_streak_at_risk(user_id, current_streak) {
+    return this.create_notification(user_id, {
+      title: "La tua streak è a rischio!",
+      message: `Hai una streak di ${current_streak} giorni. Completa almeno una task oggi per mantenerla!`,
+      type: "motivational",
+      channel: "in-app",
+      metadata: {
+        streak_count: current_streak,
+      },
+    });
+  }
+
+  /**
+   * Notify user about badge earned (RF5 - Feedback)
+   * @param {string} user_id - User ID
+   * @param {Object} badge - Badge data { name, description, icon }
+   */
+  async notify_badge_earned(user_id, badge) {
+    return this.create_notification(user_id, {
+      title: "Nuovo badge ottenuto!",
+      message: `Hai guadagnato il badge "${badge.name}": ${badge.description}`,
+      type: "feedback",
+      channel: "in-app",
+      metadata: {
+        badge_id: badge._id,
+        badge_name: badge.name,
+        badge_icon: badge.icon,
+      },
+    });
+  }
+
+  /**
+   * Notify all users in a neighborhood about a new event
+   * @param {string} neighborhood_id - Neighborhood ID
+   * @param {Object} event - Event data { title, description, date }
+   */
+  async notify_neighborhood_event(neighborhood_id, event) {
+    const users = await User.find({
+      neighborhood_id,
+      is_active: true,
+      "notification_preferences.informational": true,
+    });
+
+    const notifications = [];
+    for (const user of users) {
+      const notification = await this.create_notification(user._id, {
+        title: "Nuovo evento nel tuo quartiere!",
+        message: `${event.title} - ${event.description}`,
+        type: "info",
+        channel: "in-app",
+        metadata: {
+          event_id: event._id,
+          event_date: event.date,
+        },
+      });
+      if (notification) notifications.push(notification);
+    }
+    return notifications;
+  }
 }
 
 export default new NotificationService();

@@ -48,14 +48,24 @@ describe("NotificationScheduler", () => {
     it("should schedule daily motivation and cleanup jobs", () => {
       NotificationScheduler.init();
 
-      expect(mockSchedule).toHaveBeenCalledTimes(2);
+      expect(mockSchedule).toHaveBeenCalledTimes(4);
       expect(mockSchedule).toHaveBeenCalledWith(
         "0 10 * * *",
         expect.any(Function),
         expect.any(Object),
       );
       expect(mockSchedule).toHaveBeenCalledWith(
+        "0 19 * * *",
+        expect.any(Function),
+        expect.any(Object),
+      );
+      expect(mockSchedule).toHaveBeenCalledWith(
         "0 3 * * 0",
+        expect.any(Function),
+        expect.any(Object),
+      );
+      expect(mockSchedule).toHaveBeenCalledWith(
+        "0 9 * * 0",
         expect.any(Function),
         expect.any(Object),
       );

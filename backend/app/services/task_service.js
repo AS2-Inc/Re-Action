@@ -365,3 +365,165 @@ export const get_active_tasks = async () => {
   const tasks = await Task.find({ is_active: true });
   return tasks;
 };
+
+/**
+ * Replace all expired tasks for all users (RF6)
+ * Called by the scheduler to ensure tasks are replaced immediately on expiration
+ *
+ * @returns {Promise<Object>} Summary of replacements made
+ */
+export const replace_expired_tasks_for_all_users = async () => {
+  const now = new Date();
+
+  // Find all expired but not yet processed assignments
+  const expired_assignments = await UserTask.find({
+    status: "ASSIGNED",
+    expires_at: { $lt: now },
+  }).populate("task_id");
+
+  const results = {
+    processed: 0,
+    replaced: 0,
+    errors: [],
+  };
+
+  for (const assignment of expired_assignments) {
+    try {
+      // Mark as expired
+      assignment.status = "EXPIRED";
+      await assignment.save();
+      results.processed++;
+
+      // Assign a new task of the same frequency
+      if (assignment.task_id?.frequency) {
+        const user = await User.findById(assignment.user_id);
+        if (user) {
+          const new_task = await assign_random_task(
+            user,
+            assignment.task_id.frequency,
+          );
+          if (new_task) {
+            const expires_at = calculate_expiration(
+              assignment.task_id.frequency,
+            );
+            const user_task = new UserTask({
+              user_id: assignment.user_id,
+              task_id: new_task._id,
+              status: "ASSIGNED",
+              expires_at: expires_at,
+            });
+            await user_task.save();
+            results.replaced++;
+          }
+        }
+      }
+    } catch (error) {
+      results.errors.push({
+        assignment_id: assignment._id,
+        error: error.message,
+      });
+    }
+  }
+
+  return results;
+};
+
+/**
+ * Replace a completed task for a user (RF6)
+ * Called after task completion. New task is assigned for the next period.
+ *
+ * @param {string} user_id - User MongoDB ID
+ * @param {string} task_id - Completed task ID
+ * @returns {Promise<Object|null>} New task assignment or null
+ */
+export const replace_completed_task = async (user_id, task_id) => {
+  const task = await Task.findById(task_id);
+  if (!task || task.frequency === "on_demand") {
+    return null; // On-demand tasks don't need replacement
+  }
+
+  const user = await User.findById(user_id);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Find a new task for the same frequency
+  const new_task = await assign_random_task(user, task.frequency);
+  if (!new_task) {
+    return null;
+  }
+
+  // Calculate next period expiration
+  const expires_at = calculate_next_period_expiration(task.frequency);
+
+  const user_task = new UserTask({
+    user_id: user_id,
+    task_id: new_task._id,
+    status: "ASSIGNED",
+    expires_at: expires_at,
+  });
+  await user_task.save();
+
+  return user_task;
+};
+
+/**
+ * Calculate expiration date for current period
+ * @param {string} frequency - Task frequency (daily, weekly, monthly)
+ * @returns {Date} Expiration date
+ */
+const calculate_expiration = (frequency) => {
+  const now = new Date();
+  if (frequency === "daily") {
+    const expires = new Date(now);
+    expires.setUTCHours(23, 59, 59, 999);
+    return expires;
+  } else if (frequency === "weekly") {
+    const expires = new Date(now);
+    expires.setDate(expires.getDate() + 7);
+    return expires;
+  } else if (frequency === "monthly") {
+    const expires = new Date(now);
+    expires.setMonth(expires.getMonth() + 1);
+    return expires;
+  }
+  return now;
+};
+
+/**
+ * Calculate expiration date for next period (after completion)
+ * @param {string} frequency - Task frequency (daily, weekly, monthly)
+ * @returns {Date} Next period expiration date
+ */
+const calculate_next_period_expiration = (frequency) => {
+  const now = new Date();
+  if (frequency === "daily") {
+    // Tomorrow end of day
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setUTCHours(23, 59, 59, 999);
+    return tomorrow;
+  } else if (frequency === "weekly") {
+    // Next week from now
+    const next_week = new Date(now);
+    next_week.setDate(next_week.getDate() + 7);
+    return next_week;
+  } else if (frequency === "monthly") {
+    // Next month from now
+    const next_month = new Date(now);
+    next_month.setMonth(next_month.getMonth() + 1);
+    return next_month;
+  }
+  return now;
+};
+
+/**
+ * Get expired tasks count (for monitoring)
+ * @returns {Promise<number>} Count of expired but not processed tasks
+ */
+export const get_expired_tasks_count = async () => {
+  return UserTask.countDocuments({
+    status: "ASSIGNED",
+    expires_at: { $lt: new Date() },
+  });
+};

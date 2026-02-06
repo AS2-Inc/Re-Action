@@ -1,7 +1,7 @@
 import { mongoose } from "mongoose";
 import app from "./app/app.js";
 import Operator from "./app/models/operator.js";
-import notification_scheduler from "./app/services/notification_scheduler.js";
+import scheduler from "./app/services/scheduler.js";
 import bcrypt from "bcrypt";
 
 const port = process.env.PORT || 8080;
@@ -31,7 +31,7 @@ app.locals.db = mongoose
     }
 
     // Initialize Scheduler
-    notification_scheduler.init();
+    scheduler.init();
 
     app.listen(port, () => {
       console.log(`Server listening on http://localhost:${port}`);

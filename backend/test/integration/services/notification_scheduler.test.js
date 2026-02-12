@@ -132,7 +132,7 @@ describe("NotificationScheduler", () => {
         notification_preferences: { motivational: true },
       });
 
-      const _activeUser = await User.create({
+      await User.create({
         username: "active",
         email: "active@example.com",
         password: "Password123!",
@@ -140,7 +140,7 @@ describe("NotificationScheduler", () => {
         notification_preferences: { motivational: true },
       });
 
-      const _optOutUser = await User.create({
+      await User.create({
         username: "optout",
         email: "optout@example.com",
         password: "Password123!",

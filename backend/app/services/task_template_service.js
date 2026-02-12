@@ -1,5 +1,6 @@
 import TaskTemplate from "../models/task_template.js";
 import Task from "../models/task.js";
+import NotificationService from "./notification_service.js";
 
 /**
  * Task Template Service (RF11)
@@ -110,6 +111,35 @@ class TaskTemplateService {
     });
 
     await task.save();
+
+    // Trigger Notification (RF5)
+    // Only for "on_demand" or high priority tasks, or maybe all new tasks?
+    // Let's assume manual creation from template implies an "event" or "challenge"
+    // especially if it has a deadline or is special.
+    // For now, we notify for ALL tasks created via template as they are likely "Special Events"
+    try {
+      if (task.neighborhood_id) {
+        await NotificationService.notify_neighborhood_event(
+          task.neighborhood_id,
+          {
+            title: task.title,
+            description: task.description,
+            date: new Date(),
+            _id: task._id,
+          },
+        );
+      } else {
+        await NotificationService.notify_all_users({
+          title: task.title,
+          description: task.description,
+          _id: task._id,
+        });
+      }
+    } catch (error) {
+      console.error("Error sending new task notifications:", error);
+      // Don't fail the task creation if notification fails
+    }
+
     return task;
   }
 

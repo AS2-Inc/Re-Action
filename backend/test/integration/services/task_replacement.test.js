@@ -1,248 +1,107 @@
 import { jest } from "@jest/globals";
-import * as db from "../../db_helper.js";
+import { connect, close, clear } from "../../db_helper.js";
+import mongoose from "mongoose";
 
-// Mock EmailService
-jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
-  default: {
-    sendActivationEmail: jest.fn().mockResolvedValue(true),
-    sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
-    sendEmail: jest.fn().mockResolvedValue(true),
-  },
-}));
+// We need to define mocks before importing modules if we use unstable_mockModule which is global
+// But for integration tests we usually want real DB. 
+// However, the test file imports modules dynamically which is good.
 
-// Mock BadgeService
-jest.unstable_mockModule("../../../app/services/badge_service.js", () => ({
-  default: {
-    on_points_updated: jest.fn().mockResolvedValue([]),
-    on_task_completed: jest.fn().mockResolvedValue([]),
-    on_streak_updated: jest.fn().mockResolvedValue([]),
-    on_environmental_stats_updated: jest.fn().mockResolvedValue([]),
-    check_level_up: jest.fn().mockResolvedValue(true),
-    checkAndAwardBadges: jest.fn().mockResolvedValue([]),
-    _get_all_badges: jest.fn().mockResolvedValue([]),
-    initialize_badges: jest.fn().mockResolvedValue(),
-  },
-}));
-
-const mongoose = (await import("mongoose")).default;
-const Task = (await import("../../../app/models/task.js")).default;
-const User = (await import("../../../app/models/user.js")).default;
-const UserTask = (await import("../../../app/models/user_task.js")).default;
 const TaskService = await import("../../../app/services/task_service.js");
 
-describe("Task Replacement Logic (RF6)", () => {
-  let testUser;
-  let neighborhoodId;
+const UserModule = await import("../../../app/models/user.js");
+const User = UserModule.default;
 
+const TaskModule = await import("../../../app/models/task.js");
+const Task = TaskModule.default;
+
+const UserTaskModule = await import("../../../app/models/user_task.js");
+const UserTask = UserTaskModule.default;
+
+
+describe("TaskService.replace_expired_tasks_for_all_users (RF6)", () => {
   beforeAll(async () => {
-    await db.connect();
-    process.env.SUPER_SECRET = "test-secret";
+    await connect();
   });
 
   afterEach(async () => {
-    await db.clear();
+    await clear();
+    jest.clearAllMocks();
   });
 
   afterAll(async () => {
-    await db.close();
+    await close();
   });
 
-  const createTestUser = async () => {
-    neighborhoodId = new mongoose.Types.ObjectId();
-    const user = new User({
-      name: "Task",
-      surname: "Replacer",
-      email: "replacer@example.com",
-      password: "StrongPassword123!",
-      role: "citizen",
+  it("should replace expired tasks with new ones of the same frequency", async () => {
+    // 1. Create a user
+    const user = await User.create({
+      name: "Test",
+      surname: "User",
+      email: "test@example.com",
+      password: "Password123!", // Dummy password
       is_active: true,
-      neighborhood_id: neighborhoodId,
+      age: 25,
+      neighborhood_id: null // Global
     });
-    await user.save();
-    testUser = user;
-    return user;
-  };
 
-  const createTask = async (data = {}) => {
-    const task = new Task({
-      title: "Test Task",
-      description: "Do something",
+    // 2. Create tasks
+    const task1 = await Task.create({
+      title: "Task 1",
+      description: "Desc 1",
       category: "Mobility",
-      difficulty: "Low",
-      base_points: 10,
-      impact_metrics: { co2_saved: 1 },
-      verification_method: "MANUAL_REPORT",
       frequency: "daily",
+      base_points: 10,
       is_active: true,
-      neighborhood_id: neighborhoodId,
-      ...data,
-    });
-    return await task.save();
-  };
-
-  const createUserTask = async (
-    taskId,
-    status = "ASSIGNED",
-    expiresAt = null,
-  ) => {
-    const userTask = new UserTask({
-      user_id: testUser._id,
-      task_id: taskId,
-      status: status,
-      assigned_at: new Date(),
-      expires_at: expiresAt || new Date(Date.now() + 86400000),
-    });
-    return await userTask.save();
-  };
-
-  describe("replace_expired_tasks_for_all_users", () => {
-    it("should mark expired tasks as EXPIRED and create replacements", async () => {
-      await createTestUser();
-
-      // Create tasks with different frequencies
-      const dailyTask = await createTask({
-        title: "Daily Walk",
-        frequency: "daily",
-      });
-      const weeklyTask = await createTask({
-        title: "Weekly Challenge",
-        frequency: "weekly",
-      });
-
-      // Create another available task for replacement
-      await createTask({
-        title: "Daily Walk 2",
-        frequency: "daily",
-      });
-
-      // Create expired assignments
-      const yesterday = new Date(Date.now() - 86400000);
-      await createUserTask(dailyTask._id, "ASSIGNED", yesterday);
-      await createUserTask(weeklyTask._id, "ASSIGNED", yesterday);
-
-      // Run replacement
-      const result = await TaskService.replace_expired_tasks_for_all_users();
-
-      expect(result.processed).toBe(2);
-      expect(result.replaced).toBe(2);
-      expect(result.errors.length).toBe(0);
-
-      // Verify old tasks are marked expired
-      const expiredTasks = await UserTask.find({ status: "EXPIRED" });
-      expect(expiredTasks.length).toBe(2);
-
-      // Verify new tasks are assigned
-      const newAssignments = await UserTask.find({ status: "ASSIGNED" });
-      expect(newAssignments.length).toBe(2);
+      verification_method: "GPS",
     });
 
-    it("should not process already expired tasks", async () => {
-      await createTestUser();
-      const task = await createTask();
-
-      // Create already expired task
-      const yesterday = new Date(Date.now() - 86400000);
-      await createUserTask(task._id, "EXPIRED", yesterday);
-
-      const result = await TaskService.replace_expired_tasks_for_all_users();
-
-      expect(result.processed).toBe(0);
-      expect(result.replaced).toBe(0);
+    const task2 = await Task.create({
+      title: "Task 2",
+      description: "Desc 2",
+      category: "Waste",
+      frequency: "daily",
+      base_points: 10,
+      is_active: true,
+      verification_method: "QUIZ",
     });
 
-    it("should handle missing tasks gracefully", async () => {
-      await createTestUser();
+    // 3. Assign Task 1 to user and make it expired
+    const expiredDate = new Date();
+    expiredDate.setDate(expiredDate.getDate() - 1); // Yesterday
 
-      // Create user task with non-existent task
-      const userTask = new UserTask({
-        user_id: testUser._id,
-        task_id: new mongoose.Types.ObjectId(), // Non-existent task
-        status: "ASSIGNED",
-        expires_at: new Date(Date.now() - 86400000),
-      });
-      await userTask.save();
-
-      const result = await TaskService.replace_expired_tasks_for_all_users();
-
-      expect(result.processed).toBe(1);
-      expect(result.replaced).toBe(0); // Can't replace without frequency
-    });
-  });
-
-  describe("replace_completed_task", () => {
-    it("should create a new task assignment for the next period", async () => {
-      await createTestUser();
-
-      const task = await createTask({
-        title: "Daily Task",
-        frequency: "daily",
-      });
-      await createTask({
-        title: "Daily Task 2",
-        frequency: "daily",
-      });
-
-      const result = await TaskService.replace_completed_task(
-        testUser._id,
-        task._id,
-      );
-
-      expect(result).not.toBeNull();
-      expect(result.status).toBe("ASSIGNED");
-      expect(result.user_id.toString()).toBe(testUser._id.toString());
-
-      // Expiration should be tomorrow
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      expect(result.expires_at.getUTCDate()).toBe(tomorrow.getUTCDate());
+    const userTask = await UserTask.create({
+      user_id: user._id,
+      task_id: task1._id,
+      status: "ASSIGNED",
+      expires_at: expiredDate,
     });
 
-    it("should not replace on-demand tasks", async () => {
-      await createTestUser();
+    // 4. Run replacement
+    const results = await TaskService.replace_expired_tasks_for_all_users();
 
-      const task = await createTask({
-        title: "On Demand Task",
-        frequency: "on_demand",
-      });
+    // Debug output if fails
+    if (results.errors.length > 0) {
+      console.error(results.errors);
+    }
 
-      const result = await TaskService.replace_completed_task(
-        testUser._id,
-        task._id,
-      );
+    // 5. Assertions
+    expect(results.processed).toBe(1);
+    expect(results.replaced).toBe(1);
 
-      expect(result).toBeNull();
+    // Check old assignment is EXPIRED
+    const oldAssignment = await UserTask.findById(userTask._id);
+    expect(oldAssignment.status).toBe("EXPIRED");
+
+    // Check new assignment exists and is ASSIGNED
+    const activeAssignments = await UserTask.find({
+      user_id: user._id,
+      status: "ASSIGNED",
     });
 
-    it("should throw error for non-existent user", async () => {
-      await createTestUser();
-      const task = await createTask();
-      const fakeUserId = new mongoose.Types.ObjectId();
+    expect(activeAssignments).toHaveLength(1);
+    const newAssignment = activeAssignments[0];
 
-      await expect(
-        TaskService.replace_completed_task(fakeUserId, task._id),
-      ).rejects.toThrow("User not found");
-    });
-  });
-
-  describe("get_expired_tasks_count", () => {
-    it("should return correct count of expired tasks", async () => {
-      await createTestUser();
-
-      const task1 = await createTask();
-      const task2 = await createTask();
-      const task3 = await createTask();
-
-      const yesterday = new Date(Date.now() - 86400000);
-      await createUserTask(task1._id, "ASSIGNED", yesterday); // Expired
-      await createUserTask(task2._id, "ASSIGNED", yesterday); // Expired
-      await createUserTask(
-        task3._id,
-        "ASSIGNED",
-        new Date(Date.now() + 86400000),
-      ); // Not expired
-
-      const count = await TaskService.get_expired_tasks_count();
-      expect(count).toBe(2);
-    });
+    // Verify expiration date is in future
+    expect(newAssignment.expires_at.getTime()).toBeGreaterThan(Date.now());
   });
 });

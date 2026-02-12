@@ -201,6 +201,32 @@ class NotificationService {
     }
     return notifications;
   }
+
+  /**
+   * Notify all active users about a new global challenge
+   * @param {Object} challenge - Challenge data { title, description }
+   */
+  async notify_all_users(challenge) {
+    const users = await User.find({
+      is_active: true,
+      "notification_preferences.informational": true,
+    });
+
+    const notifications = [];
+    for (const user of users) {
+      const notification = await this.create_notification(user._id, {
+        title: "Nuova sfida globale!",
+        message: `${challenge.title} - ${challenge.description}`,
+        type: "info",
+        channel: "in-app",
+        metadata: {
+          challenge_id: challenge._id,
+        },
+      });
+      if (notification) notifications.push(notification);
+    }
+    return notifications;
+  }
 }
 
 export default new NotificationService();

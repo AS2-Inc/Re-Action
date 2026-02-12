@@ -111,8 +111,7 @@ export const register = async (user_data) => {
 
   await user.save();
 
-  // TODO: Implement actual email sending
-  // await EmailService.send_activation_email(email, activation_token);
+  await EmailService.send_activation_email(email, activation_token);
 
   return user;
 };

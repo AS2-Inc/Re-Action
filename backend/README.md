@@ -1,114 +1,154 @@
 # Re:Action Backend
 
-The backend API for Re:Action, a neighborhood-based gamification platform that encourages community engagement through tasks, rewards, and badges.
+API backend per Re:Action, una piattaforma di gamification per quartieri. Il progetto fornisce un'API RESTful costruita con Node.js e Express, collegata a un database MongoDB.
 
-## Table of Contents
+## Indice
 
-- [Getting Started](#getting-started)
-- [API Documentation](#api-documentation)
+- [Architettura](#architettura)
+- [Struttura del Progetto](#struttura-del-progetto)
+- [Primi Passi](#primi-passi)
+- [Configurazione](#configurazione)
+- [Sviluppo](#sviluppo)
 - [Testing](#testing)
-- [Scripts](#scripts)
+- [Documentazione API](#documentazione-api)
 
+## Architettura
 
-## Getting Started
+Il progetto segue un pattern di **Architettura a Livelli** per garantire la separazione delle responsabilità:
 
-### Prerequisites
+1. **Routers** (`app/routers/`): Gestiscono le richieste HTTP, validano l'input e instradano verso il servizio appropriato. Definiscono gli endpoint API.
+2. **Controllers** (`app/controllers/`): Gestiscono la logica di request/response, delegando la business logic ai servizi.
+3. **Services** (`app/services/`): Contengono la logica di business principale. Interagiscono con i modelli dati e altri servizi.
+4. **Models** (`app/models/`): Definiscono gli schemi dati MongoDB tramite Mongoose.
+5. **Middleware** (`app/middleware/`): Gestiscono aspetti trasversali come autenticazione (`token_checker`), autorizzazione (`role_checker`), validazione (`validation`) e upload file (`upload`).
 
-- Node.js >= 25.0.0
-- MongoDB instance (local or cloud)
-- npm or yarn
+### Tecnologie Principali
 
-### Installation
+- **Runtime**: Node.js (>= 25.0.0)
+- **Framework**: Express.js 5
+- **Database**: MongoDB con Mongoose ODM
+- **Autenticazione**: JWT + Google OAuth 2.0
+- **Email**: Nodemailer (SMTP)
+- **Scheduling**: node-cron
+- **Upload File**: Multer
+- **Testing**: Jest + Supertest + mongodb-memory-server
+- **Qualità del Codice**: Biome (linting e formatting)
 
-1. **Navigate to the backend directory:**
-   ```bash
-   cd backend
-   ```
+## Struttura del Progetto
 
-2. **Install dependencies:**
+```
+backend/
+├── app/
+│   ├── config/         # File di configurazione (connessione DB, ecc.)
+│   ├── controllers/    # Controller per request/response
+│   ├── middleware/      # Middleware Express personalizzati
+│   ├── models/          # Schemi e modelli Mongoose
+│   ├── routers/         # Definizione delle route API
+│   ├── services/        # Livello di business logic
+│   └── utils/           # Funzioni di utilità
+├── test/
+│   ├── integration/     # Test di integrazione (API con DB in memoria)
+│   ├── unit/            # Test unitari (con mock)
+│   └── db_helper.js     # Helper per la gestione del DB nei test
+├── index.js             # Entry point dell'applicazione
+├── oas3.yml             # Specifica OpenAPI 3.0
+└── package.json         # Dipendenze e script
+```
+
+### Router Disponibili
+
+| Router | Prefisso | Descrizione |
+| :--- | :--- | :--- |
+| Users | `/api/v1/users` | Autenticazione, registrazione, profilo utente, dashboard, badge |
+| Tasks | `/api/v1/tasks` | Creazione, assegnazione, submission e verifica task |
+| Neighborhoods | `/api/v1/neighborhood` | Informazioni quartieri e classifica |
+| Operators | `/api/v1/operators` | Registrazione e autenticazione operatori, dashboard operatore |
+| Rewards | `/api/v1/rewards` | Catalogo premi e riscatto |
+| Notifications | `/api/v1/notifications` | Notifiche utente e preferenze |
+
+## Primi Passi
+
+### Prerequisiti
+
+- Node.js (v25+)
+- npm
+- Istanza MongoDB (locale o Atlas)
+
+### Installazione
+
+1. **Installare le dipendenze:**
    ```bash
    npm install
    ```
 
-3. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+2. **Configurazione ambiente:**
+   Creare un file `.env` nella root del backend con le variabili di configurazione (vedi [Configurazione](#configurazione)).
 
-4. **Start the development server:**
+3. **Avviare il server di sviluppo:**
    ```bash
    npm run dev
    ```
+   Il server si avvierà sulla porta 5000 (default) con hot-reloading abilitato.
 
-The API will be available at `http://localhost:5000` (or your configured PORT).
+## Configurazione
 
-## API Documentation
+L'applicazione è configurata tramite variabili d'ambiente.
 
-Interactive API documentation is available via Swagger UI once the server is running:
+| Variabile | Descrizione | Obbligatoria | Default |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Porta del server API | No | `5000` |
+| `DB_URL` | Stringa di connessione MongoDB | Sì | - |
+| `NODE_ENV` | Ambiente (`development`/`production`) | No | `development` |
+| `SUPER_SECRET` | Chiave segreta per la firma dei JWT | Sì | - |
+| `ADMIN_EMAIL` | Email per l'account admin iniziale | Sì | - |
+| `ADMIN_PASSWORD` | Password per l'account admin iniziale | Sì | - |
+| `SMTP_HOST` | Host del server SMTP | Sì | - |
+| `SMTP_PORT` | Porta del server SMTP | Sì | - |
+| `SMTP_SECURE` | Usa SSL/TLS per SMTP | Sì | - |
+| `SMTP_USER` | Username SMTP | Sì | - |
+| `SMTP_PASS` | Password SMTP | Sì | - |
+| `SMTP_FROM` | Indirizzo email per le mail in uscita | Sì | - |
+| `GOOGLE_CLIENT_ID` | Client ID per Google OAuth 2.0 | Sì | - |
 
-- **Swagger UI**: [http://localhost:5000/api-docs](http://localhost:5000/api-docs)
-- **OpenAPI Spec**: [oas3.yml](./oas3.yml)
+## Sviluppo
+
+### Qualità del Codice
+
+Il progetto utilizza [Biome](https://biomejs.dev/) per linting e formatting.
+
+- **Controlla formato**: `npm run format`
+- **Lint**: `npm run lint`
+- **Fix Lint**: `npm run lint:fix`
+
+### Script Disponibili
+
+| Script | Descrizione |
+| :--- | :--- |
+| `npm start` | Avvia il server in produzione |
+| `npm run dev` | Avvia il server in sviluppo con hot-reload |
+| `npm test` | Esegue tutti i test |
+| `npm run test:unit` | Esegue solo i test unitari |
+| `npm run test:integration` | Esegue solo i test di integrazione |
+| `npm run lint` | Controlla il codice con Biome |
+| `npm run lint:fix` | Corregge automaticamente i problemi di lint |
+| `npm run format` | Formatta il codice con Biome |
+| `npm run build:frontend` | Build del frontend |
 
 ## Testing
 
-The project uses Jest and Supertest for testing.
+Il progetto utilizza **Jest** come test runner, **Supertest** per i test di integrazione API e **mongodb-memory-server** per un database MongoDB in memoria durante i test.
 
-### Run Tests
+- **Tutti i test**: `npm test`
+- **Solo unit**: `npm run test:unit`
+- **Solo integrazione**: `npm run test:integration`
+- **Con coverage**: `npm test -- --coverage`
 
-```bash
-# Run all tests (includes linting and formatting checks)
-npm test
+I test si trovano nella directory `test/`, suddivisi in:
 
-# Run only test suites (skip linting)
-npm run test:only
+- `test/unit/` — Test unitari con mock delle dipendenze
+- `test/integration/` — Test di integrazione con DB in memoria e richieste HTTP reali
 
-# Run tests with coverage
-npm run test:only -- --coverage
-```
+## Documentazione API
 
-### Test Coverage
-
-Coverage reports are generated in the `coverage/` directory:
-- `lcov-report/index.html`: HTML coverage report
-- `coverage-final.json`: JSON coverage data
-- `lcov.info`: LCOV format for CI tools
-
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm start` | Start production server |
-| `npm run dev` | Start development server with hot reload |
-| `npm test` | Run tests, linting, and formatting checks |
-| `npm run test:only` | Run tests only |
-| `npm run lint` | Check for linting errors |
-| `npm run lint:fix` | Fix linting errors automatically |
-| `npm run format` | Format code with Biome |
-| `npm run format:check` | Check code formatting |
-
-## Development Guidelines
-
-### Code Quality
-
-This project uses [Biome](https://biomejs.dev/) for consistent code quality:
-- Automatic formatting
-- Linting rules enforcement
-- Import organization
-
-Always run linting and formatting before committing:
-```bash
-npm run lint:fix
-npm run format
-```
-
-### Error Handling
-
-Global error handling is implemented via the `error_handler` middleware. All errors are caught and formatted consistently.
-
-### Authentication
-
-Protected routes use the `token_checker` middleware. Include JWT token in request headers:
-```
-Authorization: Bearer <your_jwt_token>
-```
+- **Swagger UI**: Disponibile su `/api-docs` quando il server è in esecuzione (es. `http://localhost:5000/api-docs`).
+- **Specifica**: La specifica OpenAPI 3.0 si trova in `oas3.yml`.

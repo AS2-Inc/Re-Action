@@ -8,7 +8,6 @@ info:
 servers:
   - url: http://localhost:5000/api/v1
     description: Development Server
-  # TODO: Add production server
 
 tags:
   - name: Users
@@ -17,10 +16,19 @@ tags:
     description: Task creation, submission, and management
   - name: Neighborhoods
     description: Neighborhood information and management
-  - name: Badges
-    description: Badge system and achievements
+  - name: Operators
+    description: Operator registration, authentication, and dashboard
+  - name: Rewards
+    description: Reward catalog and redemption
+  - name: Notifications
+    description: User notifications and preferences
+
+# ==================== PATHS ====================
 
 paths:
+
+  # ==================== USERS ====================
+
   /users/login:
     post:
       summary: User login
@@ -67,6 +75,41 @@ paths:
         '404':
           description: User not found
 
+  /users/auth/google:
+    post:
+      summary: Google OAuth login/register
+      description: Authenticate or register user via Google OAuth 2.0 credential
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential:
+                  type: string
+                  description: Google ID token
+      responses:
+        '200':
+          description: Authentication successful, returns JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  email:
+                    type: string
+                  id:
+                    type: string
+                  self:
+                    type: string
+        '401':
+          description: Invalid Google token
+
   /users/register:
     post:
       summary: Register new citizen user
@@ -78,7 +121,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, surname, email, password]
+              required: [name, surname, email, password, age]
               properties:
                 name:
                   type: string
@@ -94,6 +137,9 @@ paths:
                   type: string
                   format: password
                   minLength: 6
+                age:
+                  type: integer
+                  example: 25
                 neighborhood:
                   type: string
                   description: Neighborhood ID (optional)
@@ -101,46 +147,14 @@ paths:
         '201':
           description: User created successfully
         '400':
-          description: Missing required fields or invalid email format
-        '409':
-          description: Email already exists
-
-  /users/operator:
-    post:
-      summary: Register new operator user (Admin only)
-      description: Create a new operator account (RF1)
-      tags: [Users]
-      security:
-        - tokenAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, surname, email]
-              properties:
-                name:
-                  type: string
-                surname:
-                  type: string
-                email:
-                  type: string
-                  format: email
-      responses:
-        '201':
-          description: Operator created successfully
-        '400':
-          description: Missing required fields or invalid email
-        '403':
-          description: Forbidden - Admin privileges required
+          description: Missing required fields, invalid email format, or weak password
         '409':
           description: Email already exists
 
   /users/me:
     get:
       summary: Get current user profile
-      description: Get dashboard data for logged-in user (RF3/RF5)
+      description: Get profile data for logged-in user
       tags: [Users]
       security:
         - tokenAuth: []
@@ -150,40 +164,31 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - type: object
-                    description: Citizen profile
+                type: object
+                properties:
+                  name:
+                    type: string
+                  points:
+                    type: integer
+                  level:
+                    type: string
+                  streak:
+                    type: integer
+                  neighborhood_id:
+                    type: string
+                  tasks_completed:
+                    type: integer
+                  badges_count:
+                    type: integer
+                  ambient:
+                    type: object
                     properties:
-                      name:
-                        type: string
-                      points:
-                        type: integer
-                      level:
-                        type: string
-                      streak:
-                        type: integer
-                      neighborhood_id:
-                        type: string
-                      tasks_completed:
-                        type: integer
-                      badges_count:
-                        type: integer
-                      ambient:
-                        type: object
-                        properties:
-                          co2_saved:
-                            type: number
-                          waste_recycled:
-                            type: number
-                          km_green:
-                            type: number
-                  - type: object
-                    description: Operator/Admin profile
-                    properties:
-                      name:
-                        type: string
-                      role:
-                        type: string
+                      co2_saved:
+                        type: number
+                      waste_recycled:
+                        type: number
+                      km_green:
+                        type: number
         '401':
           description: Unauthorized
         '404':
@@ -207,48 +212,12 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - type: object
-                    properties:
-                      message:
-                        type: string
-                  - type: object
-                    properties:
-                      message:
-                        type: string
-                      token:
-                        type: string
-                      requires_password_setup:
-                        type: boolean
+                type: object
+                properties:
+                  message:
+                    type: string
         '400':
           description: Token missing, invalid, or expired
-
-  /users/set-password:
-    post:
-      summary: Set password for operator account
-      description: Allows operators to set password during activation
-      tags: [Users]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [token, password]
-              properties:
-                token:
-                  type: string
-                password:
-                  type: string
-                  format: password
-                  minLength: 6
-      responses:
-        '200':
-          description: Password set successfully
-        '400':
-          description: Missing fields or invalid token
-        '403':
-          description: Endpoint only for operators
 
   /users/change-password:
     post:
@@ -276,7 +245,7 @@ paths:
         '200':
           description: Password changed successfully
         '400':
-          description: Invalid input or passwords match
+          description: Weak password or new password same as current
         '401':
           description: Current password incorrect
         '404':
@@ -300,7 +269,7 @@ paths:
                   format: email
       responses:
         '200':
-          description: Reset email sent (or user not found - security)
+          description: Reset email sent
           content:
             application/json:
               schema:
@@ -314,62 +283,16 @@ paths:
         '400':
           description: Email is required
 
-  /users/reset-password:
-    post:
-      summary: Reset password using token
-      description: Reset password using token from forgot-password
-      tags: [Users]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [token, new_password]
-              properties:
-                token:
-                  type: string
-                new_password:
-                  type: string
-                  format: password
-                  minLength: 6
-      responses:
-        '200':
-          description: Password reset successfully
-        '400':
-          description: Invalid or expired token, or weak password
-
   /users/me/badges:
     get:
-      summary: Get all badges with earned status
-      description: Returns all available badges with indication of which are earned (RF4)
-      tags: [Badges]
+      summary: Get user's badges
+      description: Returns badges for the logged-in user (RF4)
+      tags: [Users]
       security:
         - tokenAuth: []
       responses:
         '200':
-          description: List of all badges with earned status
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BadgeWithStatus'
-        '401':
-          description: Unauthorized
-        '500':
-          description: Failed to fetch badges
-
-  /users/me/badges/earned:
-    get:
-      summary: Get user's earned badges
-      description: Returns only badges earned by the logged-in user
-      tags: [Badges]
-      security:
-        - tokenAuth: []
-      responses:
-        '200':
-          description: List of earned badges
+          description: List of badges
           content:
             application/json:
               schema:
@@ -381,38 +304,96 @@ paths:
         '404':
           description: User not found
         '500':
-          description: Failed to fetch earned badges
+          description: Failed to fetch badges
 
-  /users/me/badges/check:
-    post:
-      summary: Manually trigger badge check
-      description: Check and award any eligible badges for the user
-      tags: [Badges]
+  /users/me/dashboard:
+    get:
+      summary: Get user dashboard data
+      description: Returns complete dashboard data for the logged-in user (RF3)
+      tags: [Users]
       security:
         - tokenAuth: []
       responses:
         '200':
-          description: Badge check completed
+          description: Dashboard data including stats, recent activity, badges
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  message:
-                    type: string
-                  new_badges:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Badge'
         '401':
           description: Unauthorized
+        '404':
+          description: User not found
         '500':
-          description: Failed to check badges
+          description: Failed to fetch dashboard data
+
+  /users/me/history:
+    get:
+      summary: Get user action history
+      description: Returns paginated action history for the logged-in user (RF3)
+      tags: [Users]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Items per page
+        - in: query
+          name: type
+          schema:
+            type: string
+            default: all
+          description: Filter by action type
+      responses:
+        '200':
+          description: Paginated action history
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to fetch history
+
+  /users/me/stats:
+    get:
+      summary: Get user aggregated statistics
+      description: Returns aggregated statistics for the logged-in user (RF3)
+      tags: [Users]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: Aggregated statistics
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to fetch stats
+
+  # ==================== TASKS ====================
 
   /tasks:
     get:
       summary: Get available tasks for user
-      description: Returns tasks available for user's neighborhood (excludes expired tasks - RF6)
+      description: Returns tasks available for user's neighborhood (RF6)
       tags: [Tasks]
       security:
         - tokenAuth: []
@@ -430,9 +411,30 @@ paths:
         '404':
           description: User not found
 
+  /tasks/active:
+    get:
+      summary: Get active tasks
+      description: Returns all currently active tasks
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of active tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch active tasks
+
   /tasks/create:
     post:
-      summary: Create new task (Operators/Admins only)
+      summary: Create new task (Operators only)
       description: Create a new task in the system
       tags: [Tasks]
       security:
@@ -458,89 +460,84 @@ paths:
         '403':
           description: Unauthorized - Operators only
 
-  /tasks/{id}/submit:
+  /tasks/submit:
     post:
       summary: Submit task completion
       description: |
         User submits a task for verification (RF12).
+        Supports multipart/form-data for photo upload.
         - Manual tasks go to PENDING status
         - GPS/QR tasks are verified automatically
       tags: [Tasks]
       security:
         - tokenAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: Task ID
       requestBody:
         required: true
         content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [task_id]
+              properties:
+                task_id:
+                  type: string
+                  description: ID of the task to submit
+                proof:
+                  type: object
+                  description: Proof data (JSON or form fields)
+                photo:
+                  type: string
+                  format: binary
+                  description: Photo proof file
           application/json:
             schema:
               type: object
+              required: [task_id]
               properties:
+                task_id:
+                  type: string
                 proof:
                   type: object
-                  description: Proof data (stored for manual review)
-                evidence:
-                  type: object
-                  properties:
-                    gps_location:
-                      type: object
-                      properties:
-                        latitude:
-                          type: number
-                        longitude:
-                          type: number
-                    qr_code_data:
-                      type: string
+                  description: Proof data (GPS, QR, quiz answers, etc.)
       responses:
         '200':
           description: Task submitted successfully
           content:
             application/json:
               schema:
-                oneOf:
-                  - type: object
-                    description: Manual verification pending
-                    properties:
-                      submission_status:
-                        type: string
-                        enum: [PENDING]
-                  - type: object
-                    description: Automatically approved
-                    properties:
-                      points_earned:
-                        type: integer
-                      submission_status:
-                        type: string
-                        enum: [APPROVED]
-                      new_badges:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Badge'
+                type: object
+                properties:
+                  submission_status:
+                    type: string
+                    enum: [PENDING, APPROVED]
+                  points_earned:
+                    type: integer
+                  new_badges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Badge'
         '400':
-          description: Task already completed, in cooldown, or verification failed
-        '404':
-          description: Task not found
+          description: Validation failed, task already completed, or verification failed
+        '401':
+          description: Unauthorized
 
   /tasks/submissions:
-    get:
-      summary: Get task submissions (Operators/Admins only)
+    post:
+      summary: Get task submissions (Operators only)
       description: View task submissions, optionally filtered by status
       tags: [Tasks]
       security:
         - tokenAuth: []
-      parameters:
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [PENDING, APPROVED, REJECTED]
-          description: Filter by submission status
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [PENDING, APPROVED, REJECTED]
+                  description: Filter by submission status
       responses:
         '200':
           description: List of submissions
@@ -555,7 +552,7 @@ paths:
 
   /tasks/submissions/{id}/verify:
     post:
-      summary: Verify task submission (Operators/Admins only)
+      summary: Verify task submission (Operators only)
       description: Approve or reject a manual task submission
       tags: [Tasks]
       security:
@@ -597,6 +594,119 @@ paths:
         '404':
           description: Submission not found
 
+  /tasks/templates:
+    get:
+      summary: Get task templates (RF11)
+      description: List all available task templates (operators/admins only)
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of task templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskTemplate'
+        '403':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch templates
+
+  /tasks/templates/{id}:
+    get:
+      summary: Get task template by ID
+      description: Get a specific task template (operators/admins only)
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Template ID
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskTemplate'
+        '403':
+          description: Unauthorized
+        '404':
+          description: Template not found
+        '500':
+          description: Failed to fetch template
+
+  /tasks/from-template:
+    post:
+      summary: Create task from template (RF11)
+      description: Create a new task based on a template (operators/admins only)
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template_id, title, description]
+              properties:
+                template_id:
+                  type: string
+                  description: ID of the template to use
+                title:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Task created from template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Missing required fields or validation error
+        '403':
+          description: Unauthorized
+        '404':
+          description: Template not found or inactive
+
+  /tasks/{id}:
+    get:
+      summary: Get task by ID
+      description: Get details of a specific task
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Task ID
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Task not found
+
+  # ==================== NEIGHBORHOODS ====================
+
   /neighborhood:
     get:
       summary: List all neighborhoods
@@ -611,6 +721,59 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Neighborhood'
+        '500':
+          description: Internal server error
+
+  /neighborhood/ranking:
+    get:
+      summary: Get neighborhood ranking (RF17)
+      description: Get neighborhoods ranked by normalized score
+      tags: [Neighborhoods]
+      parameters:
+        - in: query
+          name: period
+          schema:
+            type: string
+            enum: [weekly, monthly, all_time]
+            default: all_time
+          description: Ranking period
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Max number of results
+      responses:
+        '200':
+          description: Ranked neighborhoods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '500':
+          description: Internal server error
+
+  /neighborhood/ranking/simple:
+    get:
+      summary: Get simple neighborhood ranking
+      description: Get neighborhoods ranked by raw total score (legacy)
+      tags: [Neighborhoods]
+      responses:
+        '200':
+          description: Simple ranked neighborhoods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Neighborhood'
+                    - type: object
+                      properties:
+                        rank:
+                          type: integer
         '500':
           description: Internal server error
 
@@ -633,10 +796,574 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Neighborhood'
+        '400':
+          description: Invalid ID
+        '404':
+          description: Neighborhood not found
+
+  # ==================== OPERATORS ====================
+
+  /operators/register:
+    post:
+      summary: Register new operator (Admin only)
+      description: Create a new operator account and send activation email
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, surname, email]
+              properties:
+                name:
+                  type: string
+                surname:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '201':
+          description: Operator created successfully
+        '400':
+          description: Missing required fields or invalid email format
+        '403':
+          description: Forbidden - Admin privileges required
+        '409':
+          description: Email already exists
+
+  /operators/login:
+    post:
+      summary: Operator login
+      description: Authenticate operator and receive JWT token
+      tags: [Operators]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  email:
+                    type: string
+                  id:
+                    type: string
+                  self:
+                    type: string
+        '401':
+          description: Wrong password
+        '403':
+          description: Account not activated or password not set
+        '404':
+          description: Operator not found
+
+  /operators/me:
+    get:
+      summary: Get operator profile
+      description: Get profile data for the logged-in operator
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: Operator profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  surname:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Operator not found
+
+  /operators/activate:
+    post:
+      summary: Activate operator account
+      description: Verify activation token and set password for new operator
+      tags: [Operators]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                  description: Activation token received via email
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '200':
+          description: Account activated and password set
+        '400':
+          description: Missing fields, weak password, or invalid/expired token
+        '403':
+          description: Endpoint only for operators
+
+  /operators/dashboard:
+    get:
+      summary: Get operator dashboard overview (RF10)
+      description: Get complete dashboard overview for operators
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: Dashboard overview data
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch dashboard data
+
+  /operators/dashboard/neighborhoods:
+    get:
+      summary: Get neighborhoods summary (RF10)
+      description: Get summary stats for all neighborhoods
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of neighborhood summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '403':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch neighborhoods
+
+  /operators/dashboard/neighborhoods/{id}:
+    get:
+      summary: Get neighborhood detail (RF10)
+      description: Get detailed stats for a specific neighborhood
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Neighborhood ID
+      responses:
+        '200':
+          description: Detailed neighborhood stats
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Unauthorized
         '404':
           description: Neighborhood not found
         '500':
-          description: Internal server error
+          description: Failed to fetch neighborhood data
+
+  /operators/dashboard/environmental:
+    get:
+      summary: Get environmental indicators (RF10)
+      description: Get environmental indicators across all neighborhoods
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: Environmental indicators data
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch environmental data
+
+  /operators/reports/stats:
+    get:
+      summary: Generate stats report
+      description: Generate stats report for a given period (defaults to last 30 days)
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: query
+          name: start_date
+          schema:
+            type: string
+            format: date
+          description: Start date (ISO format)
+        - in: query
+          name: end_date
+          schema:
+            type: string
+            format: date
+          description: End date (ISO format)
+      responses:
+        '200':
+          description: Stats report data
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Unauthorized
+        '500':
+          description: Failed to generate report
+
+  # ==================== REWARDS ====================
+
+  /rewards:
+    get:
+      summary: List active rewards
+      description: Get all active, non-expired rewards
+      tags: [Rewards]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of active rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reward'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch rewards
+    post:
+      summary: Create reward (Operators/Admins)
+      description: Create a new reward in the catalog
+      tags: [Rewards]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RewardCreate'
+      responses:
+        '201':
+          description: Reward created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reward'
+        '400':
+          description: Validation error
+        '403':
+          description: Unauthorized
+
+  /rewards/all:
+    get:
+      summary: List all rewards (Operators/Admins)
+      description: Get all rewards including inactive ones
+      tags: [Rewards]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: Complete list of rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reward'
+        '403':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch rewards
+
+  /rewards/my-rewards:
+    get:
+      summary: Get user's redeemed rewards
+      description: List rewards redeemed by the logged-in user
+      tags: [Rewards]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of redeemed rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserReward'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch my rewards
+
+  /rewards/{id}/redeem:
+    post:
+      summary: Redeem a reward
+      description: Redeem a reward using accumulated points
+      tags: [Rewards]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Reward ID
+      responses:
+        '200':
+          description: Reward redeemed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  reward_title:
+                    type: string
+                  points_remaining:
+                    type: integer
+                  code:
+                    type: string
+                    description: Unique redemption code
+        '400':
+          description: Reward inactive, out of stock, expired, or insufficient points
+        '401':
+          description: Unauthorized
+        '404':
+          description: Reward or user not found
+
+  /rewards/{id}:
+    put:
+      summary: Update reward (Operators/Admins)
+      description: Update an existing reward
+      tags: [Rewards]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Reward ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RewardCreate'
+      responses:
+        '200':
+          description: Reward updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reward'
+        '400':
+          description: Validation error
+        '403':
+          description: Unauthorized
+        '404':
+          description: Reward not found
+    delete:
+      summary: Deactivate reward (Operators/Admins)
+      description: Soft delete (deactivate) a reward
+      tags: [Rewards]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Reward ID
+      responses:
+        '200':
+          description: Reward deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Unauthorized
+        '404':
+          description: Reward not found
+        '500':
+          description: Failed to deactivate reward
+
+  # ==================== NOTIFICATIONS ====================
+
+  /notifications:
+    get:
+      summary: Get user notifications
+      description: Get notifications for the logged-in user
+      tags: [Notifications]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to fetch notifications
+
+  /notifications/{id}/read:
+    patch:
+      summary: Mark notification as read
+      description: Mark a single notification as read
+      tags: [Notifications]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Notification ID
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Notification not found
+        '500':
+          description: Failed to update notification
+
+  /notifications/read-all:
+    patch:
+      summary: Mark all notifications as read
+      description: Mark all notifications as read for the logged-in user
+      tags: [Notifications]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to update notifications
+
+  /notifications/preferences:
+    get:
+      summary: Get notification preferences
+      description: Get current notification preferences for the logged-in user
+      tags: [Notifications]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: Notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to fetch preferences
+    patch:
+      summary: Update notification preferences
+      description: Update notification preferences for the logged-in user (RF5)
+      tags: [Notifications]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationPreferences'
+      responses:
+        '200':
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  preferences:
+                    $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+        '500':
+          description: Failed to update preferences
 
 # ==================== COMPONENTS ====================
 
@@ -647,3 +1374,238 @@ components:
       in: header
       name: x-access-token
       description: JWT token for authentication
+
+  schemas:
+    Badge:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        category:
+          type: string
+        criteria:
+          type: object
+
+    Task:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        points:
+          type: integer
+        difficulty:
+          type: string
+          enum: [Low, Medium, High]
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly, on_demand]
+        verification_method:
+          type: string
+          enum: [GPS, QR_SCAN, QUIZ, PHOTO_UPLOAD, MANUAL_REPORT, AUTO]
+
+    TaskCreate:
+      type: object
+      required: [title, description, points]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        points:
+          type: integer
+        difficulty:
+          type: string
+          enum: [Low, Medium, High]
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly, on_demand]
+        verification_method:
+          type: string
+          enum: [GPS, QR_SCAN, QUIZ, PHOTO_UPLOAD, MANUAL_REPORT, AUTO]
+        neighborhood_id:
+          type: string
+
+    TaskTemplate:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [Mobility, Waste, Community, Education, Other]
+        verification_method:
+          type: string
+          enum: [GPS, QR_SCAN, QUIZ, PHOTO_UPLOAD, MANUAL_REPORT, AUTO]
+        default_difficulty:
+          type: string
+          enum: [Low, Medium, High]
+        default_frequency:
+          type: string
+          enum: [daily, weekly, monthly, on_demand]
+        base_points_range:
+          type: object
+          properties:
+            min:
+              type: integer
+            max:
+              type: integer
+        configurable_fields:
+          type: array
+          items:
+            type: object
+            properties:
+              field_name:
+                type: string
+              field_type:
+                type: string
+              description:
+                type: string
+              required:
+                type: boolean
+        is_active:
+          type: boolean
+
+    Submission:
+      type: object
+      properties:
+        _id:
+          type: string
+        user_id:
+          type: string
+        task_id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        proof:
+          type: object
+        submitted_at:
+          type: string
+          format: date-time
+
+    Neighborhood:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        total_score:
+          type: number
+
+    Reward:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        points_cost:
+          type: integer
+        type:
+          type: string
+          enum: [COUPON, DIGITAL_BADGE, PHYSICAL_ITEM]
+        provider:
+          type: string
+        quantity_available:
+          type: integer
+        active:
+          type: boolean
+        expiry_date:
+          type: string
+          format: date-time
+
+    RewardCreate:
+      type: object
+      required: [title, points_cost]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        points_cost:
+          type: integer
+        type:
+          type: string
+          enum: [COUPON, DIGITAL_BADGE, PHYSICAL_ITEM]
+        provider:
+          type: string
+        quantity_available:
+          type: integer
+        active:
+          type: boolean
+        expiry_date:
+          type: string
+          format: date-time
+
+    UserReward:
+      type: object
+      properties:
+        _id:
+          type: string
+        user_id:
+          type: string
+        reward_id:
+          $ref: '#/components/schemas/Reward'
+        redeemed_at:
+          type: string
+          format: date-time
+        unique_code:
+          type: string
+
+    Notification:
+      type: object
+      properties:
+        _id:
+          type: string
+        user_id:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [feedback, info, motivational, reward, system]
+        channel:
+          type: string
+          enum: [in-app, email, push]
+        is_read:
+          type: boolean
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    NotificationPreferences:
+      type: object
+      properties:
+        daily:
+          type: boolean
+        email:
+          type: boolean
+        push:
+          type: boolean
+        motivational:
+          type: boolean
+        informational:
+          type: boolean
+        positive_reinforcement:
+          type: boolean

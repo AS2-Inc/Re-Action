@@ -27,6 +27,7 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+.agent/*
 
 *.tsbuildinfo
 
@@ -38,3 +39,5 @@ coverage
 
 # Vitest
 __screenshots__/
+
+backend/uploads

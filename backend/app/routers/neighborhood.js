@@ -1,5 +1,6 @@
 import express from "express";
 import Neighborhood from "../models/neighborhood.js";
+import leaderboard_service from "../services/leaderboard_service.js";
 
 const router = express.Router();
 
@@ -19,20 +20,61 @@ router.get("", async (_req, res) => {
 });
 
 /**
+ * GET /api/v1/neighborhood/ranking
+ * Get neighborhoods ranked by normalized score (RF17, RF18)
+ * Query params: period (weekly|monthly|all_time), limit
+ */
+router.get("/ranking", async (req, res) => {
+  try {
+    const { period = "all_time", limit = 20 } = req.query;
+
+    const leaderboard = await leaderboard_service.get_leaderboard({
+      period,
+      limit: Number.parseInt(limit, 10),
+    });
+
+    res.status(200).json(leaderboard);
+  } catch (err) {
+    console.error("Ranking error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/**
+ * GET /api/v1/neighborhood/ranking/simple
+ * Get simple ranking based on raw total score (legacy endpoint)
+ */
+router.get("/ranking/simple", async (_req, res) => {
+  try {
+    const neighborhoods = await Neighborhood.find().sort({ total_score: -1 });
+
+    const ranked = neighborhoods.map((n, index) => ({
+      ...n.toObject(),
+      rank: index + 1,
+    }));
+
+    res.status(200).json(ranked);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/**
  * GET /api/v1/neighborhood/:id
  * Get neighborhood by ID
  */
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const neighborhood = await Neighborhood.findByPk(id);
+    const neighborhood = await Neighborhood.findById(id);
     if (neighborhood) {
       res.status(200).json(neighborhood);
     } else {
       res.status(404).json({ error: "Neighborhood Not Found" });
     }
   } catch {
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(400).json({ error: "Invalid ID" });
   }
 });
 

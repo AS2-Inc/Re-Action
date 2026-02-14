@@ -1,27 +1,20 @@
 import mongoose, { Schema } from "mongoose";
 
-// Users include Citizens, Operators, and Admins
 export default mongoose.model(
   "User",
   new Schema({
-    first_name: String,
-    last_name: String,
+    name: String,
     surname: String,
-    age: Number,
     email: { type: String, required: true, unique: true },
+    age: { type: Number },
     // null if using OAuth
-    password: { type: String, required: true }, // TODO: hash this
+    password: { type: String, required: false },
     auth_provider: {
       type: String,
       enum: ["local", "google", "spid"],
       default: "local",
     },
-    role: {
-      type: String,
-      enum: ["citizen", "operator", "admin"],
-      default: "citizen",
-      required: true,
-    },
+
     neighborhood_id: { type: Schema.Types.ObjectId, ref: "Neighborhood" },
 
     // Gamification State (RF4)
@@ -42,6 +35,16 @@ export default mongoose.model(
       co2_saved: { type: Number, default: 0 }, // in kg
       waste_recycled: { type: Number, default: 0 }, // in kg
       km_green: { type: Number, default: 0 }, // km
+    },
+
+    // Aggregated stats for badge efficiency
+    stats: {
+      total_tasks_completed: { type: Number, default: 0 },
+      tasks_by_category: {
+        type: Map,
+        of: Number,
+        default: {},
+      },
     },
 
     notification_preferences: {

@@ -4,11 +4,9 @@ import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import yaml from "js-yaml";
-import swaggerUi from "swagger-ui-express";
+import swagger_ui from "swagger-ui-express";
 import error_handler from "./middleware/error_handler.js";
-import neighborhood from "./routers/neighborhood.js";
-import tasks from "./routers/task.js";
-import users from "./routers/users.js";
+import api_routes from "./routers/index.js";
 
 const app = express();
 
@@ -29,7 +27,9 @@ app.use(cors()); // Allow Cross-Origin requests from Vue Frontend
 // Serve Static Frontend (If deployed together)
 const FRONTEND =
   process.env.FRONTEND || Path.join(__dirname, "..", "..", "frontend", "dist");
+
 app.use("/", express.static(FRONTEND));
+
 console.log(
   "Vue FRONTEND from",
   FRONTEND,
@@ -37,16 +37,14 @@ console.log(
 );
 
 // Serve API Documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swagger_document));
+app.use("/api-docs", swagger_ui.serve, swagger_ui.setup(swagger_document));
 
 // --- Route Mounting ---
-app.use("/api/v1/users", users);
-app.use("/api/v1/neighborhood", neighborhood);
-app.use("/api/v1/tasks", tasks);
+app.use("/api/v1", api_routes);
 
 // 404 Handler
 app.use((_req, res) => {
-  res.status(404).json({ error: "Not Found" });
+  res.status(404).json({ error: "Endpoint Not Found" });
 });
 
 app.use(error_handler);

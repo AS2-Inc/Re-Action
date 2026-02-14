@@ -3,7 +3,7 @@ import mongoose, { Schema } from "mongoose";
 
 // The class representing a user's submission for a task, including verification status.
 export default mongoose.model(
-  "Activity",
+  "Submission",
   new Schema({
     user_id: { type: Schema.Types.ObjectId, ref: "User", required: true },
     neighborhood_id: { type: Schema.Types.ObjectId, ref: "Neighborhood" }, // Denormalized for easier aggregation

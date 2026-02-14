@@ -1,68 +1,80 @@
 # Backend Tests
 
-This directory contains Jest tests for the Re-Action backend API.
+This directory contains comprehensive Jest-based API integration tests for the Re:Action backend application.
+
+## Test Files
+
+### [`user.test.js`](file:///home/david/Re-Action/backend/test/routers/user.test.js)
+
+**Endpoints tested:**
+- `POST /api/v1/users/register` - User registration with validation
+- `POST /api/v1/users/login` - Authentication with JWT
+- `GET /api/v1/users/me` - Dashboard data for authenticated users
+- `GET /api/v1/users/activate` - Email activation flow
+- `POST /api/v1/users/change-password` - Password updates
+- `POST /api/v1/users/forgot-password` - Password reset initiation
+
+---
+
+### [`task_flow.test.js`](file:///home/david/Re-Action/backend/test/routers/task_flow.test.js)
+
+**Endpoints tested:**
+- `GET /api/v1/tasks` - Retrieve user-specific tasks (daily/weekly/monthly/on-demand)
+- `POST /api/v1/tasks/submit` - Submit task completion with proof verification
+
+---
+
+### [`neighborhood.test.js`](file:///home/david/Re-Action/backend/test/routers/neighborhood.test.js)
+
+**Endpoints tested:**
+- `GET /api/v1/neighborhood` - List all neighborhoods
+- `GET /api/v1/neighborhood/:id` - Get specific neighborhood details
+
+---
+
+### [`reward.test.js`](file:///home/david/Re-Action/backend/test/routers/reward.test.js)
+
+**Endpoints tested:**
+- `GET /api/v1/rewards` - List active rewards
+- `POST /api/v1/rewards/:id/redeem` - Redeem a reward with points
+
+---
+
+### [`operators.test.js`](file:///home/david/Re-Action/backend/test/routers/operators.test.js)
+
+**Endpoints tested:**
+- `POST /api/v1/operators/register` - Admin registers new operator
+- `POST /api/v1/operators/activate` - Operator activation
+- `POST /api/v1/operators/login` - Operator login
+- `GET /api/v1/operators/me` - Operator dashboard
+
+---
+
+### [`google_auth.test.js`](file:///home/david/Re-Action/backend/test/routers/google_auth.test.js)
+
+**Endpoints tested:**
+- `POST /api/v1/users/auth/google` - Google Login/Registration
+
+---
 
 ## Running Tests
 
-To run all tests:
+### Run all tests with linting and formatting
 ```bash
 npm test
 ```
 
-To run a specific test file:
+### Run only tests (skip linting)
 ```bash
-npm test -- neighborhood.test.js
+npm run test:only
 ```
 
-To run tests with coverage:
+### Run specific test file
 ```bash
-npm test -- --coverage
+npm run test:only -- test/routers/user.test.js
 ```
 
-## Test Structure
-
-### neighborhood.test.js
-
-Tests for the neighborhood API endpoints (`/api/v1/neighborhood`).
-
-**Endpoints tested:**
-- `GET /api/v1/neighborhood` - List all neighborhoods
-- `GET /api/v1/neighborhood/:id` - Get neighborhood by ID
-
-**Test coverage includes:**
-- ✅ Successful responses with correct data
-- ✅ Empty result handling
-- ✅ 404 errors for not found resources
-- ✅ 500 errors for database failures
-- ✅ Invalid ID format handling
-- ✅ Route pattern validation
-- ✅ Response format validation (JSON content-type)
-- ✅ Error response structure validation
-
-## Dependencies
-
-- **jest**: Testing framework
-- **supertest**: HTTP assertion library for API testing
-- **@jest/globals**: ES modules support for Jest
-
-## Configuration
-
-Jest configuration is in [jest.config.js](../jest.config.js).
-
-Key settings:
-- `testEnvironment: "node"` - Run in Node.js environment
-- `NODE_OPTIONS=--experimental-vm-modules` - Enable ES modules support
-- ES modules with `.js` extension support
-
-## Writing New Tests
-
-1. Create a new test file in the `test/` directory with `.test.js` extension
-2. Import required dependencies:
-   ```javascript
-   import { jest } from "@jest/globals";
-   import request from "supertest";
-   import app from "../app/app.js";
-   ```
-3. Mock any database models needed
-4. Write test cases using `describe` and `it` blocks
-5. Run tests with `npm test`
+### Run with coverage
+```bash
+npm run test:only -- --coverage
+```

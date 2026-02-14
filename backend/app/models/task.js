@@ -4,6 +4,9 @@ import mongoose, { Schema } from "mongoose";
 export default mongoose.model(
   "Task",
   new Schema({
+    // Optional Neighborhood Specificity
+    neighborhood_id: { type: Schema.Types.ObjectId, ref: "Neighborhood" },
+
     title: { type: String, required: true },
     description: { type: String },
 
@@ -31,15 +34,29 @@ export default mongoose.model(
       quiz_id: Schema.Types.ObjectId, // If it's a quiz
     },
 
+    // Impact Metrics for User Ambient Stats (RF4)
+    impact_metrics: {
+      co2_saved: { type: Number, default: 0 }, // kg
+      waste_recycled: { type: Number, default: 0 }, // kg
+      distance: { type: Number, default: 0 }, // km
+    },
+
     // Scheduling
-    frequency: { type: String, enum: ["Daily", "Weekly", "OneTime"] },
+    frequency: {
+      type: String,
+      enum: ["daily", "weekly", "monthly", "on_demand"],
+      default: "on_demand",
+    },
     is_active: { type: Boolean, default: true },
 
     repeatable: { type: Boolean, default: false },
+    cooldown_hours: { type: Number, default: 24 }, // Only if repeatable
 
-    // Task Expiration & Rotation (RF6)
+    // Template Reference
+    template_id: { type: Schema.Types.ObjectId, ref: "TaskTemplate" },
+    created_by: { type: Schema.Types.ObjectId, ref: "Operator" },
+
+    // Admin Metadata
     created_at: { type: Date, default: Date.now },
-    expires_at: { type: Date }, // When this task instance expires
-    expired: { type: Boolean, default: false }, // Mark as expired when rotation happens
   }),
 );

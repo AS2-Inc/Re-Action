@@ -1,232 +1,155 @@
 import express from "express";
 import token_checker from "../middleware/token_checker.js";
-import Neighborhood from "../models/neighborhood.js";
-import Task from "../models/task.js";
-import Activity from "../models/activity.js";
-import User from "../models/user.js";
-import badgeService from "../services/badge_service.js";
+import { upload } from "../middleware/upload.js";
+import * as TaskController from "../controllers/task_controller.js";
+import check_role from "../middleware/role_checker.js";
+import task_template_service from "../services/task_template_service.js";
 
 const router = express.Router();
 
-// Helper Function: Awards points and checks for badge achievements
-async function award_points(user_id, task_id) {
-  const user = await User.findById(user_id);
-  const task = await Task.findById(task_id);
-
-  if (!user || !task) return { success: false, newBadges: [] };
-
-  // TODO: prevent awarding points multiple times for the same task
-
-  user.points += task.base_points;
-  await user.save();
-
-  if (user.neighborhood_id) {
-    const neighborhood = await Neighborhood.findById(user.neighborhood_id);
-    if (neighborhood) {
-      neighborhood.total_score += task.base_points;
-      await neighborhood.save();
-    }
-  }
-
-  // Check and award badges after updating user stats
-  const newBadges = badgeService.checkAndAwardBadges(user_id);
-
-  return { success: true, newBadges };
-}
-
 // GET /api/v1/tasks (Get Tasks for Logged-in User)
-router.get("", token_checker, async (req, res) => {
-  // check if the user is logged in
-  if (!req.logged_user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+router.get(
+  "",
+  token_checker,
+  check_role(["citizen"]),
+  TaskController.get_user_tasks,
+);
 
-  // Fetch tasks available for the user's neighborhood
-  const user = await User.findById(req.logged_user.id).populate("neighborhood");
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
+// GET /api/v1/tasks/active (Get Active Tasks for Logged-in User)
+router.get(
+  "/active",
+  token_checker,
+  check_role(["citizen"]),
+  TaskController.get_active_tasks,
+);
 
-  // get the tasks for the user's neighborhood or global tasks or user task
-  // Exclude expired tasks (RF6)
-  const tasks = await Task.find({
-    $and: [
-      {
-        $or: [
-          { neighborhood_id: user.neighborhood_id },
-          { neighborhood_id: null },
-          { user_id: user._id },
-        ],
-      },
-      {
-        $or: [{ expired: false }, { expired: { $exists: false } }],
-      },
-      { is_active: true },
-    ],
-  });
-
-  res.status(200).json(tasks);
-});
+// POST /api/v1/tasks/submit
+router.post(
+  "/submit",
+  token_checker,
+  check_role(["citizen"]),
+  upload.single("photo"),
+  TaskController.submit_task,
+);
 
 // POST /api/v1/tasks/create (Create Task - Operators only)
-router.post("/create", token_checker, async (req, res) => {
-  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized: Operators only" });
-  }
-  const task = new Task(req.body);
-  await task.save();
-  res.location(`/api/v1/tasks/${task.id}`).status(201).json(task);
-});
+router.post(
+  "/create",
+  token_checker,
+  check_role(["operator"]),
+  TaskController.create_task,
+);
+
+// POST /api/v1/tasks/submissions
+router.post(
+  "/submissions",
+  token_checker,
+  check_role(["operator"]),
+  TaskController.get_submissions,
+);
+
+// POST /api/v1/tasks/submissions/:id/verify
+router.post(
+  "/submissions/:id/verify",
+  token_checker,
+  check_role(["operator"]),
+  TaskController.verify_submission,
+);
+
+// ============================================
+// Task Template Endpoints (RF11)
+// ============================================
 
 /**
- * POST /api/v1/tasks/:id/submit
- * User submits a task.
- * - If Manual: Goes to "pending".
- * - If GPS/QR: Verified immediately by Server.
+ * GET /api/v1/tasks/templates
+ * Get all available task templates (operators only)
  */
-router.post("/:id/submit", token_checker, async (req, res) => {
-  const task = await Task.findById(req.params.id);
-  if (!task) return res.status(404).json({ error: "Task not found" });
-
-  // Check for existing submissions and recurrence
-  const last_activity = await Activity.findOne({
-    user_id: req.logged_user.id,
-    task_id: task._id,
-    status: { $in: ["APPROVED", "PENDING"] },
-  }).sort({ completed_at: -1 });
-
-  if (last_activity) {
-    if (!task.repeatable) {
-      return res
-        .status(400)
-        .json({ error: "Task already completed or pending approval" });
-    } else {
-      const now = new Date();
-      const cooldown_ms = (task.cooldown_hours || 24) * 60 * 60 * 1000;
-      const time_since_last = now - new Date(last_activity.submitted_at);
-      if (time_since_last < cooldown_ms) {
-        return res.status(400).json({ error: "Task is in cooldown" });
-      }
+router.get(
+  "/templates",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (_req, res) => {
+    try {
+      const templates = await task_template_service.get_templates();
+      res.status(200).json(templates);
+    } catch (error) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ error: "Failed to fetch templates" });
     }
-  }
-
-  // 1. Create the submission record
-  const submission = new Activity({
-    user_id: req.logged_user.id,
-    task_id: task._id,
-    status: "PENDING",
-    proof: req.body.proof, // Expecting { gps_location: ... } or { qr_code: ... }
-  });
-
-  // 2. Logic based on Verification Method
-  if (task.verification_method === "MANUAL_REPORT") {
-    // CASE A: Manual - Needs Operator Verification
-    await submission.save();
-    return res.status(200).json({
-      submission_status: "PENDING",
-    });
-  } else {
-    // CASE B: Automatic (GPS or QR) - Server Verification
-    let is_valid = false;
-
-    if (task.verification_method === "GPS") {
-      // TODO: Implement distance check here
-      // For now, we simulate valid coordinates
-      if (req.body.evidence?.gps_location) {
-        is_valid = true;
-      }
-    } else if (task.verification_method === "QR_SCAN") {
-      // TODO: Validate QR string matches expected value
-      if (req.body.evidence?.qr_code_data) {
-        is_valid = true;
-      }
-    }
-
-    if (is_valid) {
-      submission.status = "APPROVED";
-      submission.completed_at = new Date();
-      await submission.save();
-      const { newBadges } = await award_points(req.logged_user.id, task._id);
-
-      return res.status(200).json({
-        points_earned: task.base_points,
-        submission_status: "APPROVED",
-        new_badges: newBadges,
-      });
-    } else {
-      submission.status = "REJECTED";
-      await submission.save();
-      return res.status(400).json({
-        submission_status: "REJECTED",
-      });
-    }
-  }
-});
-
-// --- OPERATOR ROUTES ---
+  },
+);
 
 /**
- * GET /api/v1/tasks/submissions?status=pending
- * Operators view pending tasks
+ * GET /api/v1/tasks/templates/:id
+ * Get a specific template by ID
  */
-router.get("/submissions", token_checker, async (req, res) => {
-  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-
-  const filter = {};
-  if (req.query.status) filter.status = req.query.status;
-
-  // Populate user and task details so operator can see who and what
-  const submissions = await Activity.find(filter)
-    .populate("user_id", "name surname email")
-    .populate("task_id", "title description points verification_method");
-
-  res.status(200).json(submissions);
-});
+router.get(
+  "/templates/:id",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (req, res) => {
+    try {
+      const template = await task_template_service.get_template(req.params.id);
+      res.status(200).json(template);
+    } catch (error) {
+      if (error.message === "Template not found") {
+        return res.status(404).json({ error: error.message });
+      }
+      console.error("Get template error:", error);
+      res.status(500).json({ error: "Failed to fetch template" });
+    }
+  },
+);
 
 /**
- * POST /api/v1/tasks/submissions/:id/verify
- * Operator approves or rejects a manual submission
- * Body: { "verdict": "approved" } or { "verdict": "rejected" }
+ * POST /api/v1/tasks/from-template
+ * Create a new task from a template (operators only)
  */
-router.post("/submissions/:id/verify", token_checker, async (req, res) => {
-  if (req.logged_user.role !== "operator" && req.logged_user.role !== "admin") {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
+router.post(
+  "/from-template",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (req, res) => {
+    try {
+      const { template_id, ...task_data } = req.body;
 
-  const submission = await Activity.findById(req.params.id);
-  if (!submission)
-    return res.status(404).json({ error: "Submission not found" });
+      if (!template_id) {
+        return res.status(400).json({ error: "template_id is required" });
+      }
 
-  if (submission.status !== "PENDING") {
-    return res.status(400).json({ error: "Submission is already processed" });
-  }
+      if (!task_data.title || !task_data.description) {
+        return res
+          .status(400)
+          .json({ error: "title and description are required" });
+      }
 
-  const verdict = req.body.verdict.toLowerCase(); // 'APPROVED' or 'REJECTED'
-  if (verdict === "approved") {
-    submission.status = "APPROVED";
-    submission.completed_at = new Date();
-    await submission.save();
+      const task = await task_template_service.create_task_from_template(
+        template_id,
+        task_data,
+        req.logged_user.id,
+      );
 
-    // Award the points now that the operator confirmed
-    const { newBadges } = await award_points(
-      submission.user_id,
-      submission.task_id,
-    );
+      res.status(201).json(task);
+    } catch (error) {
+      if (
+        error.message === "Template not found" ||
+        error.message === "Template is not active"
+      ) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error.message.startsWith("Required field missing")) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.message.startsWith("Points must be between")) {
+        return res.status(400).json({ error: error.message });
+      }
+      console.error("Create from template error:", error);
+      res.status(500).json({ error: "Failed to create task from template" });
+    }
+  },
+);
 
-    return res.status(200).json({
-      new_badges: newBadges,
-    });
-  } else if (verdict === "rejected") {
-    submission.status = "REJECTED";
-    await submission.save();
-    return res.status(200).json({});
-  } else {
-    return res
-      .status(400)
-      .json({ error: "Invalid verdict. Use 'approved' or 'rejected'." });
-  }
-});
+// GET /api/v1/tasks/:id (Get Task by ID) - MOVED HERE TO AVOID COLLISION
+router.get("/:id", token_checker, TaskController.get_task);
 
 export default router;

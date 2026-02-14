@@ -1,8 +1,8 @@
 import { mongoose } from "mongoose";
 import app from "./app/app.js";
-import User from "./app/models/user.js";
-import { startTaskScheduler } from "./app/services/task_scheduler.js";
-import badgeService from "./app/services/badge_service.js";
+import Operator from "./app/models/operator.js";
+import scheduler from "./app/services/scheduler.js";
+import bcrypt from "bcrypt";
 
 const port = process.env.PORT || 8080;
 
@@ -11,30 +11,27 @@ app.locals.db = mongoose
   .then(async () => {
     console.log("Connected to Database");
 
-    // Initialize default badges (RF4)
-    await badgeService.initializeDefaultBadges();
-
-    // Start task scheduler (RF6)
-    startTaskScheduler();
-
     // Create Admin User if not exists from env variables
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const admin_email = process.env.ADMIN_EMAIL;
+    const admin_password = process.env.ADMIN_PASSWORD;
 
-    if (adminEmail && adminPassword) {
-      const admin = await User.findOne({ email: adminEmail });
+    if (admin_email && admin_password) {
+      const admin = await Operator.findOne({ email: admin_email });
       if (!admin) {
-        await User.create({
+        await Operator.create({
           name: "Admin",
           surname: "User",
-          email: adminEmail,
-          password: adminPassword,
+          email: admin_email,
+          password: bcrypt.hashSync(admin_password, 10),
           role: "admin",
-          active: true,
+          is_active: true,
         });
         console.log("Admin user created");
       }
     }
+
+    // Initialize Scheduler
+    scheduler.init();
 
     app.listen(port, () => {
       console.log(`Server listening on http://localhost:${port}`);

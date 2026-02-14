@@ -1,9 +1,8 @@
 import { jest } from "@jest/globals";
 import { connect, close, clear } from "../../db_helper.js";
-import mongoose from "mongoose";
 
 // We need to define mocks before importing modules if we use unstable_mockModule which is global
-// But for integration tests we usually want real DB. 
+// But for integration tests we usually want real DB.
 // However, the test file imports modules dynamically which is good.
 
 const TaskService = await import("../../../app/services/task_service.js");
@@ -16,7 +15,6 @@ const Task = TaskModule.default;
 
 const UserTaskModule = await import("../../../app/models/user_task.js");
 const UserTask = UserTaskModule.default;
-
 
 describe("TaskService.replace_expired_tasks_for_all_users (RF6)", () => {
   beforeAll(async () => {
@@ -41,7 +39,7 @@ describe("TaskService.replace_expired_tasks_for_all_users (RF6)", () => {
       password: "Password123!", // Dummy password
       is_active: true,
       age: 25,
-      neighborhood_id: null // Global
+      neighborhood_id: null, // Global
     });
 
     // 2. Create tasks
@@ -55,7 +53,7 @@ describe("TaskService.replace_expired_tasks_for_all_users (RF6)", () => {
       verification_method: "GPS",
     });
 
-    const task2 = await Task.create({
+    await Task.create({
       title: "Task 2",
       description: "Desc 2",
       category: "Waste",

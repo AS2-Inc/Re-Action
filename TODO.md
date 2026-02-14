@@ -9,16 +9,6 @@
 - Task attive visualizzate direttamente nella dashboard
 ---
 
-### RF5: Sistema di Notifiche
-- Notifiche per nuovi eventi/challenge
-- Notifiche per progressi/feedback positivo
----
-
-### RF6: Interazione con le task quotidiane
-- **Sostituzione immediata task scaduta** (attualmente solo marca come expired)
-- Sostituzione task completata all'inizio giorno seguente (logica user-specific)
----
-
 ### RF10: Interfaccia lato comune
 - Dashboard dedicata operatori (frontend)
 - Visualizzazione dati aggregati per quartiere
@@ -27,11 +17,6 @@
 - Data-driven decision making tools
 ---
 
-### RF11: Creazione delle task
-- Sistema template task predefiniti
-- UI per selezione template e configurazione
-- Validazione attributi task basata su template
----
 
 ### RF13: Raccolta dati
 - **Anonimizzazione dati** utente nel database
@@ -61,5 +46,5 @@
 
 ### BASSA PRIORITÀ
 3. **RF13 - Open Data Integration**: API integrazione dati comunali
-4. **RF13 - Anonimizzazione**: Privacy compliance
-5. **Frontend**: Implementazione completa tutte le view
+4. **Frontend**: Implementazione completa tutte le view
+5. **API**: Aggiornare oas3.yml

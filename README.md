@@ -6,12 +6,11 @@
 
 This project uses [Biome](https://biomejs.dev/) for linting and formatting.
 
+- **Format**: Run `npm run format` to format code.
 - **Lint**: Run `npm run lint` to check for linting errors.
-- **Format**: Run `npm run format` to see formatted code.
 
-To automatically fix linting errors, you can run:
+To automatically fix linting errors, run:
 
 ```bash
 npm run lint:fix
 ```
-

@@ -12,4 +12,12 @@ export default defineConfig({
     },
   },
   base: process.env.BASE_PATH || "/",
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
+  },
 });

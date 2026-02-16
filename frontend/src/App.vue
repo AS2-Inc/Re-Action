@@ -1,5 +1,4 @@
 <script setup>
-import { RouterView } from "vue-router";
 </script>
 
 <template>
@@ -9,20 +8,28 @@ import { RouterView } from "vue-router";
 </template>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Caladea:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
 * {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: #f5f5f5;
+html, body {
+  background: #e4e6ce;
   color: #333;
   line-height: 1.6;
+  height: 100vh;
+  width: 100vw;
 }
 
 #app {
-  min-height: 100vh;
+  display: flex;
+  justify-content: top; 
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  padding: 1vh;
 }
 </style>

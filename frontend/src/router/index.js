@@ -3,13 +3,19 @@ import HomeView from "../views/HomeView.vue";
 import LoginView from "../views/LoginView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import TasksView from "../views/TasksView.vue";
-import ProfileView from "../views/ProfileView.vue";
+import StatsView from "../views/StatsView.vue";
+import PresentationView from "../views/PresentationView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
+      name: "presentation",
+      component: PresentationView,
+    },
+    {
+      path: "/home",
       name: "home",
       component: HomeView,
     },
@@ -29,9 +35,9 @@ const router = createRouter({
       component: TasksView,
     },
     {
-      path: "/profile",
-      name: "profile",
-      component: ProfileView,
+      path: "/stats",
+      name: "stats",
+      component: StatsView,
     },
   ],
 });

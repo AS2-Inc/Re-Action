@@ -87,6 +87,27 @@ export const register = async (user_data) => {
 
   const existing = await User.findOne({ email });
   if (existing) {
+    if (!existing.is_active && existing.auth_provider === "local") {
+      if (is_password_weak(password)) {
+        throw new Error("Password is too weak");
+      }
+
+      const activation_token = crypto.randomBytes(20).toString("hex");
+      const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
+
+      existing.name = name;
+      existing.surname = surname;
+      existing.age = age;
+      existing.neighborhood_id = neighborhood || null;
+      existing.password = await hash_password(password);
+      existing.activation_token = activation_token;
+      existing.activation_token_expires = activation_expires;
+
+      await existing.save();
+      await EmailService.send_activation_email(email, activation_token);
+      return existing;
+    }
+
     throw new Error("Email already exists");
   }
 

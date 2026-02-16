@@ -21,6 +21,8 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 
 ## Project Setup
 
+Create a `.env` file based on `.env.example` and set `VITE_API_BASE_URL` to your backend base URL.
+
 ```sh
 npm install
 ```

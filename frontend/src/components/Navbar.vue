@@ -17,10 +17,10 @@
 
 <script setup>
 const _props = defineProps({
-	links: {
-		type: Array,
-		default: () => [],
-	},
+  links: {
+    type: Array,
+    default: () => [],
+  },
 });
 </script>
 

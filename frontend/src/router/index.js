@@ -5,6 +5,8 @@ import RegisterView from "../views/RegisterView.vue";
 import TasksView from "../views/TasksView.vue";
 import StatsView from "../views/StatsView.vue";
 import PresentationView from "../views/PresentationView.vue";
+import OperatorDashboardView from "../views/OperatorDashboardView.vue";
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -38,6 +40,11 @@ const router = createRouter({
       path: "/stats",
       name: "stats",
       component: StatsView,
+    },
+    {
+      path: "/operatorDashboard",
+      name: "operatorDashboard",
+      component: OperatorDashboardView,
     },
   ],
 });

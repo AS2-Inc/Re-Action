@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import Path from "node:path";
 import { fileURLToPath } from "node:url";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import yaml from "js-yaml";
@@ -22,7 +23,13 @@ const swagger_document = yaml.load(
 // Middleware Configuration
 app.use(express.json()); // Body parser
 app.use(express.urlencoded({ extended: true }));
-app.use(cors()); // Allow Cross-Origin requests from Vue Frontend
+app.use(cookieParser()); // Cookie parser for HttpOnly cookies
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true, // Allow cookies in CORS requests
+  }),
+); // Allow Cross-Origin requests from Vue Frontend
 
 // Serve Static Frontend (If deployed together)
 const FRONTEND =

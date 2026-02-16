@@ -5,7 +5,21 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await UserService.login(email, password);
-    res.status(200).json(result);
+
+    // Set JWT in HttpOnly cookie
+    res.cookie("token", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
+
+    // Return user info without token
+    res.status(200).json({
+      email: result.email,
+      id: result.id,
+      self: result.self,
+    });
   } catch (error) {
     if (error.message === "User not found") {
       return res.status(404).json({ error: error.message });
@@ -23,7 +37,21 @@ export const google_auth = async (req, res) => {
   try {
     const { credential } = req.body;
     const result = await UserService.google_auth(credential);
-    res.status(200).json(result);
+
+    // Set JWT in HttpOnly cookie
+    res.cookie("token", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
+
+    // Return user info without token
+    res.status(200).json({
+      email: result.email,
+      id: result.id,
+      self: result.self,
+    });
   } catch (error) {
     console.error("Google Auth Error:", error);
     res.status(401).json({ error: "Invalid Google token" });
@@ -64,8 +92,11 @@ export const activate = async (req, res) => {
     if (!token) {
       return res.status(400).json({ error: "Token missing" });
     }
-    const result = await UserService.activate_account(token);
-    res.status(200).json(result);
+    await UserService.activate_account(token);
+
+    const frontend_base_url =
+      process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+    return res.redirect(`${frontend_base_url}/login?activated=true`);
   } catch (error) {
     if (error.message === "Invalid or expired activation token") {
       return res.status(400).json({ error: error.message });

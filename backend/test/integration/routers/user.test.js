@@ -78,7 +78,9 @@ describe("User API Endpoints", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("token");
+      // Token is in HttpOnly cookie
+      expect(response.headers["set-cookie"]).toBeDefined();
+      expect(response.headers["set-cookie"][0]).toMatch(/token=/);
       expect(response.body).toHaveProperty("email", "user@example.com");
       expect(response.body).toHaveProperty("id");
     });
@@ -232,6 +234,7 @@ describe("User API Endpoints", () => {
         password: "password123!A!A",
         age: 30,
         role: "citizen",
+        is_active: true, // IMPORTANT: Must be active to trigger 409, otherwise triggers 200 (resend activation)
       });
 
       const response = await request(app).post("/api/v1/users/register").send({
@@ -398,11 +401,8 @@ describe("User API Endpoints", () => {
         .get("/api/v1/users/activate")
         .query({ token: "valid-token" });
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty(
-        "message",
-        "Account activated successfully. You can now log in.",
-      );
+      expect(response.status).toBe(302);
+      expect(response.headers.location).toMatch(/\/login\?activated=true$/);
 
       const updatedUser = await User.findById(user._id);
       expect(updatedUser.is_active).toBe(true);
@@ -425,11 +425,8 @@ describe("User API Endpoints", () => {
         .get("/api/v1/users/activate")
         .query({ token: "operator-token" });
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty(
-        "message",
-        "Account activated successfully. You can now log in.",
-      );
+      expect(response.status).toBe(302);
+      expect(response.headers.location).toMatch(/\/login\?activated=true$/);
     });
 
     it("should return 400 when token is missing", async () => {

@@ -56,7 +56,9 @@ describe("Google Authentication", () => {
       .send({ credential: "valid_google_token" });
 
     expect(res.statusCode).toEqual(200);
-    expect(res.body).toHaveProperty("token");
+    // Token is now in cookie, not body
+    expect(res.headers["set-cookie"]).toBeDefined();
+    expect(res.headers["set-cookie"][0]).toMatch(/token=/);
     expect(res.body.email).toEqual("newuser@example.com");
 
     const user = await User.findOne({ email: "newuser@example.com" });
@@ -92,7 +94,9 @@ describe("Google Authentication", () => {
       .send({ credential: "valid_google_token" });
 
     expect(res.statusCode).toEqual(200);
-    expect(res.body).toHaveProperty("token");
+    // Token is now in cookie, not body
+    expect(res.headers["set-cookie"]).toBeDefined();
+    expect(res.headers["set-cookie"][0]).toMatch(/token=/);
     expect(res.body.email).toEqual("existing@example.com");
     expect(res.body.id).toEqual(existingUser._id.toString());
   });

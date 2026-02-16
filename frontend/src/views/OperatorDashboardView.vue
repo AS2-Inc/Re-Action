@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-const router = useRouter();
+const _router = useRouter();
 
 // Stato locale (Variabili reattive collegate al template)
 const environmentalData = ref({});
@@ -23,7 +23,7 @@ const fetchDashboardData = async () => {
   }
   */
 
-  const API_BASE = "http://localhost:5000/api/v1";
+  const _API_BASE = "http://localhost:5000/api/v1";
 
   loading.value = true;
   errorMessage.value = "";
@@ -102,7 +102,7 @@ const fetchDashboardData = async () => {
 };
 
 // Funzione per il bottone della tabella
-const viewDetails = (id) => {
+const _viewDetails = (id) => {
   console.log(`Hai cliccato per vedere i dettagli del quartiere: ${id}`);
   // In futuro scommenterai questa riga per cambiare pagina:
   // router.push(`/operator-dashboard/neighborhood/${id}`);

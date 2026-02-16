@@ -1,4 +1,5 @@
 import Badge from "../models/badge.js";
+import { LEVEL_THRESHOLDS } from "../config/badges.config.js";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
 import User from "../models/user.js";
@@ -77,6 +78,7 @@ class UserDashboardService {
         streak: user.streak,
         last_activity_date: user.last_activity_date,
       },
+      level_thresholds: LEVEL_THRESHOLDS,
       stats: {
         tasks_completed,
         badges_count: user_badges.length,

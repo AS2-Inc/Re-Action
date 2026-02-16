@@ -3,10 +3,110 @@
     <h2 class="greeting">Ciao</h2>
     <h1 class="username">{{ displayName }}</h1>
     <hr class="sep" />
+    <div class="level-progress">
+      <div class="progress-ring">
+        <svg
+          class="progress-svg"
+          width="100%"
+          height="100%"
+          :viewBox="`0 0 ${ringSize} ${ringSize}`"
+        >
+          <circle
+            class="progress-ring__bg"
+            :r="ringRadius"
+            :cx="ringSize / 2"
+            :cy="ringSize / 2"
+          />
+          <circle
+            class="progress-ring__value"
+            :r="ringRadius"
+            :cx="ringSize / 2"
+            :cy="ringSize / 2"
+            :style="{
+              strokeDasharray: `${ringCircumference} ${ringCircumference}`,
+              strokeDashoffset: progressOffset,
+            }"
+          />
+        </svg>
+        <div class="progress-text">
+          <span class="progress-value">{{ Math.round(progressPercent) }}%</span>
+          <span class="progress-label">{{ points }} pt</span>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-bar__track">
+          <div
+            class="progress-bar__fill"
+            :style="{ width: `${progressPercent}%` }"
+          ></div>
+        </div>
+        <div class="progress-bar__text">
+          <span class="progress-value">{{ Math.round(progressPercent) }}%</span>
+          <span class="progress-label">{{ points }} pt</span>
+        </div>
+      </div>
+      <div class="level-info">
+        <p class="level-name">{{ levelName }}</p>
+        <p v-if="nextLevelLabel" class="level-next">
+          Prossimo: {{ nextLevelLabel }}
+        </p>
+      </div>
+    </div>
+    <hr class="sep sep-after" />
   </div>
   <div class="info-name">
     <h1 class="username">{{ displayName }}</h1>
     <hr class="sep" />
+    <div class="level-progress compact">
+      <div class="progress-ring">
+        <svg
+          class="progress-svg"
+          width="100%"
+          height="100%"
+          :viewBox="`0 0 ${ringSize} ${ringSize}`"
+        >
+          <circle
+            class="progress-ring__bg"
+            :r="ringRadius"
+            :cx="ringSize / 2"
+            :cy="ringSize / 2"
+          />
+          <circle
+            class="progress-ring__value"
+            :r="ringRadius"
+            :cx="ringSize / 2"
+            :cy="ringSize / 2"
+            :style="{
+              strokeDasharray: `${ringCircumference} ${ringCircumference}`,
+              strokeDashoffset: progressOffset,
+            }"
+          />
+        </svg>
+        <div class="progress-text">
+          <span class="progress-value">{{ Math.round(progressPercent) }}%</span>
+          <span class="progress-label">{{ points }} pt</span>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-bar__track">
+          <div
+            class="progress-bar__fill"
+            :style="{ width: `${progressPercent}%` }"
+          ></div>
+        </div>
+        <div class="progress-bar__text">
+          <span class="progress-value">{{ Math.round(progressPercent) }}%</span>
+          <span class="progress-label">{{ points }} pt</span>
+        </div>
+      </div>
+      <div class="level-info">
+        <p class="level-name">{{ levelName }}</p>
+        <p v-if="nextLevelLabel" class="level-next">
+          Prossimo: {{ nextLevelLabel }}
+        </p>
+      </div>
+    </div>
+    <hr class="sep sep-after" />
   </div>
 </template>
 
@@ -22,7 +122,12 @@ export default {
         name: "",
         surname: "",
       },
+      points: 0,
+      level: "",
+      levelThresholds: [],
       userLoadError: "",
+      ringSize: 120,
+      ringRadius: 52,
     };
   },
   computed: {
@@ -30,12 +135,62 @@ export default {
       const name = `${this.user.name} ${this.user.surname}`.trim();
       return name || "Utente";
     },
+    levelName() {
+      return this.level || "Cittadino Base";
+    },
+    ringCircumference() {
+      return 2 * Math.PI * this.ringRadius;
+    },
+    progressPercent() {
+      if (this.levelThresholds.length === 0) {
+        return 0;
+      }
+      const sorted = [...this.levelThresholds].sort(
+        (a, b) => a.points - b.points,
+      );
+      const currentIndex = [...sorted]
+        .reverse()
+        .findIndex((t) => this.points >= t.points);
+      const currentLevelIndex =
+        currentIndex === -1 ? 0 : sorted.length - 1 - currentIndex;
+      const current = sorted[currentLevelIndex] || sorted[0];
+      const next = sorted[currentLevelIndex + 1];
+
+      if (!next) {
+        return 100;
+      }
+
+      const range = next.points - current.points;
+      if (range <= 0) {
+        return 0;
+      }
+
+      const progress = ((this.points - current.points) / range) * 100;
+      return Math.max(0, Math.min(100, progress));
+    },
+    progressOffset() {
+      return this.ringCircumference * (1 - this.progressPercent / 100);
+    },
+    nextLevelLabel() {
+      if (this.levelThresholds.length === 0) {
+        return "";
+      }
+      const sorted = [...this.levelThresholds].sort(
+        (a, b) => a.points - b.points,
+      );
+      const next = sorted.find((t) => this.points < t.points);
+      if (!next) return "";
+      return `${next.level} · ${next.points} pt`;
+    },
   },
   async mounted() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-        credentials: "include",
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/users/me/dashboard`,
+        {
+          credentials: "include",
+        },
+      );
 
       if (!response.ok) {
         this.userLoadError = "Impossibile recuperare il profilo.";
@@ -43,8 +198,12 @@ export default {
       }
 
       const data = await response.json();
-      this.user.name = data?.name || "";
-      this.user.surname = data?.surname || "";
+      const user = data?.user || data;
+      this.user.name = user?.name || "";
+      this.user.surname = user?.surname || "";
+      this.points = user?.points || 0;
+      this.level = user?.level || "";
+      this.levelThresholds = data?.level_thresholds || [];
     } catch (error) {
       console.error(error);
       this.userLoadError = "Impossibile recuperare il profilo.";
@@ -92,6 +251,118 @@ export default {
   margin: 1rem;
 }
 
+.sep-after {
+  margin: 1rem 0 0;
+}
+
+.level-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.level-progress.compact {
+  margin-top: 0.5rem;
+}
+
+.progress-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.progress-svg {
+  transform: rotate(-90deg);
+}
+
+.progress-ring__bg {
+  fill: transparent;
+  stroke: rgba(0, 0, 0, 0.15);
+  stroke-width: 10;
+}
+
+.progress-ring__value {
+  fill: transparent;
+  stroke: #333;
+  stroke-linecap: round;
+  stroke-width: 10;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  font-family: "Caladea", serif;
+}
+
+.progress-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.progress-label {
+  font-size: 0.85rem;
+  color: #333;
+}
+
+.level-info {
+  text-align: center;
+  font-family: "Caladea", serif;
+}
+
+.level-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.level-next {
+  font-size: 0.85rem;
+  margin: 0.1rem 0 0;
+  color: #333;
+}
+
+.progress-bar {
+  display: none;
+  width: 90%;
+  gap: 0.35rem;
+  flex-direction: column;
+  align-items: center;
+}
+
+.progress-bar__track {
+  width: 100%;
+  height: 10px;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background-color: #333;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.progress-bar__text {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-family: "Caladea", serif;
+}
+
 @media (max-width: 600px) {
   .info-column {
     display: none;
@@ -102,9 +373,19 @@ export default {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    width: 90vw;
+    background-color: #a9ca5f;
+    border-radius: 10px;
+    padding: 1rem;
   }
   .info-name .sep {
-    width: 90vw;
+    width: 100%;
+  }
+  .progress-ring {
+    display: none;
+  }
+  .progress-bar {
+    display: flex;
   }
 }
 </style>

@@ -97,9 +97,9 @@ export default {
         const _data = await response.json();
         this.success = "Login effettuato con successo.";
 
-        // Redirect to home or dashboard
+        // Redirect to main area
         setTimeout(() => {
-          this.$router.push("/home");
+          this.$router.push("/tasks");
         }, 1000);
       } catch (error) {
         console.error(error);
@@ -185,7 +185,7 @@ export default {
         this.success = "Login Google completato.";
 
         setTimeout(() => {
-          this.$router.push("/home");
+          this.$router.push("/tasks");
         }, 1000);
       } catch (error) {
         console.error(error);

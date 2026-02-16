@@ -23,7 +23,6 @@ export default {
   data() {
     return {
       navLinks: [
-        { label: "Home", to: "/home" },
         { label: "Tasks", to: "/tasks" },
         { label: "Stats", to: "/stats" },
       ],

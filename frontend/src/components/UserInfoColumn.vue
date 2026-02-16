@@ -74,13 +74,17 @@ export default {
   font-family: "Caladea", serif;
   font-weight: 100;
   font-size: 1.2rem;
-  line-height: 1;
+  line-height: 2rem;
 }
 .username {
   font-family: "Caladea", serif;
   line-height: 1;
   font-weight: 700;
   font-size: 2rem;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .sep {
   width: 100%;

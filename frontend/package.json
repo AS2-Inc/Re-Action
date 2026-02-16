@@ -11,9 +11,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "format": "biome format --write .",
-    "format:check": "biome format .",
     "lint": "biome lint .",
-    "lint:fix": "biome lint --write ."
+    "lint:fix": "biome lint --write .",
+    "ci": "biome ci .",
+    "check": "biome check .",
+    "check:fix": "biome check . --write"
   },
   "dependencies": {
     "vue": "^3.5.26",

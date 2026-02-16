@@ -57,11 +57,7 @@ jobs:
 
       - name: Run Linter
         working-directory: ./frontend
-        run: npm run lint
-
-      - name: Check Formatting
-        working-directory: ./frontend
-        run: npm run format
+        run: npm run ci
 
       - name: Build
         working-directory: ./frontend

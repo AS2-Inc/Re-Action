@@ -45,6 +45,21 @@
 
             <hr class="section-sep" />
 
+            <section class="streak-section">
+              <h2 class="section-title">Streak</h2>
+              <div class="streak-card">
+                <div class="streak-display">
+                  <span class="streak-icon">🔥</span>
+                  <div class="streak-content">
+                    <p class="streak-label">Streak attuale</p>
+                    <p class="streak-value">{{ streak }} giorni</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <hr class="section-sep" />
+
             <section class="badges-section">
               <h2 class="section-title">Badge</h2>
               <p v-if="isLoading" class="state">Caricamento badge...</p>
@@ -92,6 +107,7 @@ export default {
       points: 0,
       level: "",
       levelThresholds: [],
+      streak: 0,
       isLoading: false,
       error: "",
     };
@@ -158,6 +174,7 @@ export default {
       this.badges = Array.isArray(badgesData) ? badgesData : [];
       this.points = dashboardData?.user?.points || 0;
       this.level = dashboardData?.user?.level || "";
+      this.streak = dashboardData?.user?.streak || 0;
       this.levelThresholds = dashboardData?.level_thresholds || [];
     } catch (error) {
       console.error(error);
@@ -360,6 +377,49 @@ export default {
 
 .state.error {
   color: #b91c1c;
+}
+
+.streak-section {
+  width: 100%;
+  max-width: 720px;
+}
+
+.streak-card {
+  background-color: #dcd8bb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.streak-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.streak-icon {
+  font-size: 3rem;
+}
+
+.streak-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.streak-label {
+  margin: 0;
+  font-family: "Caladea", serif;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.streak-value {
+  margin: 0;
+  font-family: "Caladea", serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #d97706;
 }
 @media (max-width: 600px) {
     .home {

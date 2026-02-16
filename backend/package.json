@@ -23,7 +23,9 @@
     "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest --testPathPattern=unit",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "lint:fix": "biome lint --write ."
+    "lint:fix": "biome lint --write .",
+    "check": "biome check .",
+    "ci": "biome ci ."
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -1,9 +1,9 @@
-import User from "../models/user.js";
-import Submission from "../models/submission.js";
-import UserTask from "../models/user_task.js";
-import UserReward from "../models/user_reward.js";
 import Badge from "../models/badge.js";
 import Neighborhood from "../models/neighborhood.js";
+import Submission from "../models/submission.js";
+import User from "../models/user.js";
+import UserReward from "../models/user_reward.js";
+import UserTask from "../models/user_task.js";
 
 /**
  * User Dashboard Service

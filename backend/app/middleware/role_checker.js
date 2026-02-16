@@ -3,9 +3,10 @@
  * Also verifies that the user exists in the database and is active.
  * @param {string[]} allowed_roles - Array of allowed roles (e.g., ['admin', 'operator'])
  */
-import User from "../models/user.js";
-import Operator from "../models/operator.js";
+
 import mongoose from "mongoose";
+import Operator from "../models/operator.js";
+import User from "../models/user.js";
 
 const check_role = (allowed_roles) => {
   return async (req, res, next) => {

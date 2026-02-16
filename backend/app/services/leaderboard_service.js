@@ -1,6 +1,6 @@
 import Neighborhood from "../models/neighborhood.js";
-import User from "../models/user.js";
 import Submission from "../models/submission.js";
+import User from "../models/user.js";
 
 /**
  * Leaderboard Service (RF17, RF18)

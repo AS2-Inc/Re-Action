@@ -1,7 +1,7 @@
 import express from "express";
-import notification_service from "../services/notification_service.js";
 import token_checker from "../middleware/token_checker.js";
 import User from "../models/user.js";
+import notification_service from "../services/notification_service.js";
 
 const router = express.Router();
 

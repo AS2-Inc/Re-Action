@@ -1,16 +1,16 @@
-import express from "express";
 import crypto from "node:crypto";
+import express from "express";
+import jwt from "jsonwebtoken";
+import check_role from "../middleware/role_checker.js";
 import token_checker from "../middleware/token_checker.js";
 import Operator from "../models/operator.js";
 import EmailService from "../services/email_service.js";
+import operator_dashboard_service from "../services/operator_dashboard_service.js";
 import {
   hash_password,
-  is_password_weak,
   is_password_valid,
+  is_password_weak,
 } from "../utils/security.js";
-import jwt from "jsonwebtoken";
-import check_role from "../middleware/role_checker.js";
-import operator_dashboard_service from "../services/operator_dashboard_service.js";
 
 const router = express.Router();
 

@@ -1,7 +1,7 @@
-import Badge from "../models/badge.js";
-import User from "../models/user.js";
-import Activity from "../models/submission.js";
 import { DEFAULT_BADGES, LEVEL_THRESHOLDS } from "../config/badges.config.js";
+import Badge from "../models/badge.js";
+import Activity from "../models/submission.js";
+import User from "../models/user.js";
 
 /**
  * Badge Service - Manages automatic badge awarding based on user achievements

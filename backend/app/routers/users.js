@@ -1,9 +1,9 @@
 import express from "express";
-import token_checker from "../middleware/token_checker.js";
 import * as UserController from "../controllers/user_controller.js";
+import token_checker from "../middleware/token_checker.js";
 import {
-  validate_required,
   validate_email_format,
+  validate_required,
 } from "../middleware/validation.js";
 
 const router = express.Router();

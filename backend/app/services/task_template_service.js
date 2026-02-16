@@ -1,5 +1,5 @@
-import TaskTemplate from "../models/task_template.js";
 import Task from "../models/task.js";
+import TaskTemplate from "../models/task_template.js";
 import NotificationService from "./notification_service.js";
 
 /**

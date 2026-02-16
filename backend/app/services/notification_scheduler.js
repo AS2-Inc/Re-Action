@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import User from "../models/user.js";
 import Notification from "../models/notification.js";
+import User from "../models/user.js";
 import notification_service from "./notification_service.js";
 
 class NotificationScheduler {

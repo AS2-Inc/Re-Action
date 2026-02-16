@@ -1,5 +1,5 @@
-import * as UserService from "../services/user_service.js";
 import user_dashboard_service from "../services/user_dashboard_service.js";
+import * as UserService from "../services/user_service.js";
 
 export const login = async (req, res) => {
   try {

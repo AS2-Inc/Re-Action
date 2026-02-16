@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
-import { connect, close, clear } from "../../db_helper.js";
 import mongoose from "mongoose";
+import { clear, close, connect } from "../../db_helper.js";
 
 // Mock NotificationService
 const mockNotifyAllUsers = jest.fn().mockResolvedValue([]);

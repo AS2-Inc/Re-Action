@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { connect, close, clear } from "../../db_helper.js";
+import { clear, close, connect } from "../../db_helper.js";
 
 // We need to define mocks before importing modules if we use unstable_mockModule which is global
 // But for integration tests we usually want real DB.

@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { connect, close, clear } from "../../db_helper.js";
+import { clear, close, connect } from "../../db_helper.js";
 
 // Define mocks
 const mockSchedule = jest.fn().mockReturnValue({});
@@ -164,4 +164,5 @@ describe("NotificationScheduler", () => {
 
 // Helper for ObjectId
 import mongoose from "mongoose";
+
 const SimpleObjectId = mongoose.Types.ObjectId;

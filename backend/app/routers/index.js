@@ -1,10 +1,10 @@
 import express from "express";
-import users from "./users.js";
 import neighborhood from "./neighborhood.js";
-import tasks from "./task.js";
-import rewards from "./rewards.js";
-import operators from "./operators.js";
 import notifications from "./notifications.js";
+import operators from "./operators.js";
+import rewards from "./rewards.js";
+import tasks from "./task.js";
+import users from "./users.js";
 
 const router = express.Router();
 

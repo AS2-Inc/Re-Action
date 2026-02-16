@@ -1,12 +1,12 @@
-import Task from "../models/task.js";
-import UserTask from "../models/user_task.js";
-import Submission from "../models/submission.js";
-import User from "../models/user.js";
-import BadgeService from "./badge_service.js";
 import Neighborhood from "../models/neighborhood.js";
+import Submission from "../models/submission.js";
+import Task from "../models/task.js";
+import User from "../models/user.js";
+import UserTask from "../models/user_task.js";
+import BadgeService from "./badge_service.js";
 import * as GPSVerifier from "./verification/gps_verifier.js";
-import * as QRVerifier from "./verification/qr_verifier.js";
 import * as PhotoVerifier from "./verification/photo_verifier.js";
+import * as QRVerifier from "./verification/qr_verifier.js";
 import * as QuizVerifier from "./verification/quiz_verifier.js";
 
 // Helper to award points and check badges

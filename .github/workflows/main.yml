@@ -27,7 +27,11 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
-      - name: Run Tests (with Lint & Format)
+      - name: Lint & Format Check Biome
+        working-directory: ./backend
+        run: npm run ci
+
+      - name: Run Jest Tests
         working-directory: ./backend
         run: npm test
 

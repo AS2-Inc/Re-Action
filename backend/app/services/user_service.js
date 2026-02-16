@@ -1,14 +1,14 @@
 import crypto from "node:crypto";
-import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
-import User from "../models/user.js";
+import jwt from "jsonwebtoken";
 import Badge from "../models/badge.js";
-import EmailService from "./email_service.js";
+import User from "../models/user.js";
 import {
   hash_password,
   is_password_valid,
   is_password_weak,
 } from "../utils/security.js";
+import EmailService from "./email_service.js";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 

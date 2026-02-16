@@ -1,10 +1,10 @@
+import crypto from "node:crypto";
 import express from "express";
+import check_role from "../middleware/role_checker.js";
 import token_checker from "../middleware/token_checker.js";
 import Reward from "../models/reward.js";
-import UserReward from "../models/user_reward.js";
 import User from "../models/user.js";
-import crypto from "node:crypto";
-import check_role from "../middleware/role_checker.js";
+import UserReward from "../models/user_reward.js";
 
 const router = express.Router();
 

@@ -1,8 +1,8 @@
 import express from "express";
-import token_checker from "../middleware/token_checker.js";
-import { upload } from "../middleware/upload.js";
 import * as TaskController from "../controllers/task_controller.js";
 import check_role from "../middleware/role_checker.js";
+import token_checker from "../middleware/token_checker.js";
+import { upload } from "../middleware/upload.js";
 import task_template_service from "../services/task_template_service.js";
 
 const router = express.Router();

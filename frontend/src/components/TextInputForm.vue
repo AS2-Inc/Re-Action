@@ -19,30 +19,30 @@
 const _emit = defineEmits(["update:modelValue"]);
 
 const _props = defineProps({
-	modelValue: {
-		type: String,
-		default: "",
-	},
-	label: {
-		type: String,
-		default: "",
-	},
-	placeholder: {
-		type: String,
-		default: "",
-	},
-	name: {
-		type: String,
-		default: "",
-	},
-	id: {
-		type: String,
-		default: "",
-	},
-	type: {
-		type: String,
-		default: "text",
-	},
+  modelValue: {
+    type: String,
+    default: "",
+  },
+  label: {
+    type: String,
+    default: "",
+  },
+  placeholder: {
+    type: String,
+    default: "",
+  },
+  name: {
+    type: String,
+    default: "",
+  },
+  id: {
+    type: String,
+    default: "",
+  },
+  type: {
+    type: String,
+    default: "text",
+  },
 });
 </script>
 

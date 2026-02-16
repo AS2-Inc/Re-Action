@@ -6,7 +6,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 const _props = defineProps(["title", "content"]);
 const displayContent = ref(_props.content);

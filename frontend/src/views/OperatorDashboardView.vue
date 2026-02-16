@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 
@@ -9,12 +9,12 @@ const environmentalData = ref({});
 const neighborhoods = ref([]);
 const reportsStats = ref([]);
 const loading = ref(true);
-const errorMessage = ref('');
+const errorMessage = ref("");
 
 // Funzione principale per recuperare i dati
 const fetchDashboardData = async () => {
   // const token = localStorage.getItem('token');
-  
+
   // COMMENTATO PER TESTARE LA GRAFICA SENZA LOGIN
   /*
   if (!token) {
@@ -23,10 +23,10 @@ const fetchDashboardData = async () => {
   }
   */
 
-  const API_BASE = 'http://localhost:5000/api/v1';
+  const API_BASE = "http://localhost:5000/api/v1";
 
   loading.value = true;
-  errorMessage.value = '';
+  errorMessage.value = "";
 
   try {
     /* --- CHIAMATE API REALI (DA SCOMMENTARE IN FUTURO) ---
@@ -46,31 +46,54 @@ const fetchDashboardData = async () => {
     */
 
     // --- DATI FINTI PER TESTARE IL CSS (MOCKING) ---
-    
+
     // Simuliamo un ritardo di rete di 800ms per vedere l'animazione di caricamento
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     // Riempiamo le variabili con dati inventati
     environmentalData.value = {
       "CO2 Risparmiata (kg)": 1250,
       "Rifiuti Riciclati (kg)": 3400,
-      "Task Totali Completate": 156
+      "Task Totali Completate": 156,
     };
 
     neighborhoods.value = [
       { id: "q1", name: "Centro Storico", score: 85, completed_tasks: 42 },
       { id: "q2", name: "San Martino", score: 60, completed_tasks: 15 },
       { id: "q3", name: "Cristo Re", score: 92, completed_tasks: 68 },
-      { id: "q4", name: "Zona Industriale", score: 45, completed_tasks: 8 }
+      { id: "q4", name: "Zona Industriale", score: 45, completed_tasks: 8 },
     ];
 
     reportsStats.value = [
-      { category: "Rifiuti Abbandonati", total: 45, resolved: 40, pending: 5, avg_time: "24h" },
-      { category: "Manutenzione Stradale", total: 12, resolved: 8, pending: 4, avg_time: "48h" },
-      { category: "Illuminazione", total: 8, resolved: 8, pending: 0, avg_time: "12h" },
-      { category: "Verde Pubblico", total: 15, resolved: 10, pending: 5, avg_time: "36h" }
+      {
+        category: "Rifiuti Abbandonati",
+        total: 45,
+        resolved: 40,
+        pending: 5,
+        avg_time: "24h",
+      },
+      {
+        category: "Manutenzione Stradale",
+        total: 12,
+        resolved: 8,
+        pending: 4,
+        avg_time: "48h",
+      },
+      {
+        category: "Illuminazione",
+        total: 8,
+        resolved: 8,
+        pending: 0,
+        avg_time: "12h",
+      },
+      {
+        category: "Verde Pubblico",
+        total: 15,
+        resolved: 10,
+        pending: 5,
+        avg_time: "36h",
+      },
     ];
-
   } catch (error) {
     errorMessage.value = error.message;
   } finally {

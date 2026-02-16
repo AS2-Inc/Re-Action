@@ -4,7 +4,9 @@ class EmailService {
   constructor() {
     this.transporter = null;
     this.init_transporter();
-    this.base_url = "http://localhost:5005/api/v1";
+    const port = process.env.PORT || 5000;
+    this.base_url =
+      process.env.PUBLIC_BASE_URL || `http://localhost:${port}/api/v1`;
   }
 
   async init_transporter() {

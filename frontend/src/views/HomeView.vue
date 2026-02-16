@@ -1,14 +1,6 @@
 <template>
     <div class="home">
-        <div class="info-column">
-            <h2 class="greeting">Ciao</h2>
-            <h1 class="username">TODO</h1>
-            <hr class="sep" />
-        </div>
-        <div class="info-name">
-            <h1 class="username">TODO</h1>
-            <hr class="sep" />
-        </div>
+        <UserInfoColumn />
         <div class="display">
             <Navbar :links="navLinks" />
             <div class="data-display">
@@ -20,11 +12,13 @@
 
 <script>
 import Navbar from "@/components/Navbar.vue";
+import UserInfoColumn from "@/components/UserInfoColumn.vue";
 
 export default {
   name: "HomeView",
   components: {
     Navbar,
+    UserInfoColumn,
   },
   data() {
     return {
@@ -49,40 +43,6 @@ export default {
     width: 100vw;
     height: 100%;
 } 
-.info-name {
-    display: none;
-}
-.info-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: start;
-    gap:0;
-    margin-left: 20px;
-    height: 100%;
-    border-radius: 10px;
-    width: 15%;
-    background-color: #A9CA5F;
-    padding: 1rem;
-}
-.greeting {
-    font-family: "Caladea", serif;
-    font-weight: 100;
-    font-size: 1.2rem;
-    line-height: 1;
-}
-.username {
-    font-family: "Caladea", serif;
-    line-height: 1;
-    font-weight: 700;
-    font-size: 2rem;
-}
-.sep {
-    width: 100%;
-    border: 1px solid #333;
-    margin: 1rem;
-}
-
 .display {
     margin-left: 20px;
     display: flex;
@@ -105,19 +65,6 @@ export default {
     .home {
         flex-direction: column;
         align-items: center;
-    }
-    .info-column {
-        display: none;
-    }
-    .info-name {
-        display: flex;
-        margin: 1rem 0;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-    .info-name .sep {
-        width: 90vw;
     }
     .display {
         margin: 0;

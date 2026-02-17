@@ -4,108 +4,152 @@ import { useRouter } from "vue-router";
 
 const _router = useRouter();
 
-// Stato locale (Variabili reattive collegate al template)
 const environmentalData = ref({});
 const neighborhoods = ref([]);
-const reportsStats = ref([]);
+
 const loading = ref(true);
 const errorMessage = ref("");
 
-// Funzione principale per recuperare i dati
-const fetchDashboardData = async () => {
-  // const token = localStorage.getItem('token');
+// Modal State
+const showModal = ref(false);
+const selectedNeighborhood = ref(null);
+const modalLoading = ref(false);
 
-  // COMMENTATO PER TESTARE LA GRAFICA SENZA LOGIN
-  /*
+const _API_BASE = "http://localhost:5000/api/v1";
+
+const fetchDashboardData = async () => {
+  const token = localStorage.getItem("token");
+
   if (!token) {
-    router.push('/login');
+    _router.push("/login");
     return;
   }
-  */
-
-  const _API_BASE = "http://localhost:5000/api/v1";
 
   loading.value = true;
   errorMessage.value = "";
 
   try {
-    /* --- CHIAMATE API REALI (DA SCOMMENTARE IN FUTURO) ---
-    const envResponse = await fetch(`${API_BASE}/operators/dashboard/environmental`, {
-      headers: { 'x-access-token': token }
-    });
-    const neighResponse = await fetch(`${API_BASE}/operators/dashboard/neighborhoods`, {
-      headers: { 'x-access-token': token }
-    });
+    const [neighResponse] = await Promise.all([
+      fetch(`${_API_BASE}/operators/dashboard/neighborhoods`, {
+        headers: { "x-access-token": token },
+      }),
+    ]);
 
-    if (!envResponse.ok || !neighResponse.ok) {
-      throw new Error('Errore nel recupero dei dati dal server');
+    if (!neighResponse.ok) {
+      if (neighResponse.status === 401) {
+        throw new Error("Sessione scaduta. Effettua nuovamente il login.");
+      }
+      throw new Error("Errore nel recupero dei dati dal server");
     }
 
-    environmentalData.value = await envResponse.json();
-    neighborhoods.value = await neighResponse.json();
-    */
+    const neighData = await neighResponse.json();
 
-    // --- DATI FINTI PER TESTARE IL CSS (MOCKING) ---
+    // --- 1. MAPPATURA QUARTIERI ---
+    const arrayQuartieri = Array.isArray(neighData)
+      ? neighData
+      : neighData.data || [];
 
-    // Simuliamo un ritardo di rete di 800ms per vedere l'animazione di caricamento
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    neighborhoods.value = arrayQuartieri.map((n) => {
+      // Calcoliamo i "task completati" sommando i current_points dagli obiettivi (active_goals)
+      let tasksCompleted = 0;
+      if (n.active_goals && Array.isArray(n.active_goals)) {
+        tasksCompleted = n.active_goals.reduce(
+          (sum, goal) => sum + (goal.current_points || 0),
+          0,
+        );
+      }
 
-    // Riempiamo le variabili con dati inventati
+      return {
+        id: n._id || n.id,
+        name: n.name || "N/A",
+        score: n.total_score || 0,
+        completed_tasks: tasksCompleted,
+      };
+    });
+
+    // --- 2. CALCOLO DATI AMBIENTALI GLOBALI DAI QUARTIERI ---
+    let totalCo2 = 0;
+    let totalWaste = 0;
+    let totalGreenKm = 0;
+
+    arrayQuartieri.forEach((quartiere) => {
+      if (quartiere.environmental_data) {
+        // Sommiamo i valori specifici di ogni quartiere
+        totalCo2 += quartiere.environmental_data.air_quality_index || 0;
+        totalWaste += quartiere.environmental_data.waste_management || 0;
+        totalGreenKm += quartiere.environmental_data.improvement_trend || 0;
+      }
+    });
+
+    // Riempiamo l'oggetto reattivo. Le chiavi diventano le etichette delle card in automatico.
     environmentalData.value = {
-      "CO2 Risparmiata (kg)": 1250,
-      "Rifiuti Riciclati (kg)": 3400,
-      "Task Totali Completate": 156,
+      "CO2 Risparmiata (kg)": totalCo2,
+      "Rifiuti Riciclati (kg)": totalWaste,
+      "Km Green Percorsi": totalGreenKm,
     };
-
-    neighborhoods.value = [
-      { id: "q1", name: "Centro Storico", score: 85, completed_tasks: 42 },
-      { id: "q2", name: "San Martino", score: 60, completed_tasks: 15 },
-      { id: "q3", name: "Cristo Re", score: 92, completed_tasks: 68 },
-      { id: "q4", name: "Zona Industriale", score: 45, completed_tasks: 8 },
-    ];
-
-    reportsStats.value = [
-      {
-        category: "Rifiuti Abbandonati",
-        total: 45,
-        resolved: 40,
-        pending: 5,
-        avg_time: "24h",
-      },
-      {
-        category: "Manutenzione Stradale",
-        total: 12,
-        resolved: 8,
-        pending: 4,
-        avg_time: "48h",
-      },
-      {
-        category: "Illuminazione",
-        total: 8,
-        resolved: 8,
-        pending: 0,
-        avg_time: "12h",
-      },
-      {
-        category: "Verde Pubblico",
-        total: 15,
-        resolved: 10,
-        pending: 5,
-        avg_time: "36h",
-      },
-    ];
   } catch (error) {
     errorMessage.value = error.message;
+    // Redirect automatico se la sessione è scaduta
+    if (error.message.includes("Sessione scaduta")) {
+      setTimeout(() => _router.push("/login"), 2500);
+    }
   } finally {
-    loading.value = false; // Ferma la rotellina di caricamento
+    loading.value = false;
   }
 };
 
 // Funzione per il bottone della tabella
-const _viewDetails = (id) => {
-  console.log(`Hai cliccato per vedere i dettagli del quartiere: ${id}`);
-  // In futuro scommenterai questa riga per cambiare pagina:
-  // router.push(`/operator-dashboard/neighborhood/${id}`);
+const viewDetails = async (id) => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  showModal.value = true;
+  modalLoading.value = true;
+  selectedNeighborhood.value = null;
+
+  try {
+    const response = await fetch(
+      `${_API_BASE}/operators/dashboard/neighborhoods/${id}`,
+      {
+        headers: { "x-access-token": token },
+      },
+    );
+
+    if (!response.ok) throw new Error("Errore nel recupero dettagli quartiere");
+
+    const data = await response.json();
+
+    // Calculate submissions this week from daily_activity
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    let submissionsThisWeek = 0;
+    if (data.daily_activity && Array.isArray(data.daily_activity)) {
+      submissionsThisWeek = data.daily_activity
+        .filter((day) => new Date(day._id) >= oneWeekAgo)
+        .reduce((sum, day) => sum + day.count, 0);
+    }
+
+    selectedNeighborhood.value = {
+      name: data.neighborhood.name,
+      city: data.neighborhood.city,
+      total_score: data.neighborhood.total_score,
+      ranking_position: data.neighborhood.ranking_position,
+      user_count: data.stats.total_users,
+      submissions_this_week: submissionsThisWeek,
+      environmental_data: data.neighborhood.environmental_data || {},
+    };
+  } catch (err) {
+    alert("Impossibile caricare i dettagli del quartiere.");
+    showModal.value = false;
+  } finally {
+    modalLoading.value = false;
+  }
+};
+
+const closeModal = () => {
+  showModal.value = false;
+  selectedNeighborhood.value = null;
 };
 
 // Avvia tutto non appena la pagina viene aperta nel browser
@@ -118,10 +162,14 @@ onMounted(() => {
 
 <template>
   <div class="dashboard-wrapper">
-    <header class="dashboard-header">
-      <h1>Dashboard Operatore Comunale</h1>
-      <p class="subtitle">Monitoraggio ambientale e gestione del territorio</p>
-    </header>
+    <nav class="dashboard-navbar">
+      <div class="navbar-brand">Dashboard Operatore</div>
+      <ul class="navbar-links">
+        <li><a href="/operatorDashboard" class="nav-link active">Home</a></li>
+        <li><a href="/taskTemplates" class="nav-link">Task Attive</a></li>
+        <li><a href="/createTask" class="nav-link">Crea Task</a></li>
+      </ul>
+    </nav>
 
     <!-- Loading State -->
     <div v-if="loading" class="state-container loading">
@@ -137,7 +185,7 @@ onMounted(() => {
 
     <!-- Main Content -->
     <div v-if="!loading && !errorMessage" class="dashboard-content">
-      
+
       <!-- Environmental Stats Section -->
       <section class="section stats-section">
         <h2 class="section-title">Indicatori Ambientali Globali</h2>
@@ -173,14 +221,11 @@ onMounted(() => {
                     <td class="primary-text">{{ neighborhood.name }}</td>
                     <td>
                       <!-- Inline conditional classes for status indication -->
-                      <span 
-                        class="score-badge" 
-                        :class="{
-                          'high': neighborhood.score >= 80, 
-                          'medium': neighborhood.score >= 60 && neighborhood.score < 80, 
-                          'low': neighborhood.score < 60
-                        }"
-                      >
+                      <span class="score-badge" :class="{
+                        'high': neighborhood.score >= 80,
+                        'medium': neighborhood.score >= 60 && neighborhood.score < 80,
+                        'low': neighborhood.score < 60
+                      }">
                         {{ neighborhood.score }}
                       </span>
                     </td>
@@ -197,41 +242,72 @@ onMounted(() => {
           </div>
         </section>
 
-        <!-- Reports Stats Section -->
-        <section class="section reports-section">
-          <h2 class="section-title">Monitoraggio Segnalazioni</h2>
-          <div class="table-card">
-            <div class="table-responsive">
-              <table class="modern-table">
-                <thead>
-                  <tr>
-                    <th>Categoria</th>
-                    <th>Totale Segnalazioni</th>
-                    <th>Risolte</th>
-                    <th>In Attesa</th>
-                    <th>Tempo Medio Risoluzione</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="stat in reportsStats" :key="stat.category">
-                    <td class="primary-text">{{ stat.category }}</td>
-                    <td class="font-bold">{{ stat.total }}</td>
-                    <td>
-                      <span class="score-badge high">{{ stat.resolved }}</span>
-                    </td>
-                    <td>
-                      <span v-if="stat.pending > 0" class="score-badge medium">{{ stat.pending }}</span>
-                      <span v-else class="score-badge high">0</span>
-                    </td>
-                    <td>{{ stat.avg_time }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+   
+
       </div>
     </div>
+   
+    <!-- MODAL -->
+    <Teleport to="body">
+        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+            <div class="modal-card">
+                <button class="close-btn" @click="closeModal">×</button>
+                
+                <div v-if="modalLoading" class="modal-loading">
+                    <div class="spinner"></div>
+                    <p>Caricamento dettagli...</p>
+                </div>
+                
+                <div v-else-if="selectedNeighborhood" class="modal-content">
+                    <header class="modal-header">
+                        <h2>{{ selectedNeighborhood.name }}</h2>
+                        <span class="city-badge">{{ selectedNeighborhood.city }}</span>
+                    </header>
+                    
+                    <div class="modal-grid">
+                        <div class="detail-item">
+                            <label>Ranking</label>
+                            <div class="value">#{{ selectedNeighborhood.ranking_position }}</div>
+                        </div>
+                        <div class="detail-item">
+                            <label>Punteggio Totale</label>
+                            <div class="value highlight">{{ selectedNeighborhood.total_score }}</div>
+                        </div>
+                        <div class="detail-item">
+                            <label>Utenti Attivi</label>
+                            <div class="value">{{ selectedNeighborhood.user_count }}</div>
+                        </div>
+                        <div class="detail-item">
+                            <label>Task (Questa Settimana)</label>
+                            <div class="value">{{ selectedNeighborhood.submissions_this_week }}</div>
+                        </div>
+                    </div>
+
+                    <div class="env-section">
+                        <h3>Dati Ambientali</h3>
+                        <div class="env-grid">
+                            <div class="env-item">
+                                <span class="env-label">Qualità Aria (AQI)</span>
+                                <span class="env-value">{{ selectedNeighborhood.environmental_data.air_quality_index || 'N/A' }}</span>
+                            </div>
+                            <div class="env-item">
+                                <span class="env-label">Gestione Rifiuti</span>
+                                <span class="env-value">{{ selectedNeighborhood.environmental_data.waste_management || 'N/A' }}%</span>
+                            </div>
+                             <div class="env-item">
+                                <span class="env-label">Trend Miglioramento</span>
+                                <span class="env-value">{{ selectedNeighborhood.environmental_data.improvement_trend || 0 }}%</span>
+                            </div>
+                        </div>
+                        <div class="last-updated">
+                            Ultimo aggiornamento: {{ new Date(selectedNeighborhood.environmental_data.last_updated || Date.now()).toLocaleDateString() }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
   </div>
 </template>
 
@@ -246,18 +322,18 @@ onMounted(() => {
   --text-dark: #1b4332;
   --text-light: #6c757d;
   --border-color: #e2e8f0;
-  --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --radius: 12px;
 }
 
 .dashboard-wrapper {
-position: absolute;
+  position: absolute;
   top: 5;
   left: 5;
-  width: 75vw;       
-  min-height: 100vh;  
-  z-index: 10;       
+  width: 75vw;
+  min-height: 100vh;
+  z-index: 10;
   box-sizing: border-box;
   left: 50%;
   transform: translateX(-50%);
@@ -267,22 +343,52 @@ position: absolute;
   color: #1b4332;
 }
 
-/* Header */
-.dashboard-header {
-  margin-bottom: 2.5rem;
-  text-align: center;
+/* Navbar */
+.dashboard-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--white);
+  padding: 1rem 2rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 2rem;
 }
 
-.dashboard-header h1 {
-  font-size: 2rem;
+.navbar-brand {
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #2d6a4f; /* Primary Green */
-  margin-bottom: 0.5rem;
+  color: var(--primary-green);
 }
 
-.subtitle {
-  color: #40916c;
-  font-size: 1.1rem;
+.navbar-links {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar-links li {
+  margin: 0;
+  padding: 0;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: var(--text-light);
+  font-weight: 500;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--primary-green);
+  font-weight: 600;
+  border-bottom-color: var(--secondary-green);
 }
 
 /* States (Loading/Error) */
@@ -294,12 +400,12 @@ position: absolute;
   padding: 3rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   margin-top: 2rem;
   text-align: center;
 }
 
-.loading .spinner {
+.loading .spinner, .modal-loading .spinner {
   border: 4px solid #f3f3f3;
   border-top: 4px solid #2d6a4f;
   border-radius: 50%;
@@ -309,7 +415,15 @@ position: absolute;
   margin-bottom: 1rem;
 }
 
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
 .error {
   border: 1px solid #fee2e2;
@@ -358,7 +472,7 @@ position: absolute;
 /* Dashboard Grid (Neighborhoods + Reports) */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr ;
+  grid-template-columns: 1fr;
   gap: 2rem;
   align-items: start;
 }
@@ -377,7 +491,7 @@ position: absolute;
   align-items: center;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid rgba(0,0,0,0.02);
+  border: 1px solid rgba(0, 0, 0, 0.02);
 }
 
 .stat-card:hover {
@@ -388,7 +502,8 @@ position: absolute;
 .stat-icon {
   font-size: 2.2rem;
   margin-right: 1.5rem;
-  background-color: #d8f3dc; /* Light green bg for icon */
+  background-color: #d8f3dc;
+  /* Light green bg for icon */
   width: 64px;
   height: 64px;
   display: flex;
@@ -424,7 +539,7 @@ position: absolute;
   border-radius: 16px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  border: 1px solid rgba(0,0,0,0.02);
+  border: 1px solid rgba(0, 0, 0, 0.02);
 }
 
 .table-responsive {
@@ -435,11 +550,13 @@ position: absolute;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  min-width: 600px; /* Prevent squishing on very small screens */
+  min-width: 600px;
+  /* Prevent squishing on very small screens */
 }
 
 .modern-table th {
-  background-color: #f0fdf4; /* Very light green header */
+  background-color: #f0fdf4;
+  /* Very light green header */
   color: #2d6a4f;
   font-weight: 600;
   padding: 1.25rem 1.5rem;
@@ -465,7 +582,8 @@ position: absolute;
 }
 
 .modern-table tbody tr:nth-child(even) {
-  background-color: #fafbfb; /* Zebra striping */
+  background-color: #fafbfb;
+  /* Zebra striping */
 }
 
 .primary-text {
@@ -536,28 +654,169 @@ position: absolute;
   transform: translateY(0);
 }
 
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+}
+
+.modal-card {
+    background: white;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 20px;
+    padding: 3rem;
+    position: relative;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.close-btn {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #64748b;
+    line-height: 1;
+}
+
+.modal-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 0;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #1b4332;
+    font-size: 1.8rem;
+}
+
+.city-badge {
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.detail-item label {
+    display: block;
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.detail-item .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.detail-item .value.highlight {
+    color: #2d6a4f;
+}
+
+.env-section {
+    background-color: #f0fdf4;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #dcfce7;
+}
+
+.env-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    color: #166534;
+}
+
+.env-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.env-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.env-label {
+    font-size: 0.8rem;
+    color: #166534;
+    margin-bottom: 0.25rem;
+}
+
+.env-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #14532d;
+}
+
+.last-updated {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: #86efac;
+    text-align: right;
+    font-style: italic;
+    color: #15803d;
+}
+
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .dashboard-wrapper {
     padding: 1rem;
   }
-  
+
   .dashboard-header h1 {
     font-size: 1.5rem;
   }
-  
+
   .stats-grid {
-    grid-template-columns: 1fr; /* Stack vertically on mobile */
+    grid-template-columns: 1fr;
+    /* Stack vertically on mobile */
   }
 
   .stat-card {
     padding: 1.25rem;
   }
-  
-  .modern-table th, .modern-table td {
+
+  .modern-table th,
+  .modern-table td {
     padding: 1rem;
   }
-  
+
   .btn-details {
     padding: 0.5rem 0.8rem;
     font-size: 0.85rem;

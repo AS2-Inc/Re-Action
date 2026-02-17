@@ -1,3 +1,4 @@
+import ServiceError from "../errors/service_error.js";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
 import Task from "../models/task.js";
@@ -125,7 +126,7 @@ class OperatorDashboardService {
   async get_neighborhood_detail(neighborhood_id) {
     const neighborhood = await Neighborhood.findById(neighborhood_id);
     if (!neighborhood) {
-      throw new Error("Neighborhood not found");
+      throw new ServiceError("Neighborhood not found", 404);
     }
 
     // User stats

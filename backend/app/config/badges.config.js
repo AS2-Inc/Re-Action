@@ -37,45 +37,6 @@ export const TASK_CATEGORIES = {
  * - display_order: Sort order for UI
  */
 export const DEFAULT_BADGES = [
-  // Points-based badges
-  {
-    name: "Nuovo Arrivato",
-    description: "Guadagna i tuoi primi 100 punti",
-    icon: "🌱",
-    category: BADGE_CATEGORIES.POINTS,
-    requirements: { min_points: 100 },
-    rarity: BADGE_RARITIES.COMMON,
-    display_order: 1,
-  },
-  {
-    name: "Cittadino Attivo",
-    description: "Accumula 500 punti",
-    icon: "⭐",
-    category: BADGE_CATEGORIES.POINTS,
-    requirements: { min_points: 500 },
-    rarity: BADGE_RARITIES.COMMON,
-    display_order: 2,
-  },
-  {
-    name: "Eroe Locale",
-    description: "Raggiungi 1000 punti",
-    icon: "🏆",
-    category: BADGE_CATEGORIES.POINTS,
-    requirements: { min_points: 1000 },
-    rarity: BADGE_RARITIES.RARE,
-    display_order: 3,
-  },
-  {
-    name: "King della Sostenibilità",
-    description:
-      "Accumula 5000 punti e diventa un campione della sostenibilità",
-    icon: "👑",
-    category: BADGE_CATEGORIES.POINTS,
-    requirements: { min_points: 5000 },
-    rarity: BADGE_RARITIES.LEGENDARY,
-    display_order: 4,
-  },
-
   // Task-based badges
   {
     name: "Primo Passo",

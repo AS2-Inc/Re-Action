@@ -28,8 +28,8 @@ describe("BadgeService", () => {
       expect(badges.length).toBe(DEFAULT_BADGES.length);
 
       const badgeNames = badges.map((b) => b.name);
-      expect(badgeNames).toContain("Nuovo Arrivato");
-      expect(badgeNames).toContain("Cittadino Attivo");
+      expect(badgeNames).toContain("Primo Passo");
+      expect(badgeNames).toContain("Operatore di Successo");
     });
 
     it("should not create duplicates if run multiple times", async () => {
@@ -60,27 +60,11 @@ describe("BadgeService", () => {
       });
     });
 
-    it("should award 'Nuovo Arrivato' badge when points reach 100", async () => {
-      user.points = 100;
-      await user.save();
-
-      const newBadges = await BadgeService.checkAndAwardBadges(user._id);
-
-      expect(newBadges.length).toBe(1);
-      expect(newBadges[0].name).toBe("Nuovo Arrivato");
-
-      const updatedUser = await User.findById(user._id);
-      expect(updatedUser.badges_id.length).toBe(1);
-      expect(updatedUser.level).toBe("Nuovo Arrivato");
-    });
-
     it("should award 'Primo Passo' badge after first task completion", async () => {
-      // Create a real task and activity
       const task = await Task.create({
-        title: "Test Task",
-        description: "A test task",
-        category: "Mobility",
-        points: 10,
+        title: "Badge Test Task",
+        description: "A test task for badge",
+        category: "Waste",
         base_points: 10,
         verification_method: "GPS",
         difficulty: "Low",
@@ -94,12 +78,28 @@ describe("BadgeService", () => {
 
       const newBadges = await BadgeService.checkAndAwardBadges(user._id);
       const awardedNames = newBadges.map((b) => b.name);
+
       expect(awardedNames).toContain("Primo Passo");
+
+      const updatedUser = await User.findById(user._id);
+      expect(updatedUser.badges_id.length).toBeGreaterThanOrEqual(1);
     });
 
     it("should not re-award existing badges", async () => {
-      user.points = 100;
-      await user.save();
+      const task = await Task.create({
+        title: "Re-award Test",
+        description: "Test",
+        category: "Mobility",
+        base_points: 10,
+        verification_method: "GPS",
+        difficulty: "Low",
+      });
+
+      await Activity.create({
+        user_id: user._id,
+        task_id: task._id,
+        status: "APPROVED",
+      });
 
       await BadgeService.checkAndAwardBadges(user._id);
       const newBadgesSecondRun = await BadgeService.checkAndAwardBadges(
@@ -110,12 +110,12 @@ describe("BadgeService", () => {
     });
 
     it("should update user level based on points", async () => {
-      user.points = 5000;
+      user.points = 1000;
       await user.save();
       await BadgeService.checkAndAwardBadges(user._id);
 
       const updatedUser = await User.findById(user._id);
-      expect(updatedUser.level).toBe("King della Sostenibilità");
+      expect(updatedUser.level).toBe("Eroe Locale");
     });
   });
 
@@ -129,7 +129,7 @@ describe("BadgeService", () => {
       });
 
       // Manually assign a badge
-      const badge = await Badge.findOne({ name: "Nuovo Arrivato" });
+      const badge = await Badge.findOne({ name: "Primo Passo" });
       user.badges_id.push(badge._id);
       await user.save();
 
@@ -138,10 +138,10 @@ describe("BadgeService", () => {
       );
 
       const earnedBadge = badgesWithStatus.find(
-        (b) => b.name === "Nuovo Arrivato",
+        (b) => b.name === "Primo Passo",
       );
       const unearnedBadge = badgesWithStatus.find(
-        (b) => b.name === "Cittadino Attivo",
+        (b) => b.name === "Operatore di Successo",
       );
 
       expect(earnedBadge.earned).toBe(true);
@@ -169,13 +169,13 @@ describe("BadgeService", () => {
         password: "Password123!",
       });
 
-      const badge = await Badge.findOne({ name: "Nuovo Arrivato" });
+      const badge = await Badge.findOne({ name: "Primo Passo" });
       user.badges_id.push(badge._id);
       await user.save();
 
       const userBadges = await BadgeService.getUserBadges(user._id);
       expect(userBadges.length).toBe(1);
-      expect(userBadges[0].name).toBe("Nuovo Arrivato");
+      expect(userBadges[0].name).toBe("Primo Passo");
     });
   });
 });

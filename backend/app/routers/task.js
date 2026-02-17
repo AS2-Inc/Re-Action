@@ -1,5 +1,6 @@
 import express from "express";
 import * as TaskController from "../controllers/task_controller.js";
+import ServiceError from "../errors/service_error.js";
 import check_role from "../middleware/role_checker.js";
 import token_checker from "../middleware/token_checker.js";
 import { upload } from "../middleware/upload.js";
@@ -92,8 +93,8 @@ router.get(
       const template = await task_template_service.get_template(req.params.id);
       res.status(200).json(template);
     } catch (error) {
-      if (error.message === "Template not found") {
-        return res.status(404).json({ error: error.message });
+      if (error instanceof ServiceError) {
+        return res.status(error.status).json({ error: error.message });
       }
       console.error("Get template error:", error);
       res.status(500).json({ error: "Failed to fetch template" });
@@ -131,17 +132,8 @@ router.post(
 
       res.status(201).json(task);
     } catch (error) {
-      if (
-        error.message === "Template not found" ||
-        error.message === "Template is not active"
-      ) {
-        return res.status(404).json({ error: error.message });
-      }
-      if (error.message.startsWith("Required field missing")) {
-        return res.status(400).json({ error: error.message });
-      }
-      if (error.message.startsWith("Points must be between")) {
-        return res.status(400).json({ error: error.message });
+      if (error instanceof ServiceError) {
+        return res.status(error.status).json({ error: error.message });
       }
       console.error("Create from template error:", error);
       res.status(500).json({ error: "Failed to create task from template" });

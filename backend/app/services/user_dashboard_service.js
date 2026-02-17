@@ -1,4 +1,5 @@
 import { LEVEL_THRESHOLDS } from "../config/badges.config.js";
+import ServiceError from "../errors/service_error.js";
 import Badge from "../models/badge.js";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
@@ -21,7 +22,7 @@ class UserDashboardService {
   async get_dashboard_data(user_id) {
     const user = await User.findById(user_id).populate("neighborhood_id");
     if (!user) {
-      throw new Error("User not found");
+      throw new ServiceError("User not found", 404);
     }
 
     // Get recent completed submissions count
@@ -68,6 +69,28 @@ class UserDashboardService {
       }
     }
 
+    // Compute level progress server-side
+    const sorted = [...LEVEL_THRESHOLDS].sort((a, b) => a.points - b.points);
+    const currentIndex = [...sorted]
+      .reverse()
+      .findIndex((t) => user.points >= t.points);
+    const currentLevelIndex =
+      currentIndex === -1 ? 0 : sorted.length - 1 - currentIndex;
+    const current = sorted[currentLevelIndex] || sorted[0];
+    const next = sorted[currentLevelIndex + 1] || null;
+
+    let progress_percent = 100;
+    if (next) {
+      const range = next.points - current.points;
+      progress_percent =
+        range > 0
+          ? Math.max(
+              0,
+              Math.min(100, ((user.points - current.points) / range) * 100),
+            )
+          : 0;
+    }
+
     return {
       user: {
         name: user.name,
@@ -77,6 +100,14 @@ class UserDashboardService {
         level: user.level,
         streak: user.streak,
         last_activity_date: user.last_activity_date,
+      },
+      level_progress: {
+        current_level: current.level,
+        current_threshold: current.points,
+        next_level: next?.level || null,
+        next_threshold: next?.points || null,
+        points_to_next: next ? next.points - user.points : 0,
+        progress_percent: Math.round(progress_percent),
       },
       level_thresholds: LEVEL_THRESHOLDS,
       stats: {
@@ -128,7 +159,7 @@ class UserDashboardService {
 
     const user = await User.findById(user_id);
     if (!user) {
-      throw new Error("User not found");
+      throw new ServiceError("User not found", 404);
     }
 
     const history = [];
@@ -202,7 +233,7 @@ class UserDashboardService {
   async get_stats(user_id) {
     const user = await User.findById(user_id);
     if (!user) {
-      throw new Error("User not found");
+      throw new ServiceError("User not found", 404);
     }
 
     // Get tasks by category

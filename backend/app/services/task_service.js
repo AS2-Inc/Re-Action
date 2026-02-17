@@ -1,3 +1,4 @@
+import ServiceError from "../errors/service_error.js";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
 import Task from "../models/task.js";
@@ -96,122 +97,128 @@ export const award_points = async (user_id, task_id) => {
  */
 export const get_user_tasks = async (user_id) => {
   const user = await User.findById(user_id);
-  if (!user) throw new Error("User not found");
-  const now = new Date();
+  if (!user) throw new ServiceError("User not found", 404);
 
-  // 1. Get On-Demand Tasks (Static)
-  // Filter by Neighborhood OR Global
+  const now = new Date();
+  const tasks_response = [];
+
+  // 1. Periodic Tasks (Daily, Weekly, Monthly)
+  // Check assignments and lazily assign if missing
+  const frequencies = ["daily", "weekly", "monthly"];
+
+  for (const freq of frequencies) {
+    // Check if there is an active assignment
+    let assignment = await UserTask.findOne({
+      user_id: user_id,
+      status: "ASSIGNED",
+      expires_at: { $gt: now },
+    })
+      .populate("task_id")
+      .then((assignment) => {
+        // Filter by frequency match just in case
+        if (assignment && assignment.task_id.frequency === freq)
+          return assignment;
+        return null;
+      });
+
+    if (!assignment) {
+      const existing_assignment = await UserTask.findOne({
+        user_id: user_id,
+        status: "ASSIGNED",
+      }).populate({
+        path: "task_id",
+        match: { frequency: freq },
+      });
+
+      if (existing_assignment?.task_id) {
+        assignment = existing_assignment;
+      } else {
+        const last_completion = await Submission.findOne({
+          user_id: user_id,
+          status: "APPROVED",
+        })
+          .populate({
+            path: "task_id",
+            match: { frequency: freq },
+          })
+          .sort({ completed_at: -1 });
+
+        let already_done_period = false;
+        if (last_completion?.task_id) {
+          const last = new Date(last_completion.completed_at);
+          if (freq === "daily" && last.toDateString() === now.toDateString())
+            already_done_period = true;
+        }
+
+        if (!already_done_period) {
+          const new_task = await assign_random_task(user, freq);
+          if (new_task) {
+            const expires_at = calculate_expiration(freq);
+            const user_task = new UserTask({
+              user_id: user_id,
+              task_id: new_task._id,
+              status: "ASSIGNED",
+              expires_at: expires_at,
+            });
+            await user_task.save();
+            assignment = user_task;
+            assignment.task_id = new_task; // Populate manually for response
+          }
+        }
+      }
+    }
+
+    if (assignment?.task_id) {
+      tasks_response.push({
+        ...assignment.task_id.toObject(),
+        user_task_id: assignment._id,
+        expires_at: assignment.expires_at,
+        status: assignment.status,
+      });
+    }
+  }
+
+  // 2. On-Demand Tasks (Always available)
   const on_demand_tasks = await Task.find({
     frequency: "on_demand",
     is_active: true,
-    $or: [{ neighborhood_id: user.neighborhood_id }, { neighborhood_id: null }],
+    $or: [{ neighborhood_id: null }, { neighborhood_id: user.neighborhood_id }],
   });
 
-  // 2. Manage Rotating Tasks (Daily, Weekly, Monthly)
-  const frequencies = ["daily", "weekly", "monthly"];
-
-  // ... (rest of logic same until random assignment) ...
-  // Note: I need to update the random assignment caller to pass user object or ID to look up neighborhood
-
-  // Rewrite: Get ALL active assignments for user
-  const current_assignments = await UserTask.find({
-    user_id: user_id,
-    status: { $in: ["ASSIGNED", "COMPLETED"] },
-  }).populate("task_id");
-
-  const assignments_by_freq = {
-    daily: null,
-    weekly: null,
-    monthly: null,
-  };
-
-  for (const work_item of current_assignments) {
-    if (!work_item.task_id) continue;
-    const freq = work_item.task_id.frequency;
-
-    // Check expiration
-    if (work_item.status !== "EXPIRED" && work_item.expires_at < now) {
-      work_item.status = "EXPIRED";
-      await work_item.save();
-      continue; // It's expired, slot is open
-    }
-
-    // If still valid
-    if (frequencies.includes(freq)) {
-      if (
-        !assignments_by_freq[freq] ||
-        assignments_by_freq[freq].expires_at < work_item.expires_at
-      ) {
-        assignments_by_freq[freq] = work_item;
-      }
-    }
-  }
-
-  // 3. Fill gaps
-  const new_assignments = [];
-
-  for (const freq of frequencies) {
-    if (!assignments_by_freq[freq]) {
-      // Need new task
-      const task = await assign_random_task(user, freq);
-      if (task) {
-        // Determine expiration
-        let expires_at = new Date();
-        if (freq === "daily") {
-          expires_at.setUTCHours(23, 59, 59, 999);
-        } else if (freq === "weekly") {
-          const d = new Date();
-          d.setDate(d.getDate() + 7);
-          expires_at = d;
-        } else if (freq === "monthly") {
-          const d = new Date();
-          d.setMonth(d.getMonth() + 1);
-          expires_at = d;
-        }
-
-        const user_task = new UserTask({
-          user_id: user_id,
-          task_id: task._id,
-          status: "ASSIGNED",
-          expires_at: expires_at,
-        });
-        await user_task.save();
-
-        user_task.task_id = task;
-        new_assignments.push(user_task);
-      }
-    } else {
-      new_assignments.push(assignments_by_freq[freq]);
-    }
-  }
-
-  // 4. Format Output
-  const result = [];
-
-  // Add Rotating
-  for (const item of new_assignments) {
-    const t = item.task_id.toObject();
-    t.assignment_status = item.status;
-    t.assignment_id = item._id;
-    t.expires_at = item.expires_at;
-    result.push(t);
-  }
-
-  // Add On-Demand
   for (const t of on_demand_tasks) {
-    const obj = t.toObject();
-    obj.assignment_status = "AVAILABLE";
-    result.push(obj);
+    tasks_response.push({
+      ...t.toObject(),
+      status: "AVAILABLE", // Distinct status for UI
+    });
   }
 
-  return result;
+  // 3. One-Time Tasks (Available if not completed)
+  const one_time_tasks = await Task.find({
+    frequency: "onetime",
+    is_active: true,
+    $or: [{ neighborhood_id: null }, { neighborhood_id: user.neighborhood_id }],
+  });
+
+  for (const t of one_time_tasks) {
+    // Check if completed
+    const completed = await Submission.exists({
+      user_id: user_id,
+      task_id: t._id,
+      status: "APPROVED",
+    });
+
+    if (!completed) {
+      tasks_response.push({
+        ...t.toObject(),
+        status: "AVAILABLE",
+      });
+    }
+  }
+
+  return tasks_response;
 };
 
 export const assign_random_task = async (user, frequency) => {
-  // Priority: Neighborhood Tasks first, then Global
-  // Actually, we should pool them together or prioritize?
-  // Let's mix them: Find all valid tasks (Global + Neighborhood).
-
   const query = {
     frequency: frequency,
     is_active: true,
@@ -228,20 +235,56 @@ export const assign_random_task = async (user, frequency) => {
 
 export const submit_task = async (user_id, task_id, proof) => {
   const task = await Task.findById(task_id);
-  if (!task) throw new Error("Task not found");
+  if (!task) throw new ServiceError("Task not found", 404);
+
+  // Frequency-based completion limits
+  const last_approved = await Submission.findOne({
+    user_id,
+    task_id,
+    status: "APPROVED",
+  }).sort({ completed_at: -1 });
+
+  if (last_approved) {
+    if (task.frequency === "onetime") {
+      // Onetime tasks can only be done once
+      throw new ServiceError("Task already completed", 400);
+    }
+
+    // on_demand tasks are unlimited — skip check
+    if (task.frequency !== "on_demand") {
+      const now = new Date();
+      const last = new Date(last_approved.completed_at);
+      let already_done = false;
+
+      if (task.frequency === "daily") {
+        // Same calendar day
+        already_done = now.toDateString() === last.toDateString();
+      } else if (task.frequency === "weekly") {
+        // Within last 7 days
+        const diff_days = (now - last) / (1000 * 60 * 60 * 24);
+        already_done = diff_days < 7;
+      } else if (task.frequency === "monthly") {
+        // Same calendar month
+        already_done =
+          now.getFullYear() === last.getFullYear() &&
+          now.getMonth() === last.getMonth();
+      }
+
+      if (already_done) {
+        throw new ServiceError("Task already completed for this period", 400);
+      }
+    }
+  }
 
   // Update UserTask if it exists (for rotating tasks)
   let user_task = null;
-  if (task.frequency !== "on_demand") {
+  if (task.frequency !== "on_demand" && task.frequency !== "onetime") {
     user_task = await UserTask.findOne({
       user_id: user_id,
       task_id: task_id,
       status: "ASSIGNED",
     });
-    // TODO: If no assigned task found, and it's not on_demand, strictly speaking we should block.
-    // But maybe allow if it hasn't expired?
-    // For now, strict: Must be assigned.
-    if (!user_task) throw new Error("Task not assigned or expired");
+    if (!user_task) throw new ServiceError("Task not assigned or expired", 400);
   }
 
   // 1. Verify
@@ -321,14 +364,14 @@ export const get_submissions = async (filter) => {
 
 export const verify_submission = async (submission_id, verdict) => {
   const submission = await Submission.findById(submission_id);
-  if (!submission) throw new Error("Submission not found");
+  if (!submission) throw new ServiceError("Submission not found", 404);
 
   if (submission.status !== "PENDING") {
-    throw new Error("Submission is already processed");
+    throw new ServiceError("Submission is already processed", 400);
   }
 
   if (!["APPROVED", "REJECTED"].includes(verdict)) {
-    throw new Error("Invalid verdict");
+    throw new ServiceError("Invalid verdict", 400);
   }
 
   submission.status = verdict;
@@ -357,7 +400,7 @@ export const verify_submission = async (submission_id, verdict) => {
 
 export const get_task = async (task_id) => {
   const task = await Task.findById(task_id);
-  if (!task) throw new Error("Task not found");
+  if (!task) throw new ServiceError("Task not found", 404);
   return task;
 };
 
@@ -438,13 +481,13 @@ export const replace_expired_tasks_for_all_users = async () => {
  */
 export const replace_completed_task = async (user_id, task_id) => {
   const task = await Task.findById(task_id);
-  if (!task || task.frequency === "on_demand") {
-    return null; // On-demand tasks don't need replacement
+  if (!task || task.frequency === "on_demand" || task.frequency === "onetime") {
+    return null; // On-demand and onetime tasks don't need replacement
   }
 
   const user = await User.findById(user_id);
   if (!user) {
-    throw new Error("User not found");
+    throw new ServiceError("User not found", 404);
   }
 
   // Find a new task for the same frequency

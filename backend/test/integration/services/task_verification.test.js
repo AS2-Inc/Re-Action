@@ -30,6 +30,7 @@ jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
 const Task = (await import("../../../app/models/task.js")).default;
 const User = (await import("../../../app/models/user.js")).default;
 const Quiz = (await import("../../../app/models/quiz.js")).default;
+const UserTask = (await import("../../../app/models/user_task.js")).default;
 
 const TaskService = await import("../../../app/services/task_service.js");
 
@@ -140,6 +141,125 @@ describe("TaskService Verification Logic", () => {
     await expect(
       TaskService.submit_task(user._id, task._id, proof),
     ).rejects.toThrow(/Invalid QR Code/);
+  });
+
+  // --- Frequency-based completion limits ---
+  test("submit_task - On-demand task allows unlimited submissions", async () => {
+    const user = await createUser();
+    const task = await createTask({
+      verification_method: "QR_SCAN",
+      verification_criteria: { qr_code_secret: "SECRET" },
+      base_points: 10,
+      frequency: "on_demand",
+    });
+
+    const proof = { qr_code_data: "SECRET" };
+    const first = await TaskService.submit_task(user._id, task._id, proof);
+    expect(first.submission_status).toBe("APPROVED");
+
+    // Second attempt should also succeed - on_demand is unlimited
+    const second = await TaskService.submit_task(user._id, task._id, proof);
+    expect(second.submission_status).toBe("APPROVED");
+  });
+
+  test("submit_task - Onetime task blocks second submission", async () => {
+    const user = await createUser();
+    const task = await createTask({
+      verification_method: "QR_SCAN",
+      verification_criteria: { qr_code_secret: "SECRET" },
+      base_points: 10,
+      frequency: "onetime",
+    });
+
+    const proof = { qr_code_data: "SECRET" };
+    const result = await TaskService.submit_task(user._id, task._id, proof);
+    expect(result.submission_status).toBe("APPROVED");
+
+    // Second attempt should fail - onetime is single-use
+    await expect(
+      TaskService.submit_task(user._id, task._id, proof),
+    ).rejects.toThrow(/Task already completed/);
+  });
+
+  test("submit_task - Daily task blocks same-day re-submit", async () => {
+    const user = await createUser();
+    const task = await createTask({
+      verification_method: "QR_SCAN",
+      verification_criteria: { qr_code_secret: "SECRET" },
+      base_points: 10,
+      frequency: "daily",
+    });
+
+    // Create UserTask assignment (required for non-on_demand, non-onetime tasks)
+    await new UserTask({
+      user_id: user._id,
+      task_id: task._id,
+      status: "ASSIGNED",
+      assigned_at: new Date(),
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    }).save();
+
+    const proof = { qr_code_data: "SECRET" };
+    const result = await TaskService.submit_task(user._id, task._id, proof);
+    expect(result.submission_status).toBe("APPROVED");
+
+    // Re-create assignment for second attempt
+    await new UserTask({
+      user_id: user._id,
+      task_id: task._id,
+      status: "ASSIGNED",
+      assigned_at: new Date(),
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    }).save();
+
+    // Same-day re-submit should fail
+    await expect(
+      TaskService.submit_task(user._id, task._id, proof),
+    ).rejects.toThrow(/Task already completed for this period/);
+  });
+
+  test("submit_task - Weekly task allows re-submit after 7 days", async () => {
+    const user = await createUser();
+    const task = await createTask({
+      verification_method: "QR_SCAN",
+      verification_criteria: { qr_code_secret: "SECRET" },
+      base_points: 10,
+      frequency: "weekly",
+    });
+
+    // Create UserTask assignment
+    await new UserTask({
+      user_id: user._id,
+      task_id: task._id,
+      status: "ASSIGNED",
+      assigned_at: new Date(),
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    }).save();
+
+    const proof = { qr_code_data: "SECRET" };
+    const result = await TaskService.submit_task(user._id, task._id, proof);
+    expect(result.submission_status).toBe("APPROVED");
+
+    // Backdate the submission's completed_at to 8 days ago
+    const Submission = (await import("../../../app/models/submission.js"))
+      .default;
+    await Submission.updateOne(
+      { user_id: user._id, task_id: task._id },
+      { completed_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
+    );
+
+    // Re-create assignment for second attempt
+    await new UserTask({
+      user_id: user._id,
+      task_id: task._id,
+      status: "ASSIGNED",
+      assigned_at: new Date(),
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    }).save();
+
+    // Re-submit should now succeed (past 7-day window)
+    const second = await TaskService.submit_task(user._id, task._id, proof);
+    expect(second.submission_status).toBe("APPROVED");
   });
 
   // --- QUIZ ---

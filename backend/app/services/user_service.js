@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
+import ServiceError from "../errors/service_error.js";
 import Badge from "../models/badge.js";
 import User from "../models/user.js";
 import {
@@ -16,15 +17,15 @@ export const login = async (email, password) => {
   const user = await User.findOne({ email }).exec();
 
   if (!user) {
-    throw new Error("User not found");
+    throw new ServiceError("User not found", 404);
   }
 
   if (!(await is_password_valid(password, user.password))) {
-    throw new Error("Wrong password");
+    throw new ServiceError("Wrong password", 401);
   }
 
   if (!user.is_active) {
-    throw new Error("Account not activated");
+    throw new ServiceError("Account not activated", 403);
   }
 
   const payload = {
@@ -61,6 +62,7 @@ export const google_auth = async (credential) => {
       email: email,
       auth_provider: "google",
       is_active: true,
+      neighborhood_id: null,
     });
     await user.save();
   }
@@ -89,7 +91,7 @@ export const register = async (user_data) => {
   if (existing) {
     if (!existing.is_active && existing.auth_provider === "local") {
       if (is_password_weak(password)) {
-        throw new Error("Password is too weak");
+        throw new ServiceError("Password is too weak", 400);
       }
 
       const activation_token = crypto.randomBytes(20).toString("hex");
@@ -108,11 +110,11 @@ export const register = async (user_data) => {
       return existing;
     }
 
-    throw new Error("Email already exists");
+    throw new ServiceError("Email already exists", 409);
   }
 
   if (is_password_weak(password)) {
-    throw new Error("Password is too weak");
+    throw new ServiceError("Password is too weak", 400);
   }
 
   const activation_token = crypto.randomBytes(20).toString("hex");
@@ -139,7 +141,7 @@ export const register = async (user_data) => {
 
 export const get_user_profile = async (email) => {
   const user = await User.findOne({ email }).exec();
-  if (!user) throw new Error("User not found");
+  if (!user) throw new ServiceError("User not found", 404);
   return {
     name: user.name,
     surname: user.surname,
@@ -153,7 +155,7 @@ export const activate_account = async (token) => {
   }).exec();
 
   if (!user) {
-    throw new Error("Invalid or expired activation token");
+    throw new ServiceError("Invalid or expired activation token", 400);
   }
 
   user.is_active = true;
@@ -171,19 +173,22 @@ export const change_password = async (
 ) => {
   const user = await User.findById(user_id);
   if (!user) {
-    throw new Error("User not found");
+    throw new ServiceError("User not found", 404);
   }
 
   if (!(await is_password_valid(current_password, user.password))) {
-    throw new Error("Current password is incorrect");
+    throw new ServiceError("Current password is incorrect", 401);
   }
 
   if (is_password_weak(new_password)) {
-    throw new Error("Password is too weak");
+    throw new ServiceError("Password is too weak", 400);
   }
 
   if (current_password === new_password) {
-    throw new Error("New password must be different from current password");
+    throw new ServiceError(
+      "New password must be different from current password",
+      400,
+    );
   }
 
   user.password = await hash_password(new_password);
@@ -221,7 +226,7 @@ export const forgot_password = async (email) => {
 export const get_badges = async (user_id) => {
   const user = await User.findById(user_id);
   if (!user) {
-    throw new Error("User not found");
+    throw new ServiceError("User not found", 404);
   }
 
   const all_badges = await Badge.find({}).sort({ display_order: 1 });

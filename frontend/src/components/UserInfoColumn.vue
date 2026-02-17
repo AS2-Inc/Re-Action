@@ -53,6 +53,27 @@
       </div>
     </div>
     <hr class="sep sep-after" />
+    <div v-if="limitedQuickTasks.length" class="quick-task">
+      <h3 class="quick-task-title">Task in evidenza</h3>
+      <div class="quick-task-list">
+        <div
+          v-for="task in limitedQuickTasks"
+          :key="task._id"
+          class="quick-task-card"
+        >
+          <p class="quick-task-name">{{ task.title }}</p>
+          <p class="quick-task-meta">
+            <span>{{ task.category }}</span>
+            <span v-if="task.expires_at">
+              · {{ quickTaskExpiresIn(task) }}
+            </span>
+          </p>
+          <button class="quick-task-link" @click="navigateToTask(task)">
+            Vai al task
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="info-name">
     <h1 class="username">{{ displayName }}</h1>
@@ -116,6 +137,12 @@ const API_BASE_URL =
 
 export default {
   name: "UserInfoColumn",
+  props: {
+    quickTasks: {
+      type: Array,
+      default: () => [],
+    },
+  },
   data() {
     return {
       user: {
@@ -181,6 +208,62 @@ export default {
       const next = sorted.find((t) => this.points < t.points);
       if (!next) return "";
       return `${next.level} · ${next.points} pt`;
+    },
+    limitedQuickTasks() {
+      return this.quickTasks.slice(0, 3);
+    },
+  },
+  methods: {
+    async refreshUserData() {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/v1/users/me/dashboard`,
+          {
+            credentials: "include",
+          },
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const user = data?.user || data;
+        this.user.name = user?.name || "";
+        this.user.surname = user?.surname || "";
+        this.points = user?.points || 0;
+        this.level = user?.level || "";
+        this.levelThresholds = data?.level_thresholds || [];
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    navigateToTask(task) {
+      if (!task?._id) return;
+      this.$router.push(`/tasks#task-${task._id}`);
+    },
+    quickTaskExpiresIn(task) {
+      if (!task?.expires_at) return "";
+      const now = new Date();
+      const end = new Date(task.expires_at);
+      const diffMs = end - now;
+      if (Number.isNaN(diffMs)) return "";
+      if (diffMs <= 0) return "Scaduto";
+
+      const totalMinutes = Math.floor(diffMs / (1000 * 60));
+      const days = Math.floor(totalMinutes / (60 * 24));
+      const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+      const minutes = totalMinutes % 60;
+
+      if (days > 0) return `Scade tra ${days}g ${hours}h`;
+      if (hours > 0) return `Scade tra ${hours}h ${minutes}m`;
+      return `Scade tra ${minutes}m`;
+    },
+  },
+  watch: {
+    quickTasks() {
+      // Refresh user data when tasks change (after submission)
+      this.refreshUserData();
     },
   },
   async mounted() {
@@ -253,6 +336,67 @@ export default {
 
 .sep-after {
   margin: 1rem 0 0;
+}
+
+.quick-task {
+  margin-top: 1rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-family: "Caladea", serif;
+}
+
+.quick-task-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+.quick-task-card {
+  background-color: #f7f2e7;
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+.quick-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.quick-task-name {
+  margin: 0;
+  font-weight: 700;
+  color: #1f1f1f;
+  font-size: 0.95rem;
+}
+
+.quick-task-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #2a2a2a;
+}
+
+.quick-task-link {
+  align-self: flex-start;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1f1f1f;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.quick-task-link:hover {
+  text-decoration: underline;
 }
 
 .level-progress {

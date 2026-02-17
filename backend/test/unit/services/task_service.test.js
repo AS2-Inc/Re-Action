@@ -18,6 +18,7 @@ const mockUserTaskFindOne = jest.fn();
 const mockSubmissionSave = jest.fn();
 const mockSubmissionFind = jest.fn();
 const mockSubmissionFindById = jest.fn();
+const mockSubmissionFindOne = jest.fn();
 
 const mockNeighborhoodFindById = jest.fn();
 const mockNeighborhoodSave = jest.fn();
@@ -50,6 +51,7 @@ MockUserTask.findOne = mockUserTaskFindOne;
 const MockSubmission = jest.fn(() => ({ save: mockSubmissionSave }));
 MockSubmission.find = mockSubmissionFind;
 MockSubmission.findById = mockSubmissionFindById;
+MockSubmission.findOne = mockSubmissionFindOne;
 
 const MockNeighborhood = jest.fn(() => ({ save: mockNeighborhoodSave }));
 MockNeighborhood.findById = mockNeighborhoodFindById;
@@ -183,6 +185,9 @@ describe("TaskService (Unit)", () => {
         base_points: 10,
       };
       mockTaskFindById.mockResolvedValue(mockTask);
+      mockSubmissionFindOne.mockReturnValue({
+        sort: jest.fn().mockResolvedValue(null),
+      });
       mockGPSVerifier.verify.mockReturnValue({ status: "APPROVED" });
       mockSubmissionSave.mockResolvedValue(true);
 
@@ -205,6 +210,105 @@ describe("TaskService (Unit)", () => {
       // Since it is same execution context, it calls the real award_points.
       // So we verified mocks for award_points (BadgeService etc).
       expect(mockBadgeService.checkAndAwardBadges).toHaveBeenCalled();
+    });
+  });
+
+  describe("get_user_tasks", () => {
+    it("should return assigned tasks and on-demand tasks", async () => {
+      // Setup Mock User
+      mockUserFindById.mockResolvedValue({
+        _id: "user-1",
+        neighborhood_id: "hood-1",
+      });
+
+      // UserTask.findOne chain mock
+      const mockPopulate = jest.fn();
+
+      // Ensure we hit the right mock function
+      // UserTask.findOne is mockUserTaskFindOne
+      mockUserTaskFindOne.mockReturnValue({
+        populate: mockPopulate,
+      });
+
+      // Define return values for the 3 sequential calls (daily, weekly, monthly)
+      // Call 1: Daily -> Found
+      const dailyTask = {
+        _id: "task-daily",
+        frequency: "daily",
+        toObject: () => ({ title: "Daily", frequency: "daily" }),
+      };
+      const dailyAssignment = {
+        _id: "ut-1",
+        task_id: dailyTask,
+        status: "ASSIGNED",
+        expires_at: new Date(),
+        toObject: () => ({
+          _id: "ut-1",
+          task_id: dailyTask,
+          status: "ASSIGNED",
+        }),
+      };
+
+      // Call 2 & 3: Weekly & Monthly -> Not Found (null)
+      mockPopulate
+        .mockReturnValueOnce(Promise.resolve(dailyAssignment)) // Daily check (Found)
+        .mockReturnValueOnce(Promise.resolve(null)) // Weekly check (Not Found)
+        .mockReturnValueOnce(Promise.resolve(null)) // Weekly fallback (Not Found)
+        .mockReturnValueOnce(Promise.resolve(null)) // Monthly check (Not Found)
+        .mockReturnValueOnce(Promise.resolve(null)); // Monthly fallback (Not Found)
+
+      mockSubmissionFindOne.mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      // Task assignment mocks
+      mockTaskCountDocuments.mockResolvedValue(1);
+
+      const weeklyTask = {
+        _id: "task-weekly",
+        frequency: "weekly",
+        toObject: () => ({ title: "Weekly", frequency: "weekly" }),
+      };
+      const monthlyTask = {
+        _id: "task-monthly",
+        frequency: "monthly",
+        toObject: () => ({ title: "Monthly", frequency: "monthly" }),
+      };
+
+      const mockSkip = jest.fn();
+      // Ensure findOne returns the chainable object
+      mockTaskFindOne.mockReturnValue({ skip: mockSkip });
+
+      mockSkip
+        .mockResolvedValueOnce(weeklyTask)
+        .mockResolvedValueOnce(monthlyTask);
+
+      // On-Demand & One-Time mocks
+      const onDemandTask = {
+        _id: "task-ondemand",
+        frequency: "on_demand",
+        toObject: () => ({ title: "OnDemand", frequency: "on_demand" }),
+      };
+
+      // Task.find called twice
+      mockTaskFind
+        .mockResolvedValueOnce([onDemandTask]) // on_demand
+        .mockResolvedValueOnce([]); // onetime
+
+      // Act
+      const results = await TaskService.get_user_tasks("user-1");
+
+      // Assert
+      expect(results).toHaveLength(4);
+      expect(results.some((t) => t.title === "Daily")).toBe(true);
+      expect(results.some((t) => t.title === "Weekly")).toBe(true);
+      expect(results.some((t) => t.title === "Monthly")).toBe(true);
+      expect(results.some((t) => t.title === "OnDemand")).toBe(true);
+
+      // Verify assign_random_task was triggered twice (Weekly, Monthly)
+      expect(mockUserTaskSave).toHaveBeenCalledTimes(2);
     });
   });
 });

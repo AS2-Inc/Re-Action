@@ -44,13 +44,10 @@ export default mongoose.model(
     // Scheduling
     frequency: {
       type: String,
-      enum: ["daily", "weekly", "monthly", "on_demand"],
+      enum: ["daily", "weekly", "monthly", "on_demand", "onetime"],
       default: "on_demand",
     },
     is_active: { type: Boolean, default: true },
-
-    repeatable: { type: Boolean, default: false },
-    cooldown_hours: { type: Number, default: 24 }, // Only if repeatable
 
     // Template Reference
     template_id: { type: Schema.Types.ObjectId, ref: "TaskTemplate" },

@@ -1,11 +1,9 @@
 <template>
     <div class="home">
-        <UserInfoColumn />
         <div class="display">
             <div class="data-display">
               <Navbar :links="navLinks" />
             <section class="level-section">
-              <h2 class="section-title">Livelli</h2>
               <div class="level-rank">
                 <p class="level-rank__label">Livello attuale</p>
                 <h1 class="level-rank__value">{{ levelName }}</h1>
@@ -83,9 +81,8 @@
 </template>
 
 <script>
-import Navbar from "@/components/Navbar.vue";
-import UserInfoColumn from "@/components/UserInfoColumn.vue";
 import BadgeCard from "@/components/BadgeCard.vue";
+import Navbar from "@/components/Navbar.vue";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -94,7 +91,6 @@ export default {
   name: "StatsView",
   components: {
     Navbar,
-    UserInfoColumn,
     BadgeCard,
   },
   data() {
@@ -104,6 +100,7 @@ export default {
         { label: "Stats", to: "/stats" },
       ],
       badges: [],
+      tasks: [],
       points: 0,
       level: "",
       levelThresholds: [],
@@ -115,6 +112,14 @@ export default {
   computed: {
     earnedBadges() {
       return this.badges.filter((badge) => badge.earned);
+    },
+    assignedTasks() {
+      return this.tasks.filter(
+        (task) => task.assignment_status !== "AVAILABLE",
+      );
+    },
+    quickTasks() {
+      return this.assignedTasks.slice(0, 3);
     },
     levelName() {
       return this.level || "Cittadino Base";
@@ -152,26 +157,31 @@ export default {
     this.error = "";
 
     try {
-      const [badgesRes, dashboardRes] = await Promise.all([
+      const [badgesRes, dashboardRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/v1/users/me/badges`, {
           credentials: "include",
         }),
         fetch(`${API_BASE_URL}/api/v1/users/me/dashboard`, {
           credentials: "include",
         }),
+        fetch(`${API_BASE_URL}/api/v1/tasks`, {
+          credentials: "include",
+        }),
       ]);
 
-      if (!badgesRes.ok || !dashboardRes.ok) {
+      if (!badgesRes.ok || !dashboardRes.ok || !tasksRes.ok) {
         this.error = "Impossibile recuperare i dati.";
         return;
       }
 
-      const [badgesData, dashboardData] = await Promise.all([
+      const [badgesData, dashboardData, tasksData] = await Promise.all([
         badgesRes.json(),
         dashboardRes.json(),
+        tasksRes.json(),
       ]);
 
       this.badges = Array.isArray(badgesData) ? badgesData : [];
+      this.tasks = Array.isArray(tasksData) ? tasksData : [];
       this.points = dashboardData?.user?.points || 0;
       this.level = dashboardData?.user?.level || "";
       this.streak = dashboardData?.user?.streak || 0;
@@ -191,20 +201,20 @@ export default {
     margin: 0;
     padding: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: start;
-    width: 100vw;
+    width: 100%;
     height: 100%;
 } 
 .display {
-    margin-left: 20px;
+    margin-left: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2rem;
-    width: 80%;
+    width: 100%;
     height: 100%;
 }
 .data-display {
@@ -255,17 +265,18 @@ export default {
 .level-section,
 .badges-section {
   width: 100%;
+  margin-top: 1rem;
   max-width: 720px;
 }
 
 .level-card {
-  background-color: #dcd8bb;
+  background-color: #f7f2e7;
   border-radius: 12px;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .level-bar {
@@ -340,10 +351,10 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background-color: #dcd8bb;
+  background-color: #f7f2e7;
   border-radius: 12px;
   padding: 0.75rem 1rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .badge-icon {
@@ -385,10 +396,10 @@ export default {
 }
 
 .streak-card {
-  background-color: #dcd8bb;
+  background-color: #f7f2e7;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .streak-display {

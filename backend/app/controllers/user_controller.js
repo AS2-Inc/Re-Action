@@ -1,3 +1,4 @@
+import ServiceError from "../errors/service_error.js";
 import user_dashboard_service from "../services/user_dashboard_service.js";
 import * as UserService from "../services/user_service.js";
 
@@ -21,12 +22,8 @@ export const login = async (req, res) => {
       self: result.self,
     });
   } catch (error) {
-    if (error.message === "User not found") {
-      return res.status(404).json({ error: error.message });
-    } else if (error.message === "Wrong password") {
-      return res.status(401).json({ error: error.message });
-    } else if (error.message === "Account not activated") {
-      return res.status(403).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     console.error("Login Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -63,11 +60,8 @@ export const register = async (req, res) => {
     await UserService.register(req.body);
     res.status(201).json();
   } catch (error) {
-    if (error.message === "Email already exists") {
-      return res.status(409).json({ error: error.message });
-    }
-    if (error.message === "Password is too weak") {
-      return res.status(400).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     console.error("Registration Error:", error);
     res.status(400).json({ error: "Error creating user" });
@@ -79,8 +73,8 @@ export const get_me = async (req, res) => {
     const result = await UserService.get_user_profile(req.logged_user.email);
     res.status(200).json(result);
   } catch (error) {
-    if (error.message === "User not found") {
-      return res.status(404).send();
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     res.status(500).json({ error: "Internal Server Error" });
   }
@@ -98,8 +92,8 @@ export const activate = async (req, res) => {
       process.env.FRONTEND_BASE_URL || "http://localhost:5173";
     return res.redirect(`${frontend_base_url}/login?activated=true`);
   } catch (error) {
-    if (error.message === "Invalid or expired activation token") {
-      return res.status(400).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     console.error("Activation error:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -117,18 +111,8 @@ export const change_password = async (req, res) => {
     );
     res.status(200).json(result);
   } catch (error) {
-    if (error.message === "User not found") {
-      // Should be 404
-      return res.status(404).json({ error: error.message });
-    }
-    if (error.message === "Current password is incorrect") {
-      return res.status(401).json({ error: error.message });
-    }
-    if (
-      error.message === "Password is too weak" ||
-      error.message === "New password must be different from current password"
-    ) {
-      return res.status(400).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     console.error("Change Password Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -151,8 +135,9 @@ export const get_my_badges = async (req, res) => {
     const result = await UserService.get_badges(req.logged_user.id);
     res.status(200).json(result);
   } catch (error) {
-    if (error.message === "User not found")
-      return res.status(404).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
+    }
     console.error("Get Badges Error:", error);
     res.status(500).json({ error: "Failed to fetch badges" });
   }
@@ -169,8 +154,8 @@ export const get_dashboard = async (req, res) => {
     );
     res.status(200).json(result);
   } catch (error) {
-    if (error.message === "User not found") {
-      return res.status(404).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     console.error("Get Dashboard Error:", error);
     res.status(500).json({ error: "Failed to fetch dashboard data" });
@@ -196,8 +181,8 @@ export const get_history = async (req, res) => {
     );
     res.status(200).json(result);
   } catch (error) {
-    if (error.message === "User not found") {
-      return res.status(404).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     console.error("Get History Error:", error);
     res.status(500).json({ error: "Failed to fetch history" });
@@ -213,8 +198,8 @@ export const get_stats = async (req, res) => {
     const result = await user_dashboard_service.get_stats(req.logged_user.id);
     res.status(200).json(result);
   } catch (error) {
-    if (error.message === "User not found") {
-      return res.status(404).json({ error: error.message });
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
     }
     console.error("Get Stats Error:", error);
     res.status(500).json({ error: "Failed to fetch stats" });

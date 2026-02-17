@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import express from "express";
 import jwt from "jsonwebtoken";
+import ServiceError from "../errors/service_error.js";
 import check_role from "../middleware/role_checker.js";
 import token_checker from "../middleware/token_checker.js";
 import Operator from "../models/operator.js";
@@ -217,8 +218,8 @@ router.get(
       );
       res.status(200).json(data);
     } catch (error) {
-      if (error.message === "Neighborhood not found") {
-        return res.status(404).json({ error: error.message });
+      if (error instanceof ServiceError) {
+        return res.status(error.status).json({ error: error.message });
       }
       console.error("Neighborhood detail error:", error);
       res.status(500).json({ error: "Failed to fetch neighborhood data" });

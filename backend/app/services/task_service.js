@@ -1,3 +1,4 @@
+import ServiceError from "../errors/service_error.js";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
 import Task from "../models/task.js";
@@ -96,13 +97,13 @@ export const award_points = async (user_id, task_id) => {
  */
 export const get_user_tasks = async (user_id) => {
   const user = await User.findById(user_id);
-  if (!user) throw new Error("User not found");
+  if (!user) throw new ServiceError("User not found", 404);
   const now = new Date();
 
-  // 1. Get On-Demand Tasks (Static)
+  // 1. Get On-Demand & Onetime Tasks (Static)
   // Filter by Neighborhood OR Global
   const on_demand_tasks = await Task.find({
-    frequency: "on_demand",
+    frequency: { $in: ["on_demand", "onetime"] },
     is_active: true,
     $or: [{ neighborhood_id: user.neighborhood_id }, { neighborhood_id: null }],
   });
@@ -208,10 +209,6 @@ export const get_user_tasks = async (user_id) => {
 };
 
 export const assign_random_task = async (user, frequency) => {
-  // Priority: Neighborhood Tasks first, then Global
-  // Actually, we should pool them together or prioritize?
-  // Let's mix them: Find all valid tasks (Global + Neighborhood).
-
   const query = {
     frequency: frequency,
     is_active: true,
@@ -228,20 +225,56 @@ export const assign_random_task = async (user, frequency) => {
 
 export const submit_task = async (user_id, task_id, proof) => {
   const task = await Task.findById(task_id);
-  if (!task) throw new Error("Task not found");
+  if (!task) throw new ServiceError("Task not found", 404);
+
+  // Frequency-based completion limits
+  const last_approved = await Submission.findOne({
+    user_id,
+    task_id,
+    status: "APPROVED",
+  }).sort({ completed_at: -1 });
+
+  if (last_approved) {
+    if (task.frequency === "onetime") {
+      // Onetime tasks can only be done once
+      throw new ServiceError("Task already completed", 400);
+    }
+
+    // on_demand tasks are unlimited — skip check
+    if (task.frequency !== "on_demand") {
+      const now = new Date();
+      const last = new Date(last_approved.completed_at);
+      let already_done = false;
+
+      if (task.frequency === "daily") {
+        // Same calendar day
+        already_done = now.toDateString() === last.toDateString();
+      } else if (task.frequency === "weekly") {
+        // Within last 7 days
+        const diff_days = (now - last) / (1000 * 60 * 60 * 24);
+        already_done = diff_days < 7;
+      } else if (task.frequency === "monthly") {
+        // Same calendar month
+        already_done =
+          now.getFullYear() === last.getFullYear() &&
+          now.getMonth() === last.getMonth();
+      }
+
+      if (already_done) {
+        throw new ServiceError("Task already completed for this period", 400);
+      }
+    }
+  }
 
   // Update UserTask if it exists (for rotating tasks)
   let user_task = null;
-  if (task.frequency !== "on_demand") {
+  if (task.frequency !== "on_demand" && task.frequency !== "onetime") {
     user_task = await UserTask.findOne({
       user_id: user_id,
       task_id: task_id,
       status: "ASSIGNED",
     });
-    // TODO: If no assigned task found, and it's not on_demand, strictly speaking we should block.
-    // But maybe allow if it hasn't expired?
-    // For now, strict: Must be assigned.
-    if (!user_task) throw new Error("Task not assigned or expired");
+    if (!user_task) throw new ServiceError("Task not assigned or expired", 400);
   }
 
   // 1. Verify
@@ -321,14 +354,14 @@ export const get_submissions = async (filter) => {
 
 export const verify_submission = async (submission_id, verdict) => {
   const submission = await Submission.findById(submission_id);
-  if (!submission) throw new Error("Submission not found");
+  if (!submission) throw new ServiceError("Submission not found", 404);
 
   if (submission.status !== "PENDING") {
-    throw new Error("Submission is already processed");
+    throw new ServiceError("Submission is already processed", 400);
   }
 
   if (!["APPROVED", "REJECTED"].includes(verdict)) {
-    throw new Error("Invalid verdict");
+    throw new ServiceError("Invalid verdict", 400);
   }
 
   submission.status = verdict;
@@ -357,7 +390,7 @@ export const verify_submission = async (submission_id, verdict) => {
 
 export const get_task = async (task_id) => {
   const task = await Task.findById(task_id);
-  if (!task) throw new Error("Task not found");
+  if (!task) throw new ServiceError("Task not found", 404);
   return task;
 };
 
@@ -438,13 +471,13 @@ export const replace_expired_tasks_for_all_users = async () => {
  */
 export const replace_completed_task = async (user_id, task_id) => {
   const task = await Task.findById(task_id);
-  if (!task || task.frequency === "on_demand") {
-    return null; // On-demand tasks don't need replacement
+  if (!task || task.frequency === "on_demand" || task.frequency === "onetime") {
+    return null; // On-demand and onetime tasks don't need replacement
   }
 
   const user = await User.findById(user_id);
   if (!user) {
-    throw new Error("User not found");
+    throw new ServiceError("User not found", 404);
   }
 
   // Find a new task for the same frequency

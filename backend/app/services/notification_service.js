@@ -1,3 +1,4 @@
+import ServiceError from "../errors/service_error.js";
 import Notification from "../models/notification.js";
 import User from "../models/user.js";
 import email_service from "./email_service.js";
@@ -11,7 +12,7 @@ class NotificationService {
   async create_notification(user_id, data) {
     const user = await User.findById(user_id);
     if (!user) {
-      throw new Error("User not found");
+      throw new ServiceError("User not found", 404);
     }
 
     const { title, message, type, channel = "in-app", metadata = {} } = data;

@@ -1,12 +1,13 @@
+import ServiceError from "../../errors/service_error.js";
 import Quiz from "../../models/quiz.js";
 
 export const verify = async (task, proof) => {
   if (!task.verification_criteria?.quiz_id) {
-    throw new Error("Task misconfiguration: No Quiz ID");
+    throw new ServiceError("Task misconfiguration: No Quiz ID", 400);
   }
   const quiz = await Quiz.findById(task.verification_criteria.quiz_id);
   if (!quiz) {
-    throw new Error("Quiz not found");
+    throw new ServiceError("Quiz not found", 404);
   }
 
   const user_answers = proof?.quiz_answers; // Array of option indices
@@ -15,7 +16,7 @@ export const verify = async (task, proof) => {
     !Array.isArray(user_answers) ||
     user_answers.length !== quiz.questions.length
   ) {
-    throw new Error("Incomplete or missing quiz answers");
+    throw new ServiceError("Incomplete or missing quiz answers", 400);
   }
 
   let correct_count = 0;
@@ -32,8 +33,9 @@ export const verify = async (task, proof) => {
   if (score >= quiz.passing_score) {
     return { status: "APPROVED", enriched_proof: proof };
   } else {
-    throw new Error(
+    throw new ServiceError(
       `Quiz score ${(score * 100).toFixed(0)}% is below passing score ${(quiz.passing_score * 100).toFixed(0)}%`,
+      400,
     );
   }
 };

@@ -44,7 +44,7 @@ export default mongoose.model(
     // Scheduling
     frequency: {
       type: String,
-      enum: ["daily", "weekly", "monthly", "on_demand"],
+      enum: ["daily", "weekly", "monthly", "on_demand", "onetime"],
       default: "on_demand",
     },
     is_active: { type: Boolean, default: true },

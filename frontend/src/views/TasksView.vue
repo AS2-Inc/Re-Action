@@ -17,13 +17,21 @@
           >
             <div class="task-header">
               <h2 class="task-title">{{ task.title }}</h2>
-              <span
-                v-if="task.assignment_status !== 'ASSIGNED'"
-                class="task-status"
-                :class="statusClass(task.assignment_status)"
-              >
-                {{ task.assignment_status }}
-              </span>
+              <div class="task-status-container">
+                <span
+                  v-if="task.assignment_status !== 'ASSIGNED'"
+                  class="task-status"
+                  :class="statusClass(task.assignment_status)"
+                >
+                  {{ task.assignment_status }}
+                </span>
+                <span
+                  v-if="task.assignment_status === 'COMPLETED' && task.frequency !== 'onetime'"
+                  class="task-repeatable"
+                >
+                  Ripetibile
+                </span>
+              </div>
             </div>
             <p class="task-description">{{ task.description || "Nessuna descrizione" }}</p>
 
@@ -102,6 +110,7 @@
       :is-open="quizModalOpen"
       :quiz="selectedQuiz"
       :task-id="selectedTaskId"
+      :task="selectedTask"
       @close="closeQuizModal"
       @quiz-submitted="onQuizSubmitted"
     />
@@ -133,6 +142,7 @@ export default {
       quizModalOpen: false,
       selectedQuiz: null,
       selectedTaskId: null,
+      selectedTask: null,
     };
   },
   computed: {
@@ -193,6 +203,7 @@ export default {
         const quiz = await response.json();
         this.selectedQuiz = quiz;
         this.selectedTaskId = task._id;
+        this.selectedTask = task;
         this.quizModalOpen = true;
       } catch (error) {
         console.error(error);
@@ -203,6 +214,7 @@ export default {
       this.quizModalOpen = false;
       this.selectedQuiz = null;
       this.selectedTaskId = null;
+      this.selectedTask = null;
     },
     async onQuizSubmitted(payload) {
       const pointsEarned = payload?.points_earned || 0;
@@ -379,6 +391,14 @@ export default {
   gap: 1rem;
 }
 
+.task-status-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .task-title {
   font-family: "Caladea", serif;
   font-size: 1.3rem;
@@ -394,6 +414,17 @@ export default {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.task-repeatable {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: #add8e6;
+  color: #1f1f1f;
 }
 
 .status-assigned {

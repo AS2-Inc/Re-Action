@@ -49,9 +49,6 @@ export default mongoose.model(
     },
     is_active: { type: Boolean, default: true },
 
-    repeatable: { type: Boolean, default: false },
-    cooldown_hours: { type: Number, default: 24 }, // Only if repeatable
-
     // Template Reference
     template_id: { type: Schema.Types.ObjectId, ref: "TaskTemplate" },
     created_by: { type: Schema.Types.ObjectId, ref: "Operator" },

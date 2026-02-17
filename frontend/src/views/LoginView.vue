@@ -76,6 +76,38 @@ export default {
 
       this.loading = true;
       try {
+        const operatorResponse = await fetch(
+          `${API_BASE_URL}/api/v1/operators/login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: this.form.email.trim(),
+              password: this.form.password,
+            }),
+          },
+        );
+
+        if (operatorResponse.ok) {
+          const operatorData = await operatorResponse.json();
+          if (operatorData?.token) {
+            localStorage.setItem("token", operatorData.token);
+          }
+          this.success = "Login operatore effettuato con successo.";
+          setTimeout(() => {
+            this.$router.push("/operatorDashboard");
+          }, 1000);
+          return;
+        }
+
+        if (operatorResponse.status !== 404) {
+          const payload = await operatorResponse.json().catch(() => ({}));
+          this.error = payload?.error || "Errore durante il login.";
+          return;
+        }
+
         const response = await fetch(`${API_BASE_URL}/api/v1/users/login`, {
           method: "POST",
           headers: {

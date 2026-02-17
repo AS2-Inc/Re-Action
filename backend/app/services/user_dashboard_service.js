@@ -1,5 +1,5 @@
-import Badge from "../models/badge.js";
 import { LEVEL_THRESHOLDS } from "../config/badges.config.js";
+import Badge from "../models/badge.js";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
 import User from "../models/user.js";

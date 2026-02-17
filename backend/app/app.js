@@ -49,7 +49,17 @@ app.use("/api-docs", swagger_ui.serve, swagger_ui.setup(swagger_document));
 // --- Route Mounting ---
 app.use("/api/v1", api_routes);
 
-// 404 Handler
+// SPA Fallback: serve index.html for any non-API route so Vue Router
+// can handle client-side routes like /login, /dashboard, etc.
+app.get("*path", (req, res, next) => {
+  // Don't intercept API or api-docs requests
+  if (req.path.startsWith("/api")) {
+    return next();
+  }
+  res.sendFile(Path.join(FRONTEND, "index.html"));
+});
+
+// 404 Handler (only reached by unmatched API routes)
 app.use((_req, res) => {
   res.status(404).json({ error: "Endpoint Not Found" });
 });

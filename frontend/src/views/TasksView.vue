@@ -33,8 +33,8 @@
 
 <script>
 import Navbar from "@/components/Navbar.vue";
-import TaskCard from "@/components/TaskCard.vue";
 import QuizModal from "@/components/QuizModal.vue";
+import TaskCard from "@/components/TaskCard.vue";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";

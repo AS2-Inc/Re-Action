@@ -45,7 +45,7 @@ const TaskTemplateSchema = new Schema({
   },
   default_frequency: {
     type: String,
-    enum: ["daily", "weekly", "monthly", "on_demand"],
+    enum: ["daily", "weekly", "monthly", "on_demand", "onetime"],
     default: "daily",
   },
 

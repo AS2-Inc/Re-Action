@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { jest } from "@jest/globals";
+import ServiceError from "../../../app/errors/service_error.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -60,7 +61,9 @@ describe("TaskController", () => {
     });
 
     it("should handle User not found error", async () => {
-      mockGetUserTasks.mockRejectedValue(new Error("User not found"));
+      mockGetUserTasks.mockRejectedValue(
+        new ServiceError("User not found", 404),
+      );
 
       await Controller.get_user_tasks(req, res);
 
@@ -110,7 +113,9 @@ describe("TaskController", () => {
 
     it("should return 400 for verification failure", async () => {
       req.body = { task_id: "task-1" };
-      mockSubmitTask.mockRejectedValue(new Error("Verification failed"));
+      mockSubmitTask.mockRejectedValue(
+        new ServiceError("Verification failed", 400),
+      );
 
       await Controller.submit_task(req, res);
 
@@ -121,7 +126,7 @@ describe("TaskController", () => {
     it("should return 400 for Task not assigned or expired", async () => {
       req.body = { task_id: "task-1" };
       mockSubmitTask.mockRejectedValue(
-        new Error("Task not assigned or expired"),
+        new ServiceError("Task not assigned or expired", 400),
       );
 
       await Controller.submit_task(req, res);
@@ -188,7 +193,9 @@ describe("TaskController", () => {
 
     it("should handle Submission not found", async () => {
       req.params = { id: "sub-1" };
-      mockVerifySubmission.mockRejectedValue(new Error("Submission not found"));
+      mockVerifySubmission.mockRejectedValue(
+        new ServiceError("Submission not found", 404),
+      );
 
       await Controller.verify_submission(req, res);
 
@@ -197,7 +204,9 @@ describe("TaskController", () => {
 
     it("should handle Invalid verdict", async () => {
       req.params = { id: "sub-1" };
-      mockVerifySubmission.mockRejectedValue(new Error("Invalid verdict"));
+      mockVerifySubmission.mockRejectedValue(
+        new ServiceError("Invalid verdict", 400),
+      );
 
       await Controller.verify_submission(req, res);
 
@@ -220,7 +229,7 @@ describe("TaskController", () => {
 
     it("should handle Task not found", async () => {
       req.params = { id: "task-1" };
-      mockGetTask.mockRejectedValue(new Error("Task not found"));
+      mockGetTask.mockRejectedValue(new ServiceError("Task not found", 404));
 
       await Controller.get_task(req, res);
 

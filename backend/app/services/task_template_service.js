@@ -1,3 +1,4 @@
+import ServiceError from "../errors/service_error.js";
 import Task from "../models/task.js";
 import TaskTemplate from "../models/task_template.js";
 import NotificationService from "./notification_service.js";
@@ -25,7 +26,7 @@ class TaskTemplateService {
   async get_template(template_id) {
     const template = await TaskTemplate.findById(template_id);
     if (!template) {
-      throw new Error("Template not found");
+      throw new ServiceError("Template not found", 404);
     }
     return template;
   }
@@ -40,17 +41,20 @@ class TaskTemplateService {
   async create_task_from_template(template_id, task_data, created_by) {
     const template = await TaskTemplate.findById(template_id);
     if (!template) {
-      throw new Error("Template not found");
+      throw new ServiceError("Template not found", 404);
     }
 
     if (!template.is_active) {
-      throw new Error("Template is not active");
+      throw new ServiceError("Template is not active", 400);
     }
 
     // Validate required configurable fields
     for (const field of template.configurable_fields) {
       if (field.required && !task_data[field.field_name]) {
-        throw new Error(`Required field missing: ${field.field_name}`);
+        throw new ServiceError(
+          `Required field missing: ${field.field_name}`,
+          400,
+        );
       }
     }
 
@@ -60,8 +64,9 @@ class TaskTemplateService {
       points < template.base_points_range.min ||
       points > template.base_points_range.max
     ) {
-      throw new Error(
+      throw new ServiceError(
         `Points must be between ${template.base_points_range.min} and ${template.base_points_range.max}`,
+        400,
       );
     }
 
@@ -151,7 +156,7 @@ class TaskTemplateService {
   async create_template(template_data) {
     const existing = await TaskTemplate.findOne({ name: template_data.name });
     if (existing) {
-      throw new Error("Template with this name already exists");
+      throw new ServiceError("Template with this name already exists", 400);
     }
 
     const template = new TaskTemplate(template_data);
@@ -172,7 +177,7 @@ class TaskTemplateService {
       { new: true },
     );
     if (!template) {
-      throw new Error("Template not found");
+      throw new ServiceError("Template not found", 404);
     }
     return template;
   }

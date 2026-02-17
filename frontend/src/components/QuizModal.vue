@@ -170,7 +170,7 @@ export default {
     calculateNextAvailableTime() {
       const frequency = this.task?.frequency;
       const now = new Date();
-      let nextAvailable = new Date();
+      const nextAvailable = new Date();
 
       if (frequency === "daily") {
         // Tomorrow at midnight

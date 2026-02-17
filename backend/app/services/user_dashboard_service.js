@@ -109,6 +109,7 @@ class UserDashboardService {
         points_to_next: next ? next.points - user.points : 0,
         progress_percent: Math.round(progress_percent),
       },
+      level_thresholds: LEVEL_THRESHOLDS,
       stats: {
         tasks_completed,
         badges_count: user_badges.length,

@@ -1,6 +1,5 @@
 <template>
     <div class="home">
-        <UserInfoColumn :quick-tasks="quickTasks" />
         <div class="display">
             <div class="data-display">
               <Navbar :links="navLinks" />
@@ -85,6 +84,7 @@
 import BadgeCard from "@/components/BadgeCard.vue";
 import Navbar from "@/components/Navbar.vue";
 import UserInfoColumn from "@/components/UserInfoColumn.vue";
+import BadgeCard from "@/components/BadgeCard.vue";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -93,7 +93,6 @@ export default {
   name: "StatsView",
   components: {
     Navbar,
-    UserInfoColumn,
     BadgeCard,
   },
   data() {
@@ -204,20 +203,20 @@ export default {
     margin: 0;
     padding: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: start;
-    width: 100vw;
+    width: 100%;
     height: 100%;
 } 
 .display {
-    margin-left: 20px;
+    margin-left: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2rem;
-    width: 80%;
+    width: 100%;
     height: 100%;
 }
 .data-display {

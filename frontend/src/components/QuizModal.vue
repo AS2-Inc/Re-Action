@@ -12,76 +12,75 @@
         </p>
 
         <div v-if="!quizCompleted" class="quiz-container">
-          <div class="progress-bar">
-            <div
-              class="progress-fill"
-              :style="{ width: `${progressPercent}%` }"
-            ></div>
+          <div v-if="alreadyCompleted" class="quiz-already-completed">
+            <p>Questo quiz è già stato completato in questo periodo.</p>
+            <p>Disponibile tra: <strong>{{ nextAvailableTime }}</strong></p>
           </div>
-          <p class="progress-text">
-            Domanda {{ currentQuestionIndex + 1 }} di {{ totalQuestions }}
-          </p>
-
-          <div class="question-container">
-            <h3 class="question-text">{{ currentQuestion.text }}</h3>
-
-            <div class="options-list">
-              <label
-                v-for="(option, index) in currentQuestion.options"
-                :key="index"
-                class="option-label"
-              >
-                <input
-                  type="radio"
-                  :value="index"
-                  v-model.number="answers[currentQuestionIndex]"
-                  class="option-input"
-                />
-                <span class="option-text">{{ option }}</span>
-              </label>
+          <div v-else>
+            <div class="progress-bar">
+              <div
+                class="progress-fill"
+                :style="{ width: `${progressPercent}%` }"
+              ></div>
             </div>
-          </div>
+            <p class="progress-text">
+              Domanda {{ currentQuestionIndex + 1 }} di {{ totalQuestions }}
+            </p>
 
-          <div class="quiz-actions">
-            <button
-              v-if="currentQuestionIndex > 0"
-              class="btn btn-secondary"
-              @click="previousQuestion"
-            >
-              Indietro
-            </button>
-            <button
-              v-if="currentQuestionIndex < totalQuestions - 1"
-              class="btn btn-primary"
-              @click="nextQuestion"
-              :disabled="answers[currentQuestionIndex] === undefined"
-            >
-              Avanti
-            </button>
-            <button
-              v-else
-              class="btn btn-primary"
-              @click="finishQuiz"
-              :disabled="answers[currentQuestionIndex] === undefined"
-            >
-              Completa Quiz
-            </button>
+            <div class="question-container">
+              <h3 class="question-text">{{ currentQuestion.text }}</h3>
+
+              <div class="options-list">
+                <label
+                  v-for="(option, index) in currentQuestion.options"
+                  :key="index"
+                  class="option-label"
+                >
+                  <input
+                    type="radio"
+                    :value="index"
+                    v-model.number="answers[currentQuestionIndex]"
+                    class="option-input"
+                  />
+                  <span class="option-text">{{ option }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="quiz-actions">
+              <button
+                v-if="currentQuestionIndex > 0"
+                class="btn btn-secondary"
+                @click="previousQuestion"
+              >
+                Indietro
+              </button>
+              <button
+                v-if="currentQuestionIndex < totalQuestions - 1"
+                class="btn btn-primary"
+                @click="nextQuestion"
+                :disabled="answers[currentQuestionIndex] === undefined"
+              >
+                Avanti
+              </button>
+              <button
+                v-else
+                class="btn btn-primary"
+                @click="finishQuiz"
+                :disabled="answers[currentQuestionIndex] === undefined"
+              >
+                Completa Quiz
+              </button>
+            </div>
           </div>
         </div>
 
         <div v-else class="quiz-result">
           <div class="result-icon">
-            {{ resultPassed ? "✓" : "✗" }}
+            {{ isSubmitting ? "⏳" : "✓" }}
           </div>
           <p class="result-status">
-            {{ resultPassed ? "Quiz completato!" : "Quiz non superato" }}
-          </p>
-          <p class="result-score">
-            Punteggio: {{ Math.round(scorePercent) }}%
-          </p>
-          <p v-if="!resultPassed" class="result-message">
-            Devi ottenere almeno {{ Math.round(quiz.passing_score * 100) }}%
-            per superare il quiz.
+            {{ isSubmitting ? "Invio del quiz..." : "Quiz inviato con successo!" }}
           </p>
         </div>
       </div>
@@ -89,14 +88,6 @@
       <div class="modal-footer">
         <button class="btn btn-outline" @click="exitQuiz">
           {{ quizCompleted ? "Chiudi" : "Esci" }}
-        </button>
-        <button
-          v-if="quizCompleted && resultPassed"
-          class="btn btn-success"
-          @click="submitQuiz"
-          :disabled="isSubmitting"
-        >
-          {{ isSubmitting ? "Invio..." : "Conferma e Invia" }}
         </button>
       </div>
     </div>
@@ -127,6 +118,10 @@ export default {
       type: String,
       default: null,
     },
+    task: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -135,6 +130,9 @@ export default {
       quizCompleted: false,
       resultPassed: false,
       isSubmitting: false,
+      quizScore: 0,
+      alreadyCompleted: false,
+      nextAvailableTime: "",
     };
   },
   computed: {
@@ -149,21 +147,62 @@ export default {
       return ((this.currentQuestionIndex + 1) / this.totalQuestions) * 100;
     },
     scorePercent() {
-      const correctCount = this.answers.filter(
-        (answer, index) =>
-          answer === this.quiz.questions[index].correct_option_index,
-      ).length;
-      return (correctCount / this.totalQuestions) * 100;
+      // Score is only available after submission from backend
+      return this.quizScore * 100;
     },
   },
   watch: {
     isOpen(newVal) {
       if (newVal) {
         this.resetQuiz();
+        this.checkIfAlreadyCompleted();
       }
     },
   },
   methods: {
+    checkIfAlreadyCompleted() {
+      // Check if task has already been completed in this period
+      this.alreadyCompleted = this.task?.assignment_status === "COMPLETED";
+      if (this.alreadyCompleted) {
+        this.calculateNextAvailableTime();
+      }
+    },
+    calculateNextAvailableTime() {
+      const frequency = this.task?.frequency;
+      const now = new Date();
+      let nextAvailable = new Date();
+
+      if (frequency === "daily") {
+        // Tomorrow at midnight
+        nextAvailable.setDate(nextAvailable.getDate() + 1);
+        nextAvailable.setHours(0, 0, 0, 0);
+      } else if (frequency === "weekly") {
+        // 7 days from now
+        nextAvailable.setDate(nextAvailable.getDate() + 7);
+      } else if (frequency === "monthly") {
+        // Next month same day
+        nextAvailable.setMonth(nextAvailable.getMonth() + 1);
+      } else if (frequency === "onetime") {
+        this.nextAvailableTime = "Mai";
+        return;
+      }
+
+      const hours = Math.floor((nextAvailable - now) / (1000 * 60 * 60));
+      const minutes = Math.floor(
+        ((nextAvailable - now) % (1000 * 60 * 60)) / (1000 * 60),
+      );
+      const days = Math.floor(hours / 24);
+
+      if (frequency === "onetime") {
+        this.nextAvailableTime = "Mai";
+      } else if (days > 0) {
+        this.nextAvailableTime = `${days}g ${hours % 24}h`;
+      } else if (hours > 0) {
+        this.nextAvailableTime = `${hours}h ${minutes}m`;
+      } else {
+        this.nextAvailableTime = `${minutes}m`;
+      }
+    },
     nextQuestion() {
       if (this.currentQuestionIndex < this.totalQuestions - 1) {
         this.currentQuestionIndex++;
@@ -176,7 +215,8 @@ export default {
     },
     finishQuiz() {
       this.quizCompleted = true;
-      this.resultPassed = this.scorePercent >= this.quiz.passing_score * 100;
+      // Submit quiz to backend for verification
+      this.submitQuiz();
     },
     resetQuiz() {
       this.currentQuestionIndex = 0;
@@ -185,7 +225,7 @@ export default {
       this.resultPassed = false;
     },
     async submitQuiz() {
-      if (!this.resultPassed) {
+      if (this.isSubmitting) {
         return;
       }
 
@@ -201,7 +241,6 @@ export default {
             task_id: this.taskId,
             proof: {
               quiz_answers: this.answers,
-              quiz_score: this.scorePercent / 100,
             },
           }),
         });
@@ -209,19 +248,25 @@ export default {
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
           alert(payload?.error || "Errore durante l'invio del quiz.");
+          this.isSubmitting = false;
           return;
         }
 
         const result = await response.json();
-        this.$emit("quiz-submitted", {
-          points_earned: result?.points_earned || 0,
-          new_badges: result?.new_badges || [],
-        });
-        this.exitQuiz();
+        this.quizScore = result?.proof?.quiz_score || 0;
+        this.resultPassed = true;
+
+        // Show confirmation button for passing, or close automatically if passing
+        setTimeout(() => {
+          this.$emit("quiz-submitted", {
+            points_earned: result?.points_earned || 0,
+            new_badges: result?.new_badges || [],
+          });
+          this.exitQuiz();
+        }, 1500);
       } catch (error) {
         console.error(error);
         alert("Impossibile contattare il server.");
-      } finally {
         this.isSubmitting = false;
       }
     },
@@ -384,6 +429,23 @@ export default {
   gap: 1rem;
   justify-content: space-between;
   margin-top: 1rem;
+}
+
+.quiz-already-completed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.quiz-already-completed p {
+  font-family: "Caladea", serif;
+  font-size: 1.1rem;
+  color: #1f1f1f;
+  margin: 0;
 }
 
 .quiz-result {

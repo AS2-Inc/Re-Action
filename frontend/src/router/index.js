@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router";
 import LoginView from "../views/LoginView.vue";
+import NotFoundView from "../views/NotFoundView.vue";
 import OperatorDashboardView from "../views/OperatorDashboardView.vue";
 import PresentationView from "../views/PresentationView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import StatsView from "../views/StatsView.vue";
 import TasksView from "../views/TasksView.vue";
-import NotFoundView from "../views/NotFoundView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,7 +50,7 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem("token");
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 

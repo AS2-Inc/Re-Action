@@ -10,13 +10,12 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router';
-import Button from '../components/Button.vue';
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-const goHome = () => {
-  router.push('/tasks');
+const _goHome = () => {
+  router.push("/tasks");
 };
 </script>
 

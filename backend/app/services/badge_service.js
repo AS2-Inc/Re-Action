@@ -215,10 +215,11 @@ class BadgeService {
       }
 
       // Update user level based on points
+      const previousLevel = user.level;
       this._updateUserLevel(user);
 
-      // Save user if new badges were awarded
-      if (newlyAwardedBadges.length > 0) {
+      // Save user if new badges were awarded or level changed
+      if (newlyAwardedBadges.length > 0 || user.level !== previousLevel) {
         await user.save();
       }
 

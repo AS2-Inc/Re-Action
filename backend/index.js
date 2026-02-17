@@ -2,8 +2,8 @@ import bcrypt from "bcrypt";
 import { mongoose } from "mongoose";
 import app from "./app/app.js";
 import Operator from "./app/models/operator.js";
-import scheduler from "./app/services/scheduler.js";
 import badgeService from "./app/services/badge_service.js";
+import scheduler from "./app/services/scheduler.js";
 
 const port = process.env.PORT || 8080;
 

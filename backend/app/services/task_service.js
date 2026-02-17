@@ -98,114 +98,124 @@ export const award_points = async (user_id, task_id) => {
 export const get_user_tasks = async (user_id) => {
   const user = await User.findById(user_id);
   if (!user) throw new ServiceError("User not found", 404);
+
   const now = new Date();
+  const tasks_response = [];
 
-  // 1. Get On-Demand & Onetime Tasks (Static)
-  // Filter by Neighborhood OR Global
-  const on_demand_tasks = await Task.find({
-    frequency: { $in: ["on_demand", "onetime"] },
-    is_active: true,
-    $or: [{ neighborhood_id: user.neighborhood_id }, { neighborhood_id: null }],
-  });
-
-  // 2. Manage Rotating Tasks (Daily, Weekly, Monthly)
+  // 1. Periodic Tasks (Daily, Weekly, Monthly)
+  // Check assignments and lazily assign if missing
   const frequencies = ["daily", "weekly", "monthly"];
 
-  // ... (rest of logic same until random assignment) ...
-  // Note: I need to update the random assignment caller to pass user object or ID to look up neighborhood
-
-  // Rewrite: Get ALL active assignments for user
-  const current_assignments = await UserTask.find({
-    user_id: user_id,
-    status: { $in: ["ASSIGNED", "COMPLETED"] },
-  }).populate("task_id");
-
-  const assignments_by_freq = {
-    daily: null,
-    weekly: null,
-    monthly: null,
-  };
-
-  for (const work_item of current_assignments) {
-    if (!work_item.task_id) continue;
-    const freq = work_item.task_id.frequency;
-
-    // Check expiration
-    if (work_item.status !== "EXPIRED" && work_item.expires_at < now) {
-      work_item.status = "EXPIRED";
-      await work_item.save();
-      continue; // It's expired, slot is open
-    }
-
-    // If still valid
-    if (frequencies.includes(freq)) {
-      if (
-        !assignments_by_freq[freq] ||
-        assignments_by_freq[freq].expires_at < work_item.expires_at
-      ) {
-        assignments_by_freq[freq] = work_item;
-      }
-    }
-  }
-
-  // 3. Fill gaps
-  const new_assignments = [];
-
   for (const freq of frequencies) {
-    if (!assignments_by_freq[freq]) {
-      // Need new task
-      const task = await assign_random_task(user, freq);
-      if (task) {
-        // Determine expiration
-        let expires_at = new Date();
-        if (freq === "daily") {
-          expires_at.setUTCHours(23, 59, 59, 999);
-        } else if (freq === "weekly") {
-          const d = new Date();
-          d.setDate(d.getDate() + 7);
-          expires_at = d;
-        } else if (freq === "monthly") {
-          const d = new Date();
-          d.setMonth(d.getMonth() + 1);
-          expires_at = d;
+    // Check if there is an active assignment
+    let assignment = await UserTask.findOne({
+      user_id: user_id,
+      status: "ASSIGNED",
+      expires_at: { $gt: now },
+    })
+      .populate("task_id")
+      .then((assignment) => {
+        // Filter by frequency match just in case
+        if (assignment && assignment.task_id.frequency === freq)
+          return assignment;
+        return null;
+      });
+
+    if (!assignment) {
+      const existing_assignment = await UserTask.findOne({
+        user_id: user_id,
+        status: "ASSIGNED",
+      }).populate({
+        path: "task_id",
+        match: { frequency: freq },
+      });
+
+      if (existing_assignment?.task_id) {
+        assignment = existing_assignment;
+      } else {
+        const last_completion = await Submission.findOne({
+          user_id: user_id,
+          status: "APPROVED",
+        })
+          .populate({
+            path: "task_id",
+            match: { frequency: freq },
+          })
+          .sort({ completed_at: -1 });
+
+        let already_done_period = false;
+        if (last_completion?.task_id) {
+          const last = new Date(last_completion.completed_at);
+          if (freq === "daily" && last.toDateString() === now.toDateString())
+            already_done_period = true;
         }
 
-        const user_task = new UserTask({
-          user_id: user_id,
-          task_id: task._id,
-          status: "ASSIGNED",
-          expires_at: expires_at,
-        });
-        await user_task.save();
-
-        user_task.task_id = task;
-        new_assignments.push(user_task);
+        if (!already_done_period) {
+          const new_task = await assign_random_task(user, freq);
+          if (new_task) {
+            const expires_at = calculate_expiration(freq);
+            const user_task = new UserTask({
+              user_id: user_id,
+              task_id: new_task._id,
+              status: "ASSIGNED",
+              expires_at: expires_at,
+            });
+            await user_task.save();
+            assignment = user_task;
+            assignment.task_id = new_task; // Populate manually for response
+          }
+        }
       }
-    } else {
-      new_assignments.push(assignments_by_freq[freq]);
+    }
+
+    if (assignment?.task_id) {
+      tasks_response.push({
+        ...assignment.task_id.toObject(),
+        user_task_id: assignment._id,
+        expires_at: assignment.expires_at,
+        status: assignment.status,
+      });
     }
   }
 
-  // 4. Format Output
-  const result = [];
+  // 2. On-Demand Tasks (Always available)
+  const on_demand_tasks = await Task.find({
+    frequency: "on_demand",
+    is_active: true,
+    $or: [{ neighborhood_id: null }, { neighborhood_id: user.neighborhood_id }],
+  });
 
-  // Add Rotating
-  for (const item of new_assignments) {
-    const t = item.task_id.toObject();
-    t.assignment_status = item.status;
-    t.assignment_id = item._id;
-    t.expires_at = item.expires_at;
-    result.push(t);
-  }
-
-  // Add On-Demand
   for (const t of on_demand_tasks) {
-    const obj = t.toObject();
-    obj.assignment_status = "AVAILABLE";
-    result.push(obj);
+    tasks_response.push({
+      ...t.toObject(),
+      status: "AVAILABLE", // Distinct status for UI
+    });
   }
 
-  return result;
+  // 3. One-Time Tasks (Available if not completed)
+  const one_time_tasks = await Task.find({
+    frequency: "onetime",
+    is_active: true,
+    $or: [{ neighborhood_id: null }, { neighborhood_id: user.neighborhood_id }],
+  });
+
+  for (const t of one_time_tasks) {
+    // Check if completed
+    const completed = await Submission.exists({
+      user_id: user_id,
+      task_id: t._id,
+      status: "APPROVED",
+    });
+
+    if (!completed) {
+      tasks_response.push({
+        ...t.toObject(),
+        status: "AVAILABLE",
+      });
+    }
+  }
+
+  return tasks_response;
 };
 
 export const assign_random_task = async (user, frequency) => {

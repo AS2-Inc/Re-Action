@@ -1,8 +1,63 @@
-<script setup>
+<script>
+import UserInfoColumn from "@/components/UserInfoColumn.vue";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+export default {
+  name: "App",
+  components: {
+    UserInfoColumn,
+  },
+  data() {
+    return {
+      quickTasks: [],
+      tasks: [],
+    };
+  },
+  watch: {
+    "$route.name"(newRouteName) {
+      // Reload tasks when switching between tasks and stats views
+      if (newRouteName === "tasks" || newRouteName === "stats") {
+        this.loadTasks();
+      }
+    },
+  },
+  async mounted() {
+    this.loadTasks();
+  },
+  methods: {
+    async loadTasks() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/tasks`, {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          console.error("Failed to fetch tasks");
+          return;
+        }
+
+        this.tasks = await response.json();
+        const assignedTasks = this.tasks.filter(
+          (task) => task.assignment_status !== "AVAILABLE",
+        );
+        this.quickTasks = assignedTasks.slice(0, 3);
+      } catch (error) {
+        console.error(error);
+      }
+    },
+  },
+};
 </script>
 
 <template>
-  <div id="app">
+  <div id="app" :class="{ 'has-user-column': $route.meta.requiresAuth }">
+    <UserInfoColumn
+      v-if="$route.meta.requiresAuth"
+      :quick-tasks="quickTasks"
+      class="user-column"
+    />
     <RouterView />
   </div>
 </template>
@@ -25,11 +80,22 @@ html, body {
 
 #app {
   display: flex;
-  justify-content: top; 
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
   height: 100%;
   width: 100%;
   padding: 1vh;
+  gap: 0;
+}
+
+#app:not(.has-user-column) {
+  flex-direction: column;
+  align-items: center;
+  justify-content: top;
+}
+
+.user-column {
+  flex-shrink: 0;
 }
 </style>

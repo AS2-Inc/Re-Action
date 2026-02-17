@@ -1,6 +1,5 @@
 <template>
   <div class="home">
-    <UserInfoColumn :quick-tasks="quickTasks" />
     <div class="display">
       <Navbar :links="navLinks" />
       <div class="data-display">
@@ -111,7 +110,6 @@
 
 <script>
 import Navbar from "@/components/Navbar.vue";
-import UserInfoColumn from "@/components/UserInfoColumn.vue";
 import QuizModal from "@/components/QuizModal.vue";
 
 const API_BASE_URL =
@@ -121,7 +119,6 @@ export default {
   name: "TasksView",
   components: {
     Navbar,
-    UserInfoColumn,
     QuizModal,
   },
   data() {
@@ -288,20 +285,20 @@ export default {
     margin: 0;
     padding: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: start;
-    width: 100vw;
+    width: 100%;
     height: 100%;
 } 
 .display {
-    margin-left: 20px;
+    margin-left: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2rem;
-    width: 80%;
+    width: 100%;
     height: 100%;
 }
 .data-display {
@@ -345,7 +342,8 @@ export default {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
-  padding: 1rem 0 2rem;
+  padding: 1rem 2rem 2rem 2rem;
+  margin: 0 auto;
 }
 
 .task-card {

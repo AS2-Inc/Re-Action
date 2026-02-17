@@ -251,12 +251,12 @@ describe("TaskService (Unit)", () => {
 
       // Call 2 & 3: Weekly & Monthly -> Not Found (null)
       mockPopulate
-        .mockReturnValueOnce(Promise.resolve(dailyAssignment))
-        .mockReturnValueOnce(Promise.resolve(null))
-        .mockReturnValueOnce(Promise.resolve(null));
+        .mockReturnValueOnce(Promise.resolve(dailyAssignment)) // Daily check (Found)
+        .mockReturnValueOnce(Promise.resolve(null)) // Weekly check (Not Found)
+        .mockReturnValueOnce(Promise.resolve(null)) // Weekly fallback (Not Found)
+        .mockReturnValueOnce(Promise.resolve(null)) // Monthly check (Not Found)
+        .mockReturnValueOnce(Promise.resolve(null)); // Monthly fallback (Not Found)
 
-      // Submission check mock (for preventing immediate re-assignment if performed recently)
-      // Used in the 'else' block when assignment is null
       mockSubmissionFindOne.mockReturnValue({
         populate: jest.fn().mockReturnValue({
           sort: jest.fn().mockResolvedValue(null),

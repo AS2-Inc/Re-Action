@@ -1,4 +1,5 @@
 import { DEFAULT_BADGES, LEVEL_THRESHOLDS } from "../config/badges.config.js";
+import ServiceError from "../errors/service_error.js";
 import Badge from "../models/badge.js";
 import Activity from "../models/submission.js";
 import User from "../models/user.js";
@@ -180,7 +181,7 @@ class BadgeService {
     try {
       const user = await User.findById(userId).populate("badges_id");
       if (!user) {
-        throw new Error("User not found");
+        throw new ServiceError("User not found", 404);
       }
 
       // Fetch all badges and user's completed activities
@@ -214,10 +215,11 @@ class BadgeService {
       }
 
       // Update user level based on points
+      const previousLevel = user.level;
       this._updateUserLevel(user);
 
-      // Save user if new badges were awarded
-      if (newlyAwardedBadges.length > 0) {
+      // Save user if new badges were awarded or level changed
+      if (newlyAwardedBadges.length > 0 || user.level !== previousLevel) {
         await user.save();
       }
 
@@ -242,7 +244,7 @@ class BadgeService {
     try {
       const user = await User.findById(userId);
       if (!user) {
-        throw new Error("User not found");
+        throw new ServiceError("User not found", 404);
       }
 
       const allBadges = await Badge.find({}).sort({ display_order: 1 });
@@ -269,7 +271,7 @@ class BadgeService {
     try {
       const user = await User.findById(userId).populate("badges_id");
       if (!user) {
-        throw new Error("User not found");
+        throw new ServiceError("User not found", 404);
       }
 
       return user.badges_id;

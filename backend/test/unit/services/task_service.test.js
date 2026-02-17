@@ -18,6 +18,7 @@ const mockUserTaskFindOne = jest.fn();
 const mockSubmissionSave = jest.fn();
 const mockSubmissionFind = jest.fn();
 const mockSubmissionFindById = jest.fn();
+const mockSubmissionFindOne = jest.fn();
 
 const mockNeighborhoodFindById = jest.fn();
 const mockNeighborhoodSave = jest.fn();
@@ -50,6 +51,7 @@ MockUserTask.findOne = mockUserTaskFindOne;
 const MockSubmission = jest.fn(() => ({ save: mockSubmissionSave }));
 MockSubmission.find = mockSubmissionFind;
 MockSubmission.findById = mockSubmissionFindById;
+MockSubmission.findOne = mockSubmissionFindOne;
 
 const MockNeighborhood = jest.fn(() => ({ save: mockNeighborhoodSave }));
 MockNeighborhood.findById = mockNeighborhoodFindById;
@@ -183,6 +185,9 @@ describe("TaskService (Unit)", () => {
         base_points: 10,
       };
       mockTaskFindById.mockResolvedValue(mockTask);
+      mockSubmissionFindOne.mockReturnValue({
+        sort: jest.fn().mockResolvedValue(null),
+      });
       mockGPSVerifier.verify.mockReturnValue({ status: "APPROVED" });
       mockSubmissionSave.mockResolvedValue(true);
 

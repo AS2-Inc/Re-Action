@@ -137,7 +137,7 @@ describe("UserService (Unit)", () => {
       expect(args.email).toBe("new@example.com");
       expect(args.password).toBe("hashed_password");
       expect(mockUserSave).toHaveBeenCalled();
-      // expect(mockEmailSend).toHaveBeenCalled(); // TODO in code
+      expect(mockEmailSend).toHaveBeenCalled();
     });
 
     it("should throw if email exists", async () => {

@@ -51,10 +51,11 @@ const router = createRouter({
 });
 
 router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem("token");
+  const isAuthenticated = localStorage.getItem("authenticated") === "true";
+  const token = localStorage.getItem("token"); // For operator login
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 
-  if (requiresAuth && !token) {
+  if (requiresAuth && !isAuthenticated && !token) {
     next("/login");
   } else {
     next();

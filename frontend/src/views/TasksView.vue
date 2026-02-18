@@ -51,6 +51,7 @@ export default {
       navLinks: [
         { label: "Tasks", to: "/tasks" },
         { label: "Stats", to: "/stats" },
+        { label: "Profilo", to: "/profile" },
       ],
       tasks: [],
       loading: false,

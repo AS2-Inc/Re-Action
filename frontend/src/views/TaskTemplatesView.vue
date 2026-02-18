@@ -54,7 +54,7 @@ const fetchTemplates = async () => {
 };
 
 // Logica di filtraggio per i tab
-const filteredTemplates = computed(() => {
+const _filteredTemplates = computed(() => {
   if (currentTab.value === "all") return templates.value;
 
   return templates.value.filter((tpl) => {
@@ -65,7 +65,7 @@ const filteredTemplates = computed(() => {
   });
 });
 
-const confirmDelete = (templateId, templateTitle) => {
+const __confirmDelete = (templateId, templateTitle) => {
   const proceed = confirm(
     `Vuoi davvero eliminare il modello "${templateTitle}"?`,
   );
@@ -75,7 +75,7 @@ const confirmDelete = (templateId, templateTitle) => {
   }
 };
 
-const updateTemplate = (templateId) => {
+const __updateTemplate = (templateId) => {
   console.log(`Modifica richiesta per: ${templateId}`);
   alert("Reindirizzamento alla pagina di modifica...");
 };
@@ -128,7 +128,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="tasks-grid">
-      <div v-for="tpl in filteredTemplates" :key="tpl._id" class="task-card">
+      <div v-for="tpl in _filteredTemplates" :key="tpl._id" class="task-card">
         <div class="card-content">
             <div class="card-header">
                 <h2 class="task-title">{{ tpl.name }}</h2>
@@ -164,13 +164,13 @@ onMounted(() => {
         </div>
 
         <div class="card-actions">
-            <button @click="_updateTemplate(tpl._id)" class="btn-action btn-update">Modifica</button>
-            <button @click="_confirmDelete(tpl._id, tpl.title)" class="btn-action btn-delete">Elimina</button>
+            <button @click="__updateTemplate(tpl._id)" class="btn-action btn-update">Modifica</button>
+            <button @click="__confirmDelete(tpl._id, tpl.title)" class="btn-action btn-delete">Elimina</button>
         </div>
       </div>
     </div>
 
-    <div v-if="!loading && filteredTemplates.length === 0" class="empty-state">
+    <div v-if="!loading && _filteredTemplates.length === 0" class="empty-state">
         <p>Nessun modello trovato in questa categoria.</p>
     </div>
   </div>

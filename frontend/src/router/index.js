@@ -3,6 +3,7 @@ import AdminLoginView from "../views/AdminLoginView.vue";
 import AdminOperatorsView from "../views/AdminOperatorsView.vue";
 import CreateTaskView from "../views/CreateTaskView.vue";
 import LoginView from "../views/LoginView.vue";
+import LeaderboardView from "../views/LeaderboardView.vue";
 import NotFoundView from "../views/NotFoundView.vue";
 import OperatorActivationView from "../views/OperatorActivationView.vue";
 import OperatorDashboardView from "../views/OperatorDashboardView.vue";
@@ -32,6 +33,16 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
+    },
+    {
+      path: "/leaderboard",
+      name: "leaderboard",
+      component: LeaderboardView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/home",
+      redirect: "/tasks",
     },
     {
       path: "/admin",

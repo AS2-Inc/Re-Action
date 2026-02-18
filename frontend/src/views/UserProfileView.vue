@@ -96,6 +96,7 @@ export default {
       navLinks: [
         { label: "Tasks", to: "/tasks" },
         { label: "Stats", to: "/stats" },
+        { label: "Leaderboard", to: "/leaderboard" },
         { label: "Profilo", to: "/profile" },
       ],
       user: {

@@ -169,11 +169,19 @@ export const get_user_tasks = async (user_id) => {
     }
 
     if (assignment?.task_id) {
+      // Check for pending submission
+      const pending_submission = await Submission.findOne({
+        user_id: user_id,
+        task_id: assignment.task_id._id,
+        status: "PENDING",
+      });
+
       tasks_response.push({
         ...assignment.task_id.toObject(),
         user_task_id: assignment._id,
         expires_at: assignment.expires_at,
         status: assignment.status,
+        submission_status: pending_submission ? "PENDING" : null,
       });
     }
   }

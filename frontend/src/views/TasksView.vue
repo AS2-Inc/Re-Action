@@ -28,12 +28,19 @@
       @close="closeQuizModal"
       @quiz-submitted="onQuizSubmitted"
     />
+    <PhotoSubmissionModal
+      :is-open="photoModalOpen"
+      :task="selectedTaskForPhoto"
+      @close="closePhotoModal"
+      @photo-submitted="onPhotoSubmitted"
+    />
   </div>
 </template>
 
 <script>
 import Navbar from "@/components/Navbar.vue";
 import QuizModal from "@/components/QuizModal.vue";
+import PhotoSubmissionModal from "@/components/PhotoSubmissionModal.vue";
 import TaskCard from "@/components/TaskCard.vue";
 
 const API_BASE_URL =
@@ -45,6 +52,7 @@ export default {
     Navbar,
     TaskCard,
     QuizModal,
+    PhotoSubmissionModal,
   },
   data() {
     return {
@@ -60,6 +68,8 @@ export default {
       selectedQuiz: null,
       selectedTaskId: null,
       selectedTask: null,
+      photoModalOpen: false,
+      selectedTaskForPhoto: {},
     };
   },
   computed: {
@@ -76,31 +86,15 @@ export default {
     },
   },
   async mounted() {
-    this.loading = true;
-    this.error = "";
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/tasks`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        this.error = payload?.error || "Impossibile recuperare i task.";
-        return;
-      }
-
-      this.tasks = await response.json();
-    } catch (error) {
-      console.error(error);
-      this.error = "Impossibile contattare il server.";
-    } finally {
-      this.loading = false;
-    }
+    await this.fetchTasks();
   },
   methods: {
     async handleTaskClick(task) {
       if (task.verification_method === "QUIZ") {
         await this.loadAndOpenQuiz(task);
+      } else if (task.verification_method === "PHOTO_UPLOAD") {
+        this.selectedTaskForPhoto = task;
+        this.photoModalOpen = true;
       }
     },
     async loadAndOpenQuiz(task) {
@@ -140,7 +134,24 @@ export default {
       // Refresh tasks and emit event to parent to update user info
       this.$emit("points-updated");
 
+      await this.fetchTasks();
+    },
+    closePhotoModal() {
+      this.photoModalOpen = false;
+      this.selectedTaskForPhoto = {};
+    },
+    async onPhotoSubmitted(result) {
+      if (result.submission_status === "PENDING") {
+        alert("Foto inviata! In attesa di approvazione.");
+      } else {
+        alert(`Foto inviata con successo! +${result.points_earned} punti.`);
+      }
+      this.$emit("points-updated");
+      await this.fetchTasks();
+    },
+    async fetchTasks() {
       this.loading = true;
+      this.error = "";
       try {
         const response = await fetch(`${API_BASE_URL}/api/v1/tasks`, {
           credentials: "include",

@@ -212,7 +212,7 @@ onMounted(() => {
                 <!-- Photo Proof -->
                 <div v-if="selectedSubmission.proof?.photo_url" class="photo-proof">
                      <img 
-                        :src="`http://localhost:5000${selectedSubmission.proof.photo_url}`" 
+                        :src="`${API_BASE}${selectedSubmission.proof.photo_url}`" 
                         alt="Prova fotografica" 
                         class="proof-img"
                     />

@@ -32,6 +32,7 @@
         {{ oauthLoading ? "Connessione Google..." : "Login con Google" }}
       </button>
     </div>
+    <router-link to="/" class="home-link">← Torna alla Home</router-link>
   </form>
 </template>
 
@@ -329,5 +330,27 @@ export default {
     gap: 2rem;
     padding: 2rem;
   }
+}
+
+.home-link {
+  font-family: "Caladea", serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #555;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.5rem 1.2rem;
+  border: 2px solid #ddd;
+  border-radius: 25px;
+  transition: all 0.3s ease;
+  margin-top: -0.5rem;
+}
+
+.home-link:hover {
+  color: #fff;
+  background-color: #a9ca5f;
+  border-color: #a9ca5f;
 }
 </style>

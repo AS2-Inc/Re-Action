@@ -53,11 +53,11 @@
       </div>
     </div>
     <hr class="sep sep-after" />
-    <div v-if="limitedQuickTasks.length" class="quick-task">
+    <div v-if="quickTasks.length" class="quick-task">
       <h3 class="quick-task-title">Task in evidenza</h3>
       <div class="quick-task-list">
         <div
-          v-for="task in limitedQuickTasks"
+          v-for="task in quickTasks"
           :key="task._id"
           class="quick-task-card"
         >

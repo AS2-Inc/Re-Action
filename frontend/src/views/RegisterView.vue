@@ -1,4 +1,9 @@
 <template>
+  <NeighborhoodModal
+    :isVisible="showNeighborhoodModal"
+    @close="handleNeighborhoodModalClose"
+    @select="handleNeighborhoodSelect"
+  />
   <div class="title-container">
     <h2 class="subtitle">Reaction</h2>
     <h1 class="title">Registrati</h1>
@@ -75,6 +80,7 @@
 </template>
 
 <script>
+import NeighborhoodModal from "@/components/NeighborhoodModal.vue";
 import TextInputForm from "@/components/TextInputForm.vue";
 
 const API_BASE_URL =
@@ -86,6 +92,7 @@ export default {
   name: "RegisterView",
   components: {
     TextInputForm,
+    NeighborhoodModal,
   },
   data() {
     return {
@@ -101,6 +108,10 @@ export default {
       oauthLoading: false,
       error: "",
       success: "",
+      showNeighborhoodModal: false,
+      selectedNeighborhoodId: null,
+      pendingRegistrationData: null,
+      pendingGoogleCredential: null,
     };
   },
   computed: {
@@ -124,6 +135,17 @@ export default {
         return;
       }
 
+      // Store registration data and show neighborhood modal
+      this.pendingRegistrationData = {
+        name: this.form.name.trim(),
+        surname: this.form.surname.trim(),
+        email: this.form.email.trim(),
+        password: this.form.password,
+        age: ageNumber,
+      };
+      this.showNeighborhoodModal = true;
+    },
+    async completeLocalRegistration(neighborhoodId) {
       this.loading = true;
       try {
         const response = await fetch(`${API_BASE_URL}/api/v1/users/register`, {
@@ -132,11 +154,8 @@ export default {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            name: this.form.name.trim(),
-            surname: this.form.surname.trim(),
-            email: this.form.email.trim(),
-            password: this.form.password,
-            age: ageNumber,
+            ...this.pendingRegistrationData,
+            neighborhood: neighborhoodId,
           }),
         });
 
@@ -156,6 +175,7 @@ export default {
           password: "",
           confirmPassword: "",
         };
+        this.pendingRegistrationData = null;
       } catch (error) {
         console.error(error);
         this.error = "Impossibile contattare il server.";
@@ -219,6 +239,17 @@ export default {
           return;
         }
 
+        // Store Google credential and show neighborhood modal
+        this.pendingGoogleCredential = response.credential;
+        this.showNeighborhoodModal = true;
+      } catch (error) {
+        console.error(error);
+        this.error = "Impossibile contattare il server.";
+        this.oauthLoading = false;
+      }
+    },
+    async completeGoogleRegistration(neighborhoodId) {
+      try {
         const apiResponse = await fetch(
           `${API_BASE_URL}/api/v1/users/auth/google`,
           {
@@ -227,7 +258,10 @@ export default {
               "Content-Type": "application/json",
             },
             credentials: "include",
-            body: JSON.stringify({ credential: response.credential }),
+            body: JSON.stringify({
+              credential: this.pendingGoogleCredential,
+              neighborhood: neighborhoodId,
+            }),
           },
         );
 
@@ -241,6 +275,7 @@ export default {
 
         const _data = await apiResponse.json();
         this.success = "Registrazione Google completata.";
+        this.pendingGoogleCredential = null;
 
         setTimeout(() => {
           this.$router.push("/");
@@ -262,6 +297,23 @@ export default {
       }
 
       this.error = "SPID non configurato.";
+    },
+    handleNeighborhoodModalClose() {
+      this.showNeighborhoodModal = false;
+      this.pendingRegistrationData = null;
+      this.pendingGoogleCredential = null;
+      this.oauthLoading = false;
+    },
+    async handleNeighborhoodSelect(neighborhoodId) {
+      this.selectedNeighborhoodId = neighborhoodId;
+      this.showNeighborhoodModal = false;
+
+      // Determine which type of registration to complete
+      if (this.pendingGoogleCredential) {
+        await this.completeGoogleRegistration(neighborhoodId);
+      } else if (this.pendingRegistrationData) {
+        await this.completeLocalRegistration(neighborhoodId);
+      }
     },
   },
 };

@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-const _router = useRouter();
+const router = useRouter();
 
 const submissions = ref([]);
 const loading = ref(true);
@@ -13,13 +13,13 @@ const showModal = ref(false);
 const selectedSubmission = ref(null);
 const modalLoading = ref(false);
 
-const _API_BASE = "http://localhost:5000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const fetchSubmissions = async () => {
   const token = localStorage.getItem("token");
 
   if (!token) {
-    _router.push("/login");
+    router.push("/login");
     return;
   }
 
@@ -28,7 +28,7 @@ const fetchSubmissions = async () => {
 
   try {
     // Fetch PENDING submissions by default
-    const response = await fetch(`${_API_BASE}/tasks/submissions`, {
+    const response = await fetch(`${API_BASE}/api/v1/tasks/submissions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -49,14 +49,14 @@ const fetchSubmissions = async () => {
   } catch (error) {
     errorMessage.value = error.message;
     if (error.message.includes("Sessione scaduta")) {
-      setTimeout(() => _router.push("/login"), 2500);
+      setTimeout(() => router.push("/login"), 2500);
     }
   } finally {
     loading.value = false;
   }
 };
 
-const _openVerificationModal = (submission) => {
+const openVerificationModal = (submission) => {
   selectedSubmission.value = submission;
   showModal.value = true;
 };
@@ -66,7 +66,7 @@ const closeVerificationModal = () => {
   selectedSubmission.value = null;
 };
 
-const _verifySubmission = async (verdict) => {
+const verifySubmission = async (verdict) => {
   if (!selectedSubmission.value) return;
 
   const token = localStorage.getItem("token");
@@ -76,7 +76,7 @@ const _verifySubmission = async (verdict) => {
 
   try {
     const response = await fetch(
-      `${_API_BASE}/tasks/submissions/${selectedSubmission.value._id}/verify`,
+      `${API_BASE}/api/v1/tasks/submissions/${selectedSubmission.value._id}/verify`,
       {
         method: "POST",
         headers: {
@@ -163,7 +163,7 @@ onMounted(() => {
                     </span>
                   </td>
                   <td class="text-right">
-                    <button class="btn-details" @click="_openVerificationModal(sub)">
+                    <button class="btn-details" @click="openVerificationModal(sub)">
                       Verifica
                     </button>
                   </td>
@@ -234,8 +234,8 @@ onMounted(() => {
             </div>
 
             <div class="modal-actions">
-                <button class="btn-reject" @click="_verifySubmission('REJECTED')">Rifiuta</button>
-                <button class="btn-approve" @click="_verifySubmission('APPROVED')">Approva</button>
+                <button class="btn-reject" @click="verifySubmission('REJECTED')">Rifiuta</button>
+                <button class="btn-approve" @click="verifySubmission('APPROVED')">Approva</button>
             </div>
 
           </div>

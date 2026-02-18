@@ -4,14 +4,10 @@
       <h1>404</h1>
       <h2>Page Not Found</h2>
       <p>The page you are looking for doesn't exist or has been moved.</p>
-      <Button to="/tasks" label="Go to Home" />
+      <RouterLink class="btn" to="/tasks">Go to Home</RouterLink>
     </div>
   </div>
 </template>
-
-<script setup>
-import Button from "@/components/Button.vue";
-</script>
 
 <style scoped>
 .not-found {
@@ -48,5 +44,26 @@ p {
   font-size: 1.2rem;
   margin: 1.5rem 0 2rem;
   color: #2c3e50;
+}
+
+.btn {
+  font-family: "Caladea", serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background-color: #333;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+  text-align: center;
+  min-width: 120px;
+}
+
+.btn:hover {
+  background-color: #555;
 }
 </style>

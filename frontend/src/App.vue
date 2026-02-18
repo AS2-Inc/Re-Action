@@ -24,7 +24,10 @@ export default {
     },
   },
   async mounted() {
-    this.loadTasks();
+    // Only load tasks if on an authenticated route
+    if (this.$route.meta.requiresAuth) {
+      this.loadTasks();
+    }
   },
   methods: {
     async loadTasks() {

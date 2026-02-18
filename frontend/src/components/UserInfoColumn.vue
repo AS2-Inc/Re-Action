@@ -303,14 +303,16 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: sticky;
   justify-content: start;
   gap: 0;
   margin-left: 20px;
-  height: 100%;
+  min-height: 95vh;
   border-radius: 10px;
   width: 15%;
   background-color: #a9ca5f;
   padding: 1rem;
+  top: 2vh;
 }
 .greeting {
   font-family: "Caladea", serif;

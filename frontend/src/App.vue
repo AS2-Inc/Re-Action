@@ -77,7 +77,7 @@ html, body {
   background: #e4e6ce;
   color: #333;
   line-height: 1.6;
-  height: 100vh;
+  min-height: 100vh;
   width: 100vw;
 }
 
@@ -86,7 +86,7 @@ html, body {
   flex-direction: row;
   align-items: flex-start;
   justify-content: flex-start;
-  height: 100%;
+  min-height: 100vh;
   width: 100%;
   padding: 1vh;
   gap: 0;

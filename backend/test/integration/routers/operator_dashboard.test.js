@@ -133,6 +133,7 @@ describe("Operator Dashboard API (RF10)", () => {
       expect(res.body.length).toBe(1);
       expect(res.body[0].name).toBe("Green Valley");
       expect(res.body[0].user_count).toBeDefined();
+      expect(res.body[0].active_goals).toBeDefined(); // Frontend needs this to calc tasksCompleted
     });
   });
 

@@ -166,8 +166,10 @@ onMounted(() => {
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
         <li><a href="/operatorDashboard" class="nav-link active">Home</a></li>
+        <li><a href="/reportsList" class="nav-link">Lista Report</a></li>
         <li><a href="/taskTemplates" class="nav-link">Task Attive</a></li>
         <li><a href="/createTask" class="nav-link">Crea Task</a></li>
+        
       </ul>
     </nav>
 
@@ -231,7 +233,7 @@ onMounted(() => {
                     </td>
                     <td class="task-count">{{ neighborhood.completed_tasks }}</td>
                     <td class="text-right">
-                      <button class="btn-details" @click="viewDetails(neighborhood.id)">
+                      <button class="btn-details" @click="_viewDetails(neighborhood.id)">
                         Vedi Dettagli
                       </button>
                     </td>
@@ -249,9 +251,9 @@ onMounted(() => {
    
     <!-- MODAL -->
     <Teleport to="body">
-        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+        <div v-if="showModal" class="modal-overlay" @click.self="_closeModal">
             <div class="modal-card">
-                <button class="close-btn" @click="closeModal">×</button>
+                <button class="close-btn" @click="_closeModal">×</button>
                 
                 <div v-if="modalLoading" class="modal-loading">
                     <div class="spinner"></div>

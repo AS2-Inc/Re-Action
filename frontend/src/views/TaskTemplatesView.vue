@@ -91,6 +91,7 @@ onMounted(() => {
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
         <li><a href="/operatorDashboard" class="nav-link">Home</a></li>
+        <li><a href="/reportsList" class="nav-link">Lista Report</a></li>
         <li><a href="/taskManagement" class="nav-link active">Task Attive</a></li>
         <li><a href="/createTask" class="nav-link">Crea Task</a></li>
       </ul>
@@ -127,7 +128,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="tasks-grid">
-      <div v-for="tpl in filteredTemplates" :key="tpl._id" class="task-card">
+      <div v-for="tpl in _filteredTemplates" :key="tpl._id" class="task-card">
         <div class="card-content">
             <div class="card-header">
                 <h2 class="task-title">{{ tpl.name }}</h2>
@@ -163,13 +164,13 @@ onMounted(() => {
         </div>
 
         <div class="card-actions">
-            <button @click="updateTemplate(tpl._id)" class="btn-action btn-update">Modifica</button>
-            <button @click="confirmDelete(tpl._id, tpl.title)" class="btn-action btn-delete">Elimina</button>
+            <button @click="_updateTemplate(tpl._id)" class="btn-action btn-update">Modifica</button>
+            <button @click="_confirmDelete(tpl._id, tpl.title)" class="btn-action btn-delete">Elimina</button>
         </div>
       </div>
     </div>
 
-    <div v-if="!loading && filteredTemplates.length === 0" class="empty-state">
+    <div v-if="!loading && _filteredTemplates.length === 0" class="empty-state">
         <p>Nessun modello trovato in questa categoria.</p>
     </div>
   </div>

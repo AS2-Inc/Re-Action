@@ -111,6 +111,7 @@ class OperatorDashboardService {
           user_count,
           submissions_this_week,
           environmental_data: n.environmental_data,
+          active_goals: n.active_goals,
         };
       }),
     );
@@ -195,8 +196,8 @@ class OperatorDashboardService {
         participation_rate:
           users.length > 0
             ? (users.filter((u) => u.stats?.total_tasks_completed > 0).length /
-                users.length) *
-              100
+              users.length) *
+            100
             : 0,
         submissions_by_category: Object.fromEntries(
           submissions_by_category.map((c) => [c._id, c.count]),

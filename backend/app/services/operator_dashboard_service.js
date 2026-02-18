@@ -72,6 +72,7 @@ class OperatorDashboardService {
         user: s.user_id ? `${s.user_id.name} ${s.user_id.surname}` : "Unknown",
         task: s.task_id?.title || "Unknown",
         category: s.task_id?.category,
+        photo_url: s.proof?.photo_url,
         submitted_at: s.submitted_at,
       })),
     };
@@ -112,6 +113,7 @@ class OperatorDashboardService {
           submissions_this_week,
           environmental_data: n.environmental_data,
           active_goals: n.active_goals,
+          normalized_score: n.normalized_score,
         };
       }),
     );
@@ -190,14 +192,15 @@ class OperatorDashboardService {
         ranking_position: neighborhood.ranking_position,
         environmental_data: neighborhood.environmental_data,
         active_goals: neighborhood.active_goals,
+        normalized_score: neighborhood.normalized_score,
       },
       stats: {
         total_users: users.length,
         participation_rate:
           users.length > 0
             ? (users.filter((u) => u.stats?.total_tasks_completed > 0).length /
-              users.length) *
-            100
+                users.length) *
+              100
             : 0,
         submissions_by_category: Object.fromEntries(
           submissions_by_category.map((c) => [c._id, c.count]),

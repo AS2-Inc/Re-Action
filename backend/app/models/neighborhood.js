@@ -7,6 +7,8 @@ export default mongoose.model(
     city: { type: String, required: true },
     total_score: { type: Number, default: 0 }, // Aggregated score from users
     ranking_position: Number,
+    normalized_score: Number,
+    last_ranking_update: Date,
     // Open Data Integration (RF13, RF17)
     environmental_data: {
       air_quality_index: Number,

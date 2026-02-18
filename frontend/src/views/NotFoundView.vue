@@ -4,19 +4,13 @@
       <h1>404</h1>
       <h2>Page Not Found</h2>
       <p>The page you are looking for doesn't exist or has been moved.</p>
-      <button @click="_goHome" class="home-button">Go to Home</button>
+      <Button to="/tasks" label="Go to Home" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
-
-const router = useRouter();
-
-const _goHome = () => {
-  router.push("/tasks");
-};
+import Button from "@/components/Button.vue";
 </script>
 
 <style scoped>
@@ -54,9 +48,5 @@ p {
   font-size: 1.2rem;
   margin: 1.5rem 0 2rem;
   color: #2c3e50;
-}
-
-.home-button {
-  margin-top: 1rem;
 }
 </style>

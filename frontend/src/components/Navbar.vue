@@ -29,6 +29,7 @@ const _props = defineProps({
 	display: inline-flex;
 	align-items: center;
 	padding: 0.5rem 1rem;
+	margin-top: 1rem;
 	border: 2px solid #cac6b2;
 	border-radius: 10px;
 	background: transparent;

@@ -198,6 +198,7 @@ onMounted(() => {
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
         <li><a href="/operatorDashboard" class="nav-link">Home</a></li>
+        <li><a href="/reportsList" class="nav-link">Lista Report</a></li>
         <li><a href="/taskTemplates" class="nav-link">Task attive</a></li>
         <li><a href="/createTask" class="nav-link active">Crea Task</a></li>
       </ul>
@@ -213,15 +214,15 @@ onMounted(() => {
         <div class="tabs-container">
             <button 
                 class="tab-btn" 
-                :class="{ active: currentTab === 'scratch' }"
-                @click="currentTab = 'scratch'"
+                :class="{ active: _currentTab === 'scratch' }"
+                @click="_currentTab = 'scratch'"
             >
                 Crea da Zero
             </button>
             <button 
                 class="tab-btn" 
-                :class="{ active: currentTab === 'template' }"
-                @click="currentTab = 'template'"
+                :class="{ active: _currentTab === 'template' }"
+                @click="_currentTab = 'template'"
             >
                 Usa un Modello
             </button>
@@ -230,7 +231,7 @@ onMounted(() => {
         <div class="form-card">
             
             <!-- FORM: CREATE FROM SCRATCH -->
-            <form v-if="currentTab === 'scratch'" @submit.prevent="createTask">
+            <form v-if="_currentTab === 'scratch'" @submit.prevent="_createTask">
                 <div class="form-header-note">Stai creando un task completamente personalizzato.</div>
                 
                 <div class="form-grid">
@@ -314,14 +315,14 @@ onMounted(() => {
 
 
             <!-- FORM: CREATE FROM TEMPLATE -->
-            <form v-else @submit.prevent="createTaskFromTemplate">
+            <form v-else @submit.prevent="_createTaskFromTemplate">
                 <div class="form-header-note">Scegli un modello predefinito per configurare rapidamente il task.</div>
 
                 <div class="form-grid">
                     <!-- Template Selector -->
                     <div class="form-group span-2">
                         <label>Seleziona Modello</label>
-                        <select v-model="selectedTemplateId" @change="handleTemplateChange" class="input-field" required>
+                        <select v-model="selectedTemplateId" @change="_handleTemplateChange" class="input-field" required>
                             <option value="" disabled>-- Scegli un Modello --</option>
                             <option v-for="tpl in templates" :key="tpl._id" :value="tpl._id">
                                 {{ tpl.name }} ({{ tpl.category }})

@@ -166,8 +166,10 @@ onMounted(() => {
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
         <li><a href="/operatorDashboard" class="nav-link active">Home</a></li>
+        <li><a href="/reportsList" class="nav-link">Lista Report</a></li>
         <li><a href="/taskTemplates" class="nav-link">Task Attive</a></li>
         <li><a href="/createTask" class="nav-link">Crea Task</a></li>
+        
       </ul>
     </nav>
 

@@ -5,9 +5,9 @@
     <h1 class="title">Reaction</h1>
 </div>
 <div class="statistics">
-  <Statistic title="Utenti Registrati" content="1334" />
-  <Statistic title="Comuni Aderenti" content="40" />
-  <Statistic title="TODO" content="TODO" />
+  <Statistic title="Utenti Registrati" :content="totalUsers" />
+  <Statistic title="Comuni Aderenti" :content="totalNeighborhoods" />
+  <Statistic title="CO₂ Risparmiata" :content="totalCO2Saved" />
 </div>
 <div class="button-container">
   <Button to="/login" label="Login" />
@@ -19,11 +19,46 @@
 <script>
 import Button from "@/components/Button.vue";
 import Statistic from "../components/Statistic.vue";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 export default {
   name: "PresentationView",
   components: {
     Statistic,
     Button,
+  },
+  data() {
+    return {
+      totalUsers: 0,
+      totalNeighborhoods: 0,
+      totalCO2Saved: 0,
+      isLoading: false,
+      error: "",
+    };
+  },
+  async mounted() {
+    this.isLoading = true;
+    this.error = "";
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/stats/public`);
+
+      if (!response.ok) {
+        this.error = "Impossibile recuperare le statistiche.";
+        return;
+      }
+
+      const data = await response.json();
+
+      this.totalUsers = Number(data?.total_users || 0);
+      this.totalNeighborhoods = Number(data?.total_neighborhoods || 0);
+      this.totalCO2Saved = Math.round(Number(data?.total_co2_saved || 0));
+    } catch (error) {
+      console.error("Public stats fetch error:", error);
+      this.error = "Impossibile recuperare le statistiche.";
+    } finally {
+      this.isLoading = false;
+    }
   },
 };
 </script>

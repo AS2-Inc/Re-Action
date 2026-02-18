@@ -2,7 +2,7 @@
   <div v-if="isVisible" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Seleziona il tuo quartiere</h2>
+        <h2 class="promt">Seleziona il tuo quartiere</h2>
         <button class="close-btn" @click="closeModal" aria-label="Chiudi">×</button>
       </div>
       <div class="modal-body">
@@ -151,6 +151,12 @@ export default {
 </script>
 
 <style scoped>
+.promt {
+  font-family: 'Caladea', serif;
+  color: #333;
+  font-weight: 700;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -284,7 +290,7 @@ export default {
 
 .neighborhood-item:hover {
   border-color: #A9CA5F;
-  background-color: #f9fdf4;
+  background-color: #f7f2e7;
 }
 
 .neighborhood-item.selected {

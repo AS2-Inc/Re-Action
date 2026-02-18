@@ -13,8 +13,8 @@ describe("EmailService", () => {
       sendMail: sendMailMock,
     };
     // Spy on console.error to keep output clean during expected errors
-    jest.spyOn(console, "error").mockImplementation(() => { });
-    jest.spyOn(console, "log").mockImplementation(() => { });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -80,7 +80,9 @@ describe("EmailService", () => {
       expect(sendMailMock).toHaveBeenCalledTimes(1);
       const callArgs = sendMailMock.mock.calls[0][0];
       expect(callArgs.to).toBe(email);
-      expect(callArgs.subject).toBe("Re:Action - Attivazione Account Operatore");
+      expect(callArgs.subject).toBe(
+        "Re:Action - Attivazione Account Operatore",
+      );
       expect(callArgs.html).toContain("operator-activation-token");
       expect(callArgs.html).toContain(
         "/operator/activate?token=operator-activation-token",
@@ -100,9 +102,7 @@ describe("EmailService", () => {
       expect(callArgs.to).toBe(email);
       expect(callArgs.subject).toBe("Re:Action - Recupero Password");
       expect(callArgs.html).toContain("reset-token-456");
-      expect(callArgs.html).toContain(
-        "/reset-password?token=reset-token-456",
-      );
+      expect(callArgs.html).toContain("/reset-password?token=reset-token-456");
     });
   });
 });

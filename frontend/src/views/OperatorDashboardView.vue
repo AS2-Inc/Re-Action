@@ -99,7 +99,7 @@ const fetchDashboardData = async () => {
 };
 
 // Funzione per il bottone della tabella
-const viewDetails = async (id) => {
+const _viewDetails = async (id) => {
   const token = localStorage.getItem("token");
   if (!token) return;
 
@@ -139,7 +139,7 @@ const viewDetails = async (id) => {
       submissions_this_week: submissionsThisWeek,
       environmental_data: data.neighborhood.environmental_data || {},
     };
-  } catch (err) {
+  } catch (_err) {
     alert("Impossibile caricare i dettagli del quartiere.");
     showModal.value = false;
   } finally {
@@ -147,7 +147,7 @@ const viewDetails = async (id) => {
   }
 };
 
-const closeModal = () => {
+const _closeModal = () => {
   showModal.value = false;
   selectedNeighborhood.value = null;
 };

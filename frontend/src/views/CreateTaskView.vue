@@ -6,7 +6,7 @@ const _router = useRouter();
 const _API_BASE = "http://localhost:5000/api/v1";
 
 // TABS
-const currentTab = ref("scratch"); // 'scratch' | 'template'
+const _currentTab = ref("scratch"); // 'scratch' | 'template'
 
 // COMMON STATE
 const loading = ref(false);
@@ -60,7 +60,7 @@ const fetchTemplates = async () => {
   }
 };
 
-const handleTemplateChange = () => {
+const _handleTemplateChange = () => {
   if (!selectedTemplate.value) return;
 
   // Reset specific form data
@@ -80,7 +80,7 @@ const handleTemplateChange = () => {
   }
 };
 
-const createTask = async () => {
+const _createTask = async () => {
   loading.value = true;
   error.value = null;
   successMessage.value = "";
@@ -134,7 +134,7 @@ const createTask = async () => {
   }
 };
 
-const createTaskFromTemplate = async () => {
+const _createTaskFromTemplate = async () => {
   if (!selectedTemplateId.value) return;
 
   loading.value = true;

@@ -108,7 +108,7 @@ export default {
       },
       loading: false,
       error: "",
-      
+
       updatingProfile: false,
       profileMessage: "",
       profileError: false,
@@ -154,8 +154,8 @@ export default {
         });
 
         if (!response.ok) {
-           const data = await response.json().catch(() => ({}));
-           throw new Error(data.error || "Failed to update profile");
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to update profile");
         }
 
         this.profileMessage = "Profilo aggiornato con successo.";
@@ -180,23 +180,30 @@ export default {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/users/change-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            current_password: this.pwdForm.current_password,
-            new_password: this.pwdForm.new_password,
-          }),
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/api/v1/users/change-password`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              current_password: this.pwdForm.current_password,
+              new_password: this.pwdForm.new_password,
+            }),
+          },
+        );
 
         if (!response.ok) {
-           const data = await response.json().catch(() => ({}));
-           throw new Error(data.error || "Failed to change password");
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to change password");
         }
 
         this.pwdMessage = "Password cambiata con successo.";
-        this.pwdForm = { current_password: "", new_password: "", confirm_password: "" };
+        this.pwdForm = {
+          current_password: "",
+          new_password: "",
+          confirm_password: "",
+        };
       } catch (err) {
         console.error(err);
         this.pwdError = true;

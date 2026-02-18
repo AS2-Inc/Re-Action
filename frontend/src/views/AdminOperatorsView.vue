@@ -164,16 +164,20 @@ export default {
       }
     },
     async forceResetPassword(id) {
-      if (!confirm("Inviare email di reset password a questo operatore?")) return;
+      if (!confirm("Inviare email di reset password a questo operatore?"))
+        return;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/operators/${id}/force-reset-password`, {
-          method: "POST",
-          headers: this.getAuthHeaders(),
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/api/v1/operators/${id}/force-reset-password`,
+          {
+            method: "POST",
+            headers: this.getAuthHeaders(),
+          },
+        );
 
         if (!response.ok) throw new Error("Failed to send reset email");
-        
+
         alert("Email di reset inviata con successo.");
       } catch (err) {
         console.error(err);
@@ -184,15 +188,18 @@ export default {
       this.creating = true;
       this.createError = "";
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/operators/register`, {
-          method: "POST",
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(this.newOperator),
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/api/v1/operators/register`,
+          {
+            method: "POST",
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(this.newOperator),
+          },
+        );
 
         if (!response.ok) {
-           const data = await response.json().catch(() => ({}));
-           throw new Error(data.error || "Failed to create");
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to create");
         }
 
         await this.fetchOperators();

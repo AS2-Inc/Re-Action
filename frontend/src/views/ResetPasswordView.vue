@@ -102,15 +102,17 @@ export default {
         });
 
         if (response.ok) {
-          this.success = "Password aggiornata con successo. Reindirizzamento al login...";
+          this.success =
+            "Password aggiornata con successo. Reindirizzamento al login...";
           setTimeout(() => {
-            this.$router.push(this.type === 'operator' ? '/admin' : '/login');
+            this.$router.push(this.type === "operator" ? "/admin" : "/login");
           }, 2000);
           return;
         }
 
         const payload = await response.json().catch(() => ({}));
-        this.error = payload?.error || "Errore durante il reset della password.";
+        this.error =
+          payload?.error || "Errore durante il reset della password.";
       } catch (error) {
         console.error(error);
         this.error = "Impossibile contattare il server.";

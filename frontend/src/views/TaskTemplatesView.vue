@@ -54,7 +54,7 @@ const fetchTemplates = async () => {
 };
 
 // Logica di filtraggio per i tab
-const filteredTemplates = computed(() => {
+const _filteredTemplates = computed(() => {
   if (currentTab.value === "all") return templates.value;
 
   return templates.value.filter((tpl) => {
@@ -65,7 +65,7 @@ const filteredTemplates = computed(() => {
   });
 });
 
-const confirmDelete = (templateId, templateTitle) => {
+const _confirmDelete = (templateId, templateTitle) => {
   const proceed = confirm(
     `Vuoi davvero eliminare il modello "${templateTitle}"?`,
   );
@@ -75,7 +75,7 @@ const confirmDelete = (templateId, templateTitle) => {
   }
 };
 
-const updateTemplate = (templateId) => {
+const _updateTemplate = (templateId) => {
   console.log(`Modifica richiesta per: ${templateId}`);
   alert("Reindirizzamento alla pagina di modifica...");
 };

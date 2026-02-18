@@ -39,7 +39,7 @@ router.post(
       await EmailService.send_password_reset_email(
         operator.email,
         token,
-        "operator"
+        "operator",
       );
 
       res.status(200).json({ message: "Reset email sent" });
@@ -47,7 +47,7 @@ router.post(
       console.error(err);
       res.status(500).json({ error: "Failed to force reset password" });
     }
-  }
+  },
 );
 
 /**
@@ -182,7 +182,10 @@ router.post("/login", async (req, res) => {
  */
 router.get("/", token_checker, check_role(["admin"]), async (_req, res) => {
   try {
-    const operators = await Operator.find({}, "-password -activation_token -reset_password_token");
+    const operators = await Operator.find(
+      {},
+      "-password -activation_token -reset_password_token",
+    );
     res.status(200).json(operators);
   } catch (err) {
     console.error(err);
@@ -194,18 +197,23 @@ router.get("/", token_checker, check_role(["admin"]), async (_req, res) => {
  * DELETE /api/v1/operators/:id
  * Delete an operator (Admin only)
  */
-router.delete("/:id", token_checker, check_role(["admin"]), async (req, res) => {
-  try {
-    const operator = await Operator.findByIdAndDelete(req.params.id);
-    if (!operator) {
-      return res.status(404).json({ error: "Operator not found" });
+router.delete(
+  "/:id",
+  token_checker,
+  check_role(["admin"]),
+  async (req, res) => {
+    try {
+      const operator = await Operator.findByIdAndDelete(req.params.id);
+      if (!operator) {
+        return res.status(404).json({ error: "Operator not found" });
+      }
+      res.status(204).send();
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to delete operator" });
     }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to delete operator" });
-  }
-});
+  },
+);
 
 // GET /api/v1/operators/me
 router.get("/me", token_checker, async (req, res) => {

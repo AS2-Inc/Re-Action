@@ -88,7 +88,7 @@ export default {
           }
           this.success = "Login admin effettuato con successo.";
           setTimeout(() => {
-            if (operatorData.role === 'admin') {
+            if (operatorData.role === "admin") {
               this.$router.push("/admin/operators");
             } else {
               this.$router.push("/operatorDashboard");

@@ -94,11 +94,12 @@ export default {
               token: this.token,
               password: this.form.password,
             }),
-          }
+          },
         );
 
         if (response.ok) {
-          this.success = "Account attivato con successo! Reindirizzamento al login...";
+          this.success =
+            "Account attivato con successo! Reindirizzamento al login...";
           setTimeout(() => {
             this.$router.push("/admin"); // Redirect to admin/operator login
           }, 2000);

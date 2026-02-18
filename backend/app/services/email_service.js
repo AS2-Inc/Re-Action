@@ -65,10 +65,14 @@ class EmailService {
       <a href="${link}">Attiva Account Operatore</a>
       <p>Il link scadrà tra 12 ore.</p>
     `;
-    return this.send_email(email, "Re:Action - Attivazione Account Operatore", html);
+    return this.send_email(
+      email,
+      "Re:Action - Attivazione Account Operatore",
+      html,
+    );
   }
 
-  async send_password_reset_email(email, token, type = 'user') {
+  async send_password_reset_email(email, token, type = "user") {
     const link = `${this.frontend_url}/reset-password?token=${token}&type=${type}`;
     const html = `
       <h1>Recupero Password</h1>

@@ -4,6 +4,16 @@
     <h2 class="subtitle">Benvenuto in</h2>
     <h1 class="title">Reaction</h1>
 </div>
+<div class="app-description">
+  <p>
+    Reaction è ha come obiettivo spingere i cittadini a compiere quotidianamente azioni sostenibili attraverso un sistema di premi2 e una classifica dei quartieri più virtuosi. 
+  </p>
+  <br>
+  <p>
+      
+    Partecipa alle attività locali, guadagna punti e contribuisci a rendere il tuo quartiere più verde e sostenibile.
+  </p>
+</div>
 <div class="statistics">
   <Statistic title="Utenti Registrati" :content="totalUsers" />
   <Statistic title="Comuni Aderenti" :content="totalNeighborhoods" />
@@ -88,6 +98,22 @@ export default {
   width: 80vw;
   border-radius: 10px;
 }
+.app-description {
+  padding-top: 3rem;
+  max-width: 900px;
+  text-align: center;
+  font-size: 1.2rem;
+  color: #555;
+}
+
+.app-description p {
+  margin: 0;
+  font-size: 1.6rem;
+  font-family: 'Caladea', serif;
+  font-weight: 500;
+
+}
+
 .subtitle {
   font-weight: 100;
   font-size: 1.3rem;
@@ -106,8 +132,7 @@ export default {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 5rem;
-  margin-bottom: 10vh;
+  margin-top: 3rem;
   gap: 6rem;
 }
 .button-container {

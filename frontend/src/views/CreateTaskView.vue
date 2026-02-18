@@ -13,6 +13,7 @@ const currentTab = ref("scratch"); // 'scratch' | 'template'
 const loading = ref(false);
 const error = ref(null);
 const successMessage = ref("");
+const neighborhoods = ref([]);
 
 // --- CREATE FROM SCRATCH STATE ---
 const formData = ref({
@@ -43,6 +44,18 @@ const selectedTemplate = computed(() =>
 );
 
 // --- API CALLS ---
+
+const fetchNeighborhoods = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/neighborhood`);
+    if (response.ok) {
+      const data = await response.json();
+      neighborhoods.value = Array.isArray(data) ? data : [];
+    }
+  } catch (err) {
+    console.error("Error fetching neighborhoods", err);
+  }
+};
 
 const fetchTemplates = async () => {
   const token = localStorage.getItem("token");
@@ -190,6 +203,7 @@ const createTaskFromTemplate = async () => {
 
 onMounted(() => {
   fetchTemplates();
+  fetchNeighborhoods();
 });
 </script>
 
@@ -299,10 +313,15 @@ onMounted(() => {
                         </select>
                     </div>
 
-                    <!-- Neighborhood ID -->
+                    <!-- Neighborhood -->
                     <div class="form-group span-2">
-                        <label>ID Quartiere (Opzionale)</label>
-                        <input v-model="formData.neighborhood_id" type="text" class="input-field" placeholder="Inserisci l'ID del quartiere se specifico" />
+                        <label>Quartiere (Opzionale)</label>
+                        <select v-model="formData.neighborhood_id" class="input-field">
+                            <option value="">-- Nessun quartiere specifico --</option>
+                            <option v-for="n in neighborhoods" :key="n._id" :value="n._id">
+                                {{ n.name }}
+                            </option>
+                        </select>
                     </div>
                 </div>
 
@@ -357,10 +376,15 @@ onMounted(() => {
                             />
                         </div>
 
-                         <!-- Neighborhood ID -->
+                         <!-- Neighborhood -->
                          <div class="form-group">
-                            <label>ID Quartiere (Opzionale)</label>
-                            <input v-model="templateFormData.neighborhood_id" type="text" class="input-field" />
+                            <label>Quartiere (Opzionale)</label>
+                            <select v-model="templateFormData.neighborhood_id" class="input-field">
+                                <option value="">-- Nessun quartiere specifico --</option>
+                                <option v-for="n in neighborhoods" :key="n._id" :value="n._id">
+                                    {{ n.name }}
+                                </option>
+                            </select>
                         </div>
 
                          <!-- DYNAMIC FIELDS FROM TEMPLATE CONFIG -->

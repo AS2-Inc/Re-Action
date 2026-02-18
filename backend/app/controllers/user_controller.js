@@ -32,8 +32,8 @@ export const login = async (req, res) => {
 
 export const google_auth = async (req, res) => {
   try {
-    const { credential } = req.body;
-    const result = await UserService.google_auth(credential);
+    const { credential, neighborhood } = req.body;
+    const result = await UserService.google_auth(credential, neighborhood);
 
     // Set JWT in HttpOnly cookie
     res.cookie("token", result.token, {

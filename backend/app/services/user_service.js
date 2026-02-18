@@ -45,7 +45,7 @@ export const login = async (email, password) => {
   };
 };
 
-export const google_auth = async (credential) => {
+export const google_auth = async (credential, neighborhood = null) => {
   const ticket = await client.verifyIdToken({
     idToken: credential,
     audience: process.env.GOOGLE_CLIENT_ID,
@@ -55,6 +55,7 @@ export const google_auth = async (credential) => {
 
   let user = await User.findOne({ email }).exec();
 
+  // Only create new user with neighborhood if user doesn't exist
   if (!user) {
     user = new User({
       name: given_name,
@@ -62,7 +63,7 @@ export const google_auth = async (credential) => {
       email: email,
       auth_provider: "google",
       is_active: true,
-      neighborhood_id: null,
+      neighborhood_id: neighborhood || null,
     });
     await user.save();
   }

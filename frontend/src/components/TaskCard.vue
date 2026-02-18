@@ -31,11 +31,11 @@
     <div class="task-meta">
       <div class="meta-item">
         <span class="meta-label">Categoria</span>
-        <span class="meta-value">{{ task.category }}</span>
+        <span class="meta-value">{{ formatProperty(task.category) }}</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Difficoltà</span>
-        <span class="meta-value">{{ task.difficulty || "-" }}</span>
+        <span class="meta-value">{{ formatProperty(task.difficulty) || "-" }}</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Punti</span>
@@ -43,11 +43,11 @@
       </div>
       <div class="meta-item">
         <span class="meta-label">Frequenza</span>
-        <span class="meta-value">{{ capitalizeFrequency(task.frequency) }}</span>
+        <span class="meta-value">{{ formatProperty(task.frequency) }}</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Verifica</span>
-        <span class="meta-value">{{ task.verification_method }}</span>
+        <span class="meta-value">{{ formatProperty(task.verification_method) }}</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Tempo rimanente</span>
@@ -108,11 +108,15 @@ export default {
       if (status === "EXPIRED") return "status-expired";
       return "status-assigned";
     },
-    capitalizeFrequency(frequency) {
-      if (!frequency) return "-";
-      return (
-        frequency.charAt(0).toUpperCase() + frequency.slice(1).toLowerCase()
-      );
+    formatProperty(value) {
+      if (!value) return "-";
+      // Convert snake_case and UPPER_CASE to Title Case with spaces
+      return value
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
     },
     hasImpactMetrics(task) {
       const metrics = task.impact_metrics || {};

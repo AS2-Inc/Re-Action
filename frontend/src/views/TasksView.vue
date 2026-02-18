@@ -141,11 +141,7 @@ export default {
       this.selectedTaskForPhoto = {};
     },
     async onPhotoSubmitted(result) {
-      if (result.submission_status === "PENDING") {
-        alert("Foto inviata! In attesa di approvazione.");
-      } else {
-        alert(`Foto inviata con successo! +${result.points_earned} punti.`);
-      }
+      this.closePhotoModal();
       this.$emit("points-updated");
       await this.fetchTasks();
     },

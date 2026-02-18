@@ -216,7 +216,6 @@ export default {
     },
     logout() {
       localStorage.removeItem("authenticated");
-      // Optionally call backend logout to clear cookie
       this.$router.push("/login");
     },
   },

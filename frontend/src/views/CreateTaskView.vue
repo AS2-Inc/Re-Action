@@ -212,10 +212,10 @@ onMounted(() => {
     <nav class="dashboard-navbar">
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
-        <li><a href="/operatorDashboard" class="nav-link">Home</a></li>
-        <li><a href="/reportsList" class="nav-link">Lista Report</a></li>
-        <li><a href="/taskTemplates" class="nav-link">Task attive</a></li>
-        <li><a href="/createTask" class="nav-link active">Crea Task</a></li>
+        <li><router-link to="/operatorDashboard" class="nav-link">Home</router-link></li>
+        <li><router-link to="/reportsList" class="nav-link">Lista Report</router-link></li>
+        <li><router-link to="/taskTemplates" class="nav-link">Task attive</router-link></li>
+        <li><router-link to="/createTask" class="nav-link active">Crea Task</router-link></li>
       </ul>
     </nav>
 

@@ -5,6 +5,7 @@ import Task from "../models/task.js";
 import User from "../models/user.js";
 import UserTask from "../models/user_task.js";
 import BadgeService from "./badge_service.js";
+import leaderboard_service from "./leaderboard_service.js";
 import * as GPSVerifier from "./verification/gps_verifier.js";
 import * as PhotoVerifier from "./verification/photo_verifier.js";
 import * as QRVerifier from "./verification/qr_verifier.js";
@@ -323,9 +324,11 @@ export const submit_task = async (user_id, task_id, proof) => {
   }
 
   // 2. Create Submission
+  const user = await User.findById(user_id);
   const submission = new Submission({
     user_id: user_id,
     task_id: task._id,
+    neighborhood_id: user?.neighborhood_id || null,
     status: status,
     proof: proof,
     completed_at: status === "APPROVED" ? new Date() : null,
@@ -339,6 +342,9 @@ export const submit_task = async (user_id, task_id, proof) => {
     const { new_badges, points_awarded } = await award_points(user_id, task_id);
     response.new_badges = new_badges;
     response.points_earned = points_awarded;
+
+    // Recalculate leaderboard immediately
+    await leaderboard_service.get_leaderboard();
 
     // Mark UserTask completed
     if (user_task) {
@@ -388,6 +394,9 @@ export const verify_submission = async (submission_id, verdict) => {
 
   if (verdict === "APPROVED") {
     await award_points(submission.user_id, submission.task_id);
+
+    // Recalculate leaderboard immediately
+    await leaderboard_service.get_leaderboard();
 
     // Update UserTask if exists
     // Find assigned user task

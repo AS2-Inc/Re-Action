@@ -50,20 +50,11 @@ const fetchDashboardData = async () => {
       : neighData.data || [];
 
     neighborhoods.value = arrayQuartieri.map((n) => {
-      // Calcoliamo i "task completati" sommando i current_points dagli obiettivi (active_goals)
-      let tasksCompleted = 0;
-      if (n.active_goals && Array.isArray(n.active_goals)) {
-        tasksCompleted = n.active_goals.reduce(
-          (sum, goal) => sum + (goal.current_points || 0),
-          0,
-        );
-      }
-
       return {
         id: n._id || n.id,
         name: n.name || "N/A",
         score: n.normalized_score || 0,
-        completed_tasks: tasksCompleted,
+        completed_tasks: n.completed_tasks || 0,
       };
     });
 
@@ -147,7 +138,7 @@ const _viewDetails = async (id) => {
   }
 };
 
-const _closeModal = () => {
+const closeModal = () => {
   showModal.value = false;
   selectedNeighborhood.value = null;
 };
@@ -165,10 +156,10 @@ onMounted(() => {
     <nav class="dashboard-navbar">
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
-        <li><a href="/operatorDashboard" class="nav-link active">Home</a></li>
-        <li><a href="/reportsList" class="nav-link">Lista Report</a></li>
-        <li><a href="/taskTemplates" class="nav-link">Task Attive</a></li>
-        <li><a href="/createTask" class="nav-link">Crea Task</a></li>
+        <li><router-link to="/operatorDashboard" class="nav-link active">Home</router-link></li>
+        <li><router-link to="/reportsList" class="nav-link">Lista Report</router-link></li>
+        <li><router-link to="/taskTemplates" class="nav-link">Task Attive</router-link></li>
+        <li><router-link to="/createTask" class="nav-link">Crea Task</router-link></li>
         
       </ul>
     </nav>
@@ -251,9 +242,9 @@ onMounted(() => {
    
     <!-- MODAL -->
     <Teleport to="body">
-        <div v-if="showModal" class="modal-overlay" @click.self="_closeModal">
+        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
             <div class="modal-card">
-                <button class="close-btn" @click="_closeModal">×</button>
+                <button class="close-btn" @click="closeModal">×</button>
                 
                 <div v-if="modalLoading" class="modal-loading">
                     <div class="spinner"></div>

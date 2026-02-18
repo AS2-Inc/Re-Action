@@ -65,6 +65,14 @@ class UserDashboardService {
           active_goals: neighborhood.active_goals.filter(
             (g) => !g.is_completed,
           ),
+          ambient: {
+            air_quality:
+              neighborhood.environmental_data?.air_quality_index || 0,
+            waste_recycled:
+              neighborhood.environmental_data?.waste_management || 0,
+            improvement:
+              neighborhood.environmental_data?.improvement_trend || 0,
+          },
         };
       }
     }

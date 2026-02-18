@@ -24,18 +24,61 @@
                     <span>{{ Math.round(progressPercent) }}%</span>
                     <span>{{ points }} pt</span>
                   </div>
+                  <div class="user-info-card" v-if="neighborhoodName">
+                    <div class="neighborhood-header">
+                      <h3 class="neighborhood-name"> Statistiche Ambientali</h3>
+                    </div>
+                    <div class="neighborhood-stats">
+                      <div class="neighborhood-stat">
+                        <span class="stat-label">CO₂ salvata</span>
+                        <span class="stat-value">{{ co2Saved }} kg</span>
+                      </div>
+                      <div class="neighborhood-stat">
+                        <span class="stat-label">Rifiuti riciclati</span>
+                        <span class="stat-value">{{ wasteRecycled }} kg</span>
+                      </div>
+                      <div class="neighborhood-stat">
+                        <span class="stat-label">KM verde</span>
+                        <span class="stat-value">{{ kmGreen }} km</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="level-bar">
-                  <div class="level-bar__header">
-                    <span class="level-label">Quartiere</span>
-                    <span class="level-value">TODO</span>
+              </div>
+              <div class="neighborhood-env-card" v-if="neighborhoodName">
+                <div class="neighborhood-header">
+                  <h3 class="neighborhood-name">{{ neighborhoodName }} - Dati ambientali</h3>
+                  <div class="neighborhood-core-stats">
+                    <div class="total-score-card">
+                      <div class="total-score-display">
+                        <span class="total-score-icon">️🏛️</span>
+                        <div class="total-score-content">
+                          <p class="total-score-label">Punteggio totale quartiere</p>
+                          <p class="total-score-value">{{ neighborhoodTotalScore }}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="total-score-side-info">
+                      <div class="side-info-item">
+                        <p class="side-info-label">Posizione</p>
+                        <p class="side-info-value">#{{ neighborhoodRankingPosition }}</p>
+                      </div>
+                      <div class="side-info-item">
+                        <p class="side-info-label">Miglioramento</p>
+                        <p class="side-info-value" >{{ neighborhoodImprovement }}%</p>
+                      </div>
+                    </div>
+
                   </div>
-                  <div class="level-bar__track">
-                    <div class="level-bar__fill level-bar__fill--placeholder"></div>
+                </div>
+                <div class="neighborhood-stats">
+                  <div class="neighborhood-stat">
+                    <span class="stat-label">Qualità dell'aria </span>
+                    <span class="stat-value">{{ neighborhoodAirQuality }}%</span>
                   </div>
-                  <div class="level-bar__meta">
-                    <span>TODO</span>
-                    <span>TODO</span>
+                  <div class="neighborhood-stat">
+                    <span class="stat-label">Rifiuti riciclati (quartiere)</span>
+                    <span class="stat-value">{{ neighborhoodWasteRecycled }} kg</span>
                   </div>
                 </div>
               </div>
@@ -106,6 +149,15 @@ export default {
       level: "",
       levelThresholds: [],
       streak: 0,
+      neighborhoodTotalScore: 0,
+      neighborhoodName: "",
+      neighborhoodRankingPosition: 0,
+      co2Saved: 0,
+      wasteRecycled: 0,
+      kmGreen: 0,
+      neighborhoodCo2Saved: 0,
+      neighborhoodWasteRecycled: 0,
+      neighborhoodKmGreen: 0,
       isLoading: false,
       error: "",
     };
@@ -186,6 +238,20 @@ export default {
       this.points = dashboardData?.user?.points || 0;
       this.level = dashboardData?.user?.level || "";
       this.streak = dashboardData?.user?.streak || 0;
+      this.neighborhoodTotalScore =
+        dashboardData?.neighborhood?.total_score || 0;
+      this.neighborhoodName = dashboardData?.neighborhood?.name || "";
+      this.neighborhoodRankingPosition =
+        dashboardData?.neighborhood?.ranking_position || 0;
+      this.co2Saved = dashboardData?.ambient?.co2_saved || 0;
+      this.wasteRecycled = dashboardData?.ambient?.waste_recycled || 0;
+      this.kmGreen = dashboardData?.ambient?.km_green || 0;
+      this.neighborhoodAirQuality =
+        dashboardData?.neighborhood?.ambient?.air_quality || 0;
+      this.neighborhoodWasteRecycled =
+        dashboardData?.neighborhood?.ambient?.waste_recycled || 0;
+      this.neighborhoodImprovement =
+        dashboardData?.neighborhood?.ambient?.improvement || 0;
       this.levelThresholds = dashboardData?.level_thresholds || [];
     } catch (error) {
       console.error(error);
@@ -198,6 +264,7 @@ export default {
 </script>
 
 <style scoped>
+
 .home {
     margin: 0;
     padding: 0;
@@ -278,6 +345,198 @@ export default {
   flex-direction: column;
   gap: 1rem;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.total-score-card {
+  width: 100%;
+  max-width: 720px;
+  background-color: rgba(127, 158, 62, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.total-score-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.total-score-icon {
+  font-size: 3rem;
+}
+
+.total-score-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.total-score-label {
+  margin: 0;
+  font-family: "Caladea", serif;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.total-score-side-info{
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+}
+
+
+.total-score-value {
+  margin: 0;
+  font-family: "Caladea", serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #7f9e3e;
+}
+
+.user-info-card {
+  width: 100%;
+  max-width: 720px;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  margin-top: 1rem;
+}
+
+.neighborhood-env-card {
+  width: 100%;
+  max-width: 720px;
+  background-color: #f7f2e7;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  margin-top: 1rem;
+}
+
+.neighborhood-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.neighborhood-name {
+  margin: 0;
+  padding: 0;
+  font-family: "Caladea", serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #333;
+}
+
+
+.neighborhood-stats {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.neighborhood-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+  padding: 0.75rem;
+  background-color: rgba(127, 158, 62, 0.1);
+  border-radius: 8px;
+}
+
+.stat-label {
+  font-family: "Caladea", serif;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.stat-value {
+  font-family: "Caladea", serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #7f9e3e;
+}
+
+.side-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(127, 158, 62, 0.1);
+  border-radius: 8px;
+}
+
+.side-info-label {
+  font-family: "Caladea", serif;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.side-info-value {
+  font-family: "Caladea", serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #7f9e3e;
+}
+
+.trend-up {
+  color: #22c55e;
+}
+
+.trend-down {
+  color: #ef4444;
+}
+
+.trend-stable {
+  color: #7f9e3e;
+}
+
+.neighborhood-card {
+  width: 100%;
+  max-width: 720px;
+  background-color: #f7f2e7;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.neighborhood-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.neighborhood-icon {
+  font-size: 3rem;
+}
+
+.neighborhood-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.neighborhood-label {
+  margin: 0;
+  font-family: "Caladea", serif;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.neighborhood-value {
+  margin: 0;
+  font-family: "Caladea", serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.neighborhood-core-stats{
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
 }
 
 .level-bar {

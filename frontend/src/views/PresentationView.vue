@@ -6,7 +6,7 @@
 </div>
 <div class="app-description">
   <p>
-    Reaction è ha come obiettivo spingere i cittadini a compiere quotidianamente azioni sostenibili attraverso un sistema di premi2 e una classifica dei quartieri più virtuosi. 
+    Reaction è ha come obiettivo spingere i cittadini a compiere quotidianamente azioni sostenibili attraverso un sistema di premi e una classifica dei quartieri più virtuosi. 
   </p>
   <br>
   <p>

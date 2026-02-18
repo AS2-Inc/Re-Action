@@ -1,16 +1,13 @@
 <template>
   <div class="profile-container">
-    <div class="header">
-      <h1 class="title">Il tuo Profilo</h1>
-      <button class="btn logout-btn" @click="logout">Logout</button>
-    </div>
-
-    <div class="content">
-      <div v-if="loading" class="loading">Caricamento...</div>
-      <div v-else-if="error" class="error-message">{{ error }}</div>
+    <Navbar :links="navLinks" />
+    <h1 class="title">Il tuo Profilo</h1>
+    <button class="btn logout-btn" @click="logout">Logout</button>
+    <hr class="section-sep" />
+    <div v-if="loading" class="loading">Caricamento...</div>
+    <div v-else-if="error" class="error-message">{{ error }}</div>
 
       <div v-else class="profile-forms">
-        <!-- Personal Info Form -->
         <section class="form-section">
           <h2>Informazioni Personali</h2>
           <form @submit.prevent="updateProfile">
@@ -81,11 +78,11 @@
           </form>
         </section>
       </div>
-    </div>
   </div>
 </template>
 
 <script>
+import Navbar from "@/components/Navbar.vue";
 import TextInputForm from "@/components/TextInputForm.vue";
 
 const API_BASE_URL =
@@ -93,9 +90,14 @@ const API_BASE_URL =
 
 export default {
   name: "UserProfileView",
-  components: { TextInputForm },
+  components: { TextInputForm, Navbar },
   data() {
     return {
+      navLinks: [
+        { label: "Tasks", to: "/tasks" },
+        { label: "Stats", to: "/stats" },
+        { label: "Profilo", to: "/profile" },
+      ],
       user: {
         name: "",
         surname: "",
@@ -223,30 +225,35 @@ export default {
 
 <style scoped>
 .profile-container {
-  padding: 2rem;
-  max-width: 800px;
+  padding-left: 2rem;
+  padding-right: 2rem;
   margin: 0 auto;
   font-family: "Caladea", serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
   width: 100%;
+  padding-bottom: 2rem;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 1rem;
+.section-sep {
+  width: 70%;
+  max-width: 720px;
+  border: 1px solid #333;
+  margin: 0.5rem 0 1.5rem;
 }
+
 
 .title {
+  padding-top: 1rem;
   font-size: 2rem;
   font-weight: 700;
   color: #333;
 }
 
 .logout-btn {
-  background-color: #b00020;
+  background-color: #b91c1c;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 5px;
@@ -259,19 +266,23 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 3rem;
+  width: 100%;
+  align-items: center;
 }
 
 .form-section {
-  background-color: white;
+  max-width: 720px;
+  background-color: #f7f2e7;
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%;
 }
 
 .form-section h2 {
   margin-bottom: 1.5rem;
   color: #555;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #333;
   padding-bottom: 0.5rem;
 }
 
@@ -282,12 +293,20 @@ export default {
 }
 
 .btn {
+  font-family: "Caladea", serif;
+  font-weight: 700;
+  font-size: 1rem;
   padding: 0.75rem 1.5rem;
   border-radius: 5px;
   border: none;
   cursor: pointer;
   font-weight: 600;
   color: white;
+  transition: opacity 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  opacity: 0.8;
 }
 
 .btn:disabled {
@@ -296,11 +315,19 @@ export default {
 }
 
 .save-btn {
-  background-color: #2e7d32;
+  background-color: rgb(111, 178, 66);
+}
+
+.save-btn:hover:not(:disabled) {
+  opacity: 0.8;
 }
 
 .warning-btn {
-  background-color: #f57c00;
+  background-color: #d97706;
+}
+
+.warning-btn:hover:not(:disabled) {
+  opacity: 0.8;
 }
 
 .form-message {
@@ -310,7 +337,7 @@ export default {
 }
 
 .form-message.error {
-  color: #d32f2f;
+  color: #b91c1c;
 }
 
 .form-message.success {
@@ -318,7 +345,7 @@ export default {
 }
 
 .error-message {
-  color: #d32f2f;
+  color: #b91c1c;
   background-color: #ffebee;
   padding: 1rem;
   border-radius: 4px;

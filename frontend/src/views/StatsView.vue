@@ -219,12 +219,12 @@ export default {
     height: 100%;
 }
 .data-display {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: start;
-    width: 100%;
-    height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: start;
+  width: 100%;
+  height: 100%;
   gap: 2rem;
 }
 

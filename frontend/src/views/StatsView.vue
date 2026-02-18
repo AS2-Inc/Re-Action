@@ -348,12 +348,14 @@ export default {
 }
 
 .total-score-card {
+  display: flex;
+  align-items: center;
+  
   width: 100%;
   max-width: 720px;
   background-color: rgba(127, 158, 62, 0.1);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .total-score-display {
@@ -363,7 +365,7 @@ export default {
 }
 
 .total-score-icon {
-  font-size: 3rem;
+  font-size: 3.5rem;
 }
 
 .total-score-content {
@@ -375,7 +377,7 @@ export default {
 .total-score-label {
   margin: 0;
   font-family: "Caladea", serif;
-  font-size: 0.95rem;
+  font-size: 1.2rem;
   color: #333;
 }
 
@@ -389,7 +391,7 @@ export default {
 .total-score-value {
   margin: 0;
   font-family: "Caladea", serif;
-  font-size: 1.6rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #7f9e3e;
 }
@@ -470,13 +472,13 @@ export default {
 
 .side-info-label {
   font-family: "Caladea", serif;
-  font-size: 0.75rem;
+  font-size: 1rem;
   color: #666;
 }
 
 .side-info-value {
   font-family: "Caladea", serif;
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: #7f9e3e;
 }

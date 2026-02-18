@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-const _router = useRouter();
+const router = useRouter();
 
 const environmentalData = ref({});
 const neighborhoods = ref([]);
@@ -15,13 +15,13 @@ const showModal = ref(false);
 const selectedNeighborhood = ref(null);
 const modalLoading = ref(false);
 
-const _API_BASE = "http://localhost:5000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const fetchDashboardData = async () => {
   const token = localStorage.getItem("token");
 
   if (!token) {
-    _router.push("/login");
+    router.push("/login");
     return;
   }
 
@@ -30,7 +30,7 @@ const fetchDashboardData = async () => {
 
   try {
     const [neighResponse] = await Promise.all([
-      fetch(`${_API_BASE}/operators/dashboard/neighborhoods`, {
+      fetch(`${API_BASE}/api/v1/operators/dashboard/neighborhoods`, {
         headers: { "x-access-token": token },
       }),
     ]);
@@ -91,7 +91,7 @@ const fetchDashboardData = async () => {
     errorMessage.value = error.message;
     // Redirect automatico se la sessione è scaduta
     if (error.message.includes("Sessione scaduta")) {
-      setTimeout(() => _router.push("/login"), 2500);
+      setTimeout(() => router.push("/login"), 2500);
     }
   } finally {
     loading.value = false;
@@ -99,7 +99,7 @@ const fetchDashboardData = async () => {
 };
 
 // Funzione per il bottone della tabella
-const _viewDetails = async (id) => {
+const viewDetails = async (id) => {
   const token = localStorage.getItem("token");
   if (!token) return;
 
@@ -109,7 +109,7 @@ const _viewDetails = async (id) => {
 
   try {
     const response = await fetch(
-      `${_API_BASE}/operators/dashboard/neighborhoods/${id}`,
+      `${API_BASE}/api/v1/operators/dashboard/neighborhoods/${id}`,
       {
         headers: { "x-access-token": token },
       },
@@ -147,7 +147,7 @@ const _viewDetails = async (id) => {
   }
 };
 
-const _closeModal = () => {
+const closeModal = () => {
   showModal.value = false;
   selectedNeighborhood.value = null;
 };
@@ -233,7 +233,7 @@ onMounted(() => {
                     </td>
                     <td class="task-count">{{ neighborhood.completed_tasks }}</td>
                     <td class="text-right">
-                      <button class="btn-details" @click="_viewDetails(neighborhood.id)">
+                      <button class="btn-details" @click="viewDetails(neighborhood.id)">
                         Vedi Dettagli
                       </button>
                     </td>
@@ -251,9 +251,9 @@ onMounted(() => {
    
     <!-- MODAL -->
     <Teleport to="body">
-        <div v-if="showModal" class="modal-overlay" @click.self="_closeModal">
+        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
             <div class="modal-card">
-                <button class="close-btn" @click="_closeModal">×</button>
+                <button class="close-btn" @click="closeModal">×</button>
                 
                 <div v-if="modalLoading" class="modal-loading">
                     <div class="spinner"></div>

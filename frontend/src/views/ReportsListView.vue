@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-const _router = useRouter();
+const router = useRouter();
 
 const submissions = ref([]);
 const loading = ref(true);
@@ -13,13 +13,13 @@ const showModal = ref(false);
 const selectedSubmission = ref(null);
 const modalLoading = ref(false);
 
-const _API_BASE = "http://localhost:5000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const fetchSubmissions = async () => {
   const token = localStorage.getItem("token");
 
   if (!token) {
-    _router.push("/login");
+    router.push("/login");
     return;
   }
 
@@ -28,7 +28,7 @@ const fetchSubmissions = async () => {
 
   try {
     // Fetch PENDING submissions by default
-    const response = await fetch(`${_API_BASE}/tasks/submissions`, {
+    const response = await fetch(`${API_BASE}/api/v1/tasks/submissions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -49,7 +49,7 @@ const fetchSubmissions = async () => {
   } catch (error) {
     errorMessage.value = error.message;
     if (error.message.includes("Sessione scaduta")) {
-      setTimeout(() => _router.push("/login"), 2500);
+      setTimeout(() => router.push("/login"), 2500);
     }
   } finally {
     loading.value = false;
@@ -76,7 +76,7 @@ const _verifySubmission = async (verdict) => {
 
   try {
     const response = await fetch(
-      `${_API_BASE}/tasks/submissions/${selectedSubmission.value._id}/verify`,
+      `${API_BASE}/api/v1/tasks/submissions/${selectedSubmission.value._id}/verify`,
       {
         method: "POST",
         headers: {

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-const _router = useRouter();
+const router = useRouter();
 
 // Stato del componente
 const templates = ref([]);
@@ -12,7 +12,7 @@ const error = ref(null);
 // Gestione dei Filtri (Tab) - Solo Attivi, Archiviati e Tutti
 const currentTab = ref("active");
 
-const _API_BASE = "http://localhost:5000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 // Recupera i Task Template dal database
 const fetchTemplates = async () => {
@@ -21,12 +21,12 @@ const fetchTemplates = async () => {
 
   const token = localStorage.getItem("token");
   if (!token) {
-    _router.push("/login");
+    router.push("/login");
     return;
   }
 
   try {
-    const response = await fetch(`${_API_BASE}/tasks/templates`, {
+    const response = await fetch(`${API_BASE}/api/v1/tasks/templates`, {
       headers: {
         "Content-Type": "application/json",
         "x-access-token": token,
@@ -46,7 +46,7 @@ const fetchTemplates = async () => {
   } catch (err) {
     error.value = err.message || "Impossibile caricare i modelli.";
     if (err.message.includes("Sessione scaduta")) {
-      setTimeout(() => _router.push("/login"), 2500);
+      setTimeout(() => router.push("/login"), 2500);
     }
   } finally {
     loading.value = false;
@@ -54,7 +54,7 @@ const fetchTemplates = async () => {
 };
 
 // Logica di filtraggio per i tab
-const _filteredTemplates = computed(() => {
+const filteredTemplates = computed(() => {
   if (currentTab.value === "all") return templates.value;
 
   return templates.value.filter((tpl) => {
@@ -65,7 +65,7 @@ const _filteredTemplates = computed(() => {
   });
 });
 
-const _confirmDelete = (templateId, templateTitle) => {
+const confirmDelete = (templateId, templateTitle) => {
   const proceed = confirm(
     `Vuoi davvero eliminare il modello "${templateTitle}"?`,
   );
@@ -75,7 +75,7 @@ const _confirmDelete = (templateId, templateTitle) => {
   }
 };
 
-const _updateTemplate = (templateId) => {
+const updateTemplate = (templateId) => {
   console.log(`Modifica richiesta per: ${templateId}`);
   alert("Reindirizzamento alla pagina di modifica...");
 };
@@ -128,7 +128,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="tasks-grid">
-      <div v-for="tpl in _filteredTemplates" :key="tpl._id" class="task-card">
+      <div v-for="tpl in filteredTemplates" :key="tpl._id" class="task-card">
         <div class="card-content">
             <div class="card-header">
                 <h2 class="task-title">{{ tpl.name }}</h2>
@@ -170,7 +170,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="!loading && _filteredTemplates.length === 0" class="empty-state">
+    <div v-if="!loading && filteredTemplates.length === 0" class="empty-state">
         <p>Nessun modello trovato in questa categoria.</p>
     </div>
   </div>

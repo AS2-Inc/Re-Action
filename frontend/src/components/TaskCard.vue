@@ -2,13 +2,24 @@
   <div
     class="task-card"
     @click="handleClick"
-    :class="{ 'task-card--clickable': task.verification_method === 'QUIZ' }"
+    :class="{
+      'task-card--clickable':
+        task.verification_method === 'QUIZ' ||
+        (task.verification_method === 'PHOTO_UPLOAD' &&
+          task.submission_status !== 'PENDING'),
+    }"
   >
     <div class="task-header">
       <h2 class="task-title">{{ task.title }}</h2>
       <div class="task-status-container">
         <span
-          v-if="task.assignment_status !== 'ASSIGNED'"
+          v-if="task.submission_status === 'PENDING'"
+          class="task-status status-pending"
+        >
+          In Revisione
+        </span>
+        <span
+          v-else-if="task.assignment_status !== 'ASSIGNED'"
           class="task-status"
           :class="statusClass(task.assignment_status)"
         >
@@ -96,6 +107,7 @@ export default {
   },
   methods: {
     handleClick() {
+      if (this.task.submission_status === "PENDING") return;
       this.$emit("task-click", this.task);
     },
     statusClass(status) {
@@ -214,6 +226,11 @@ export default {
 
 .status-assigned {
   background-color: #e2ead1;
+  color: #1f1f1f;
+}
+
+.status-pending {
+  background-color: #ffd700;
   color: #1f1f1f;
 }
 

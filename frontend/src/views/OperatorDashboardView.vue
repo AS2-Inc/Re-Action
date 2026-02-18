@@ -62,7 +62,7 @@ const fetchDashboardData = async () => {
       return {
         id: n._id || n.id,
         name: n.name || "N/A",
-        score: n.total_score || 0,
+        score: n.normalized_score || 0,
         completed_tasks: tasksCompleted,
       };
     });
@@ -133,7 +133,7 @@ const _viewDetails = async (id) => {
     selectedNeighborhood.value = {
       name: data.neighborhood.name,
       city: data.neighborhood.city,
-      total_score: data.neighborhood.total_score,
+      total_score: data.neighborhood.normalized_score,
       ranking_position: data.neighborhood.ranking_position,
       user_count: data.stats.total_users,
       submissions_this_week: submissionsThisWeek,
@@ -224,9 +224,9 @@ onMounted(() => {
                     <td>
                       <!-- Inline conditional classes for status indication -->
                       <span class="score-badge" :class="{
-                        'high': neighborhood.score >= 80,
-                        'medium': neighborhood.score >= 60 && neighborhood.score < 80,
-                        'low': neighborhood.score < 60
+                        'high': neighborhood.score >= 200,
+                        'medium': neighborhood.score >= 101 && neighborhood.score < 200,
+                        'low': neighborhood.score < 100
                       }">
                         {{ neighborhood.score }}
                       </span>
@@ -272,7 +272,7 @@ onMounted(() => {
                             <div class="value">#{{ selectedNeighborhood.ranking_position }}</div>
                         </div>
                         <div class="detail-item">
-                            <label>Punteggio Totale</label>
+                            <label>Punteggio Eco</label>
                             <div class="value highlight">{{ selectedNeighborhood.total_score }}</div>
                         </div>
                         <div class="detail-item">

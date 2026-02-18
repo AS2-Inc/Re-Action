@@ -41,6 +41,7 @@ const FRONTEND =
   process.env.FRONTEND || Path.join(__dirname, "..", "..", "frontend", "dist");
 
 app.use("/", express.static(FRONTEND));
+app.use("/uploads", express.static(Path.join(__dirname, "..", "uploads")));
 
 console.log(
   "Vue FRONTEND from",

@@ -2,16 +2,18 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-const _router = useRouter();
-const _API_BASE = "http://localhost:5000/api/v1";
+const router = useRouter();
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
 
 // TABS
-const _currentTab = ref("scratch"); // 'scratch' | 'template'
+const currentTab = ref("scratch"); // 'scratch' | 'template'
 
 // COMMON STATE
 const loading = ref(false);
 const error = ref(null);
 const successMessage = ref("");
+const neighborhoods = ref([]);
 
 // --- CREATE FROM SCRATCH STATE ---
 const formData = ref({
@@ -43,12 +45,24 @@ const selectedTemplate = computed(() =>
 
 // --- API CALLS ---
 
+const fetchNeighborhoods = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/neighborhood`);
+    if (response.ok) {
+      const data = await response.json();
+      neighborhoods.value = Array.isArray(data) ? data : [];
+    }
+  } catch (err) {
+    console.error("Error fetching neighborhoods", err);
+  }
+};
+
 const fetchTemplates = async () => {
   const token = localStorage.getItem("token");
   if (!token) return;
 
   try {
-    const response = await fetch(`${_API_BASE}/tasks/templates`, {
+    const response = await fetch(`${API_BASE}/api/v1/tasks/templates`, {
       headers: { "x-access-token": token },
     });
     if (response.ok) {
@@ -60,7 +74,7 @@ const fetchTemplates = async () => {
   }
 };
 
-const _handleTemplateChange = () => {
+const handleTemplateChange = () => {
   if (!selectedTemplate.value) return;
 
   // Reset specific form data
@@ -80,14 +94,14 @@ const _handleTemplateChange = () => {
   }
 };
 
-const _createTask = async () => {
+const createTask = async () => {
   loading.value = true;
   error.value = null;
   successMessage.value = "";
 
   const token = localStorage.getItem("token");
   if (!token) {
-    _router.push("/login");
+    router.push("/login");
     return;
   }
 
@@ -102,7 +116,7 @@ const _createTask = async () => {
       delete payload.neighborhood_id;
     }
 
-    const response = await fetch(`${_API_BASE}/tasks/create`, {
+    const response = await fetch(`${API_BASE}/api/v1/tasks/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -123,18 +137,18 @@ const _createTask = async () => {
     }
 
     successMessage.value = "Task creato con successo!";
-    setTimeout(() => _router.push("/taskTemplates"), 1500);
+    setTimeout(() => router.push("/taskTemplates"), 1500);
   } catch (err) {
     error.value = err.message || "Errore durante la creazione del task.";
     if (err.message.includes("Sessione scaduta")) {
-      setTimeout(() => _router.push("/login"), 2500);
+      setTimeout(() => router.push("/login"), 2500);
     }
   } finally {
     loading.value = false;
   }
 };
 
-const _createTaskFromTemplate = async () => {
+const createTaskFromTemplate = async () => {
   if (!selectedTemplateId.value) return;
 
   loading.value = true;
@@ -143,7 +157,7 @@ const _createTaskFromTemplate = async () => {
 
   const token = localStorage.getItem("token");
   if (!token) {
-    _router.push("/login");
+    router.push("/login");
     return;
   }
 
@@ -155,7 +169,7 @@ const _createTaskFromTemplate = async () => {
 
     if (!payload.neighborhood_id) delete payload.neighborhood_id;
 
-    const response = await fetch(`${_API_BASE}/tasks/from-template`, {
+    const response = await fetch(`${API_BASE}/api/v1/tasks/from-template`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -176,11 +190,11 @@ const _createTaskFromTemplate = async () => {
     }
 
     successMessage.value = "Task da modello creato con successo!";
-    setTimeout(() => _router.push("/taskTemplates"), 1500);
+    setTimeout(() => router.push("/taskTemplates"), 1500);
   } catch (err) {
     error.value = err.message || "Errore creazione task da modello.";
     if (err.message.includes("Sessione scaduta")) {
-      setTimeout(() => _router.push("/login"), 2500);
+      setTimeout(() => router.push("/login"), 2500);
     }
   } finally {
     loading.value = false;
@@ -189,6 +203,7 @@ const _createTaskFromTemplate = async () => {
 
 onMounted(() => {
   fetchTemplates();
+  fetchNeighborhoods();
 });
 </script>
 
@@ -214,15 +229,15 @@ onMounted(() => {
         <div class="tabs-container">
             <button 
                 class="tab-btn" 
-                :class="{ active: _currentTab === 'scratch' }"
-                @click="_currentTab = 'scratch'"
+                :class="{ active: currentTab === 'scratch' }"
+                @click="currentTab = 'scratch'"
             >
                 Crea da Zero
             </button>
             <button 
                 class="tab-btn" 
-                :class="{ active: _currentTab === 'template' }"
-                @click="_currentTab = 'template'"
+                :class="{ active: currentTab === 'template' }"
+                @click="currentTab = 'template'"
             >
                 Usa un Modello
             </button>
@@ -231,7 +246,7 @@ onMounted(() => {
         <div class="form-card">
             
             <!-- FORM: CREATE FROM SCRATCH -->
-            <form v-if="_currentTab === 'scratch'" @submit.prevent="_createTask">
+            <form v-if="currentTab === 'scratch'" @submit.prevent="createTask">
                 <div class="form-header-note">Stai creando un task completamente personalizzato.</div>
                 
                 <div class="form-grid">
@@ -298,10 +313,15 @@ onMounted(() => {
                         </select>
                     </div>
 
-                    <!-- Neighborhood ID -->
+                    <!-- Neighborhood -->
                     <div class="form-group span-2">
-                        <label>ID Quartiere (Opzionale)</label>
-                        <input v-model="formData.neighborhood_id" type="text" class="input-field" placeholder="Inserisci l'ID del quartiere se specifico" />
+                        <label>Quartiere (Opzionale)</label>
+                        <select v-model="formData.neighborhood_id" class="input-field">
+                            <option value="">-- Nessun quartiere specifico --</option>
+                            <option v-for="n in neighborhoods" :key="n._id" :value="n._id">
+                                {{ n.name }}
+                            </option>
+                        </select>
                     </div>
                 </div>
 
@@ -315,14 +335,14 @@ onMounted(() => {
 
 
             <!-- FORM: CREATE FROM TEMPLATE -->
-            <form v-else @submit.prevent="_createTaskFromTemplate">
+            <form v-else @submit.prevent="createTaskFromTemplate">
                 <div class="form-header-note">Scegli un modello predefinito per configurare rapidamente il task.</div>
 
                 <div class="form-grid">
                     <!-- Template Selector -->
                     <div class="form-group span-2">
                         <label>Seleziona Modello</label>
-                        <select v-model="selectedTemplateId" @change="_handleTemplateChange" class="input-field" required>
+                        <select v-model="selectedTemplateId" @change="handleTemplateChange" class="input-field" required>
                             <option value="" disabled>-- Scegli un Modello --</option>
                             <option v-for="tpl in templates" :key="tpl._id" :value="tpl._id">
                                 {{ tpl.name }} ({{ tpl.category }})
@@ -356,10 +376,15 @@ onMounted(() => {
                             />
                         </div>
 
-                         <!-- Neighborhood ID -->
+                         <!-- Neighborhood -->
                          <div class="form-group">
-                            <label>ID Quartiere (Opzionale)</label>
-                            <input v-model="templateFormData.neighborhood_id" type="text" class="input-field" />
+                            <label>Quartiere (Opzionale)</label>
+                            <select v-model="templateFormData.neighborhood_id" class="input-field">
+                                <option value="">-- Nessun quartiere specifico --</option>
+                                <option v-for="n in neighborhoods" :key="n._id" :value="n._id">
+                                    {{ n.name }}
+                                </option>
+                            </select>
                         </div>
 
                          <!-- DYNAMIC FIELDS FROM TEMPLATE CONFIG -->

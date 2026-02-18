@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 const _router = useRouter();
@@ -56,7 +56,7 @@ const fetchSubmissions = async () => {
   }
 };
 
-const openVerificationModal = (submission) => {
+const _openVerificationModal = (submission) => {
   selectedSubmission.value = submission;
   showModal.value = true;
 };
@@ -66,7 +66,7 @@ const closeVerificationModal = () => {
   selectedSubmission.value = null;
 };
 
-const verifySubmission = async (verdict) => {
+const _verifySubmission = async (verdict) => {
   if (!selectedSubmission.value) return;
 
   const token = localStorage.getItem("token");
@@ -84,7 +84,7 @@ const verifySubmission = async (verdict) => {
           "x-access-token": token,
         },
         body: JSON.stringify({ verdict }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -93,10 +93,12 @@ const verifySubmission = async (verdict) => {
 
     // Success: Remove from list and close modal
     submissions.value = submissions.value.filter(
-      (s) => s._id !== selectedSubmission.value._id
+      (s) => s._id !== selectedSubmission.value._id,
     );
     closeVerificationModal();
-    alert(`Submission ${verdict === 'APPROVED' ? 'approvata' : 'rifiutata'} con successo!`);
+    alert(
+      `Submission ${verdict === "APPROVED" ? "approvata" : "rifiutata"} con successo!`,
+    );
   } catch (error) {
     alert(error.message);
   } finally {
@@ -161,7 +163,7 @@ onMounted(() => {
                     </span>
                   </td>
                   <td class="text-right">
-                    <button class="btn-details" @click="openVerificationModal(sub)">
+                    <button class="btn-details" @click="_openVerificationModal(sub)">
                       Verifica
                     </button>
                   </td>
@@ -232,8 +234,8 @@ onMounted(() => {
             </div>
 
             <div class="modal-actions">
-                <button class="btn-reject" @click="verifySubmission('REJECTED')">Rifiuta</button>
-                <button class="btn-approve" @click="verifySubmission('APPROVED')">Approva</button>
+                <button class="btn-reject" @click="_verifySubmission('REJECTED')">Rifiuta</button>
+                <button class="btn-approve" @click="_verifySubmission('APPROVED')">Approva</button>
             </div>
 
           </div>

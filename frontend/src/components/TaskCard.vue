@@ -19,17 +19,10 @@
           In Revisione
         </span>
         <span
-          v-else-if="task.assignment_status !== 'ASSIGNED'"
-          class="task-status"
-          :class="statusClass(task.assignment_status)"
-        >
-          {{ task.assignment_status }}
-        </span>
-        <span
-          v-if="task.assignment_status === 'COMPLETED' && task.frequency !== 'onetime'"
+          v-if="task.frequency === 'on_demand' || task.frequency === 'daily'"
           class="task-repeatable"
         >
-          Ripetibile
+          RIPETIBILE
         </span>
       </div>
     </div>

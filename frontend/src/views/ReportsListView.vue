@@ -96,11 +96,8 @@ const _verifySubmission = async (verdict) => {
       (s) => s._id !== selectedSubmission.value._id,
     );
     closeVerificationModal();
-    alert(
-      `Submission ${verdict === "APPROVED" ? "approvata" : "rifiutata"} con successo!`,
-    );
   } catch (error) {
-    alert(error.message);
+    console.error(error.message);
   } finally {
     modalLoading.value = false;
   }
@@ -116,10 +113,10 @@ onMounted(() => {
     <nav class="dashboard-navbar">
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
-        <li><a href="/operatorDashboard" class="nav-link">Home</a></li>
-        <li><a href="/reportsList" class="nav-link active">Lista Report</a></li>
-        <li><a href="/taskTemplates" class="nav-link">Task Attive</a></li>
-        <li><a href="/createTask" class="nav-link">Crea Task</a></li>
+        <li><router-link to="/operatorDashboard" class="nav-link">Home</router-link></li>
+        <li><router-link to="/reportsList" class="nav-link active">Lista Report</router-link></li>
+        <li><router-link to="/taskTemplates" class="nav-link">Task Attive</router-link></li>
+        <li><router-link to="/createTask" class="nav-link">Crea Task</router-link></li>
       </ul>
     </nav>
 
@@ -510,6 +507,8 @@ onMounted(() => {
 
 .photo-proof img {
     max-width: 100%;
+    max-height: 300px;
+    object-fit: contain;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
 }

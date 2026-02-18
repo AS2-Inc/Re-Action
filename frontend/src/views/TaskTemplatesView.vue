@@ -90,10 +90,10 @@ onMounted(() => {
     <nav class="dashboard-navbar">
       <div class="navbar-brand">Dashboard Operatore</div>
       <ul class="navbar-links">
-        <li><a href="/operatorDashboard" class="nav-link">Home</a></li>
-        <li><a href="/reportsList" class="nav-link">Lista Report</a></li>
-        <li><a href="/taskManagement" class="nav-link active">Task Attive</a></li>
-        <li><a href="/createTask" class="nav-link">Crea Task</a></li>
+        <li><router-link to="/operatorDashboard" class="nav-link">Home</router-link></li>
+        <li><router-link to="/reportsList" class="nav-link">Lista Report</router-link></li>
+        <li><router-link to="/taskManagement" class="nav-link active">Task Attive</router-link></li>
+        <li><router-link to="/createTask" class="nav-link">Crea Task</router-link></li>
       </ul>
     </nav>
 

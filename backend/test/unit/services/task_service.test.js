@@ -93,6 +93,16 @@ jest.unstable_mockModule(
   () => mockQuizVerifier,
 );
 
+const mockLeaderboardService = {
+  get_leaderboard: jest.fn().mockResolvedValue([]),
+};
+jest.unstable_mockModule(
+  "../../../app/services/leaderboard_service.js",
+  () => ({
+    default: mockLeaderboardService,
+  }),
+);
+
 // Import Module Under Test
 const TaskService = await import("../../../app/services/task_service.js");
 

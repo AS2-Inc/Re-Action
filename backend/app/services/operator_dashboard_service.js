@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import ServiceError from "../errors/service_error.js";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
@@ -103,6 +104,11 @@ class OperatorDashboardService {
           completed_at: { $gte: week_ago },
         });
 
+        const completed_tasks = await Submission.countDocuments({
+          neighborhood_id: n._id,
+          status: "APPROVED",
+        });
+
         return {
           id: n._id,
           name: n.name,
@@ -111,6 +117,7 @@ class OperatorDashboardService {
           ranking_position: n.ranking_position,
           user_count,
           submissions_this_week,
+          completed_tasks,
           environmental_data: n.environmental_data,
           active_goals: n.active_goals,
           normalized_score: n.normalized_score,
@@ -132,6 +139,9 @@ class OperatorDashboardService {
       throw new ServiceError("Neighborhood not found", 404);
     }
 
+    // Cast to ObjectId for use in aggregation pipelines (Mongoose doesn't auto-cast in $match)
+    const neighborhood_oid = new mongoose.Types.ObjectId(neighborhood_id);
+
     // User stats
     const users = await User.find({
       neighborhood_id,
@@ -145,7 +155,7 @@ class OperatorDashboardService {
     const submissions_by_category = await Submission.aggregate([
       {
         $match: {
-          neighborhood_id,
+          neighborhood_id: neighborhood_oid,
           status: "APPROVED",
           completed_at: { $gte: month_ago },
         },
@@ -166,7 +176,7 @@ class OperatorDashboardService {
     const daily_activity = await Submission.aggregate([
       {
         $match: {
-          neighborhood_id,
+          neighborhood_id: neighborhood_oid,
           status: "APPROVED",
           completed_at: { $gte: month_ago },
         },

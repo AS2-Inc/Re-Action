@@ -1,6 +1,6 @@
+import dotenv from "dotenv";
 import mongoose from "mongoose";
 import Neighborhood from "../app/models/neighborhood.js";
-import dotenv from "dotenv";
 
 dotenv.config();
 

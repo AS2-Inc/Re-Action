@@ -39,8 +39,8 @@
 
 <script>
 import Navbar from "@/components/Navbar.vue";
-import QuizModal from "@/components/QuizModal.vue";
 import PhotoSubmissionModal from "@/components/PhotoSubmissionModal.vue";
+import QuizModal from "@/components/QuizModal.vue";
 import TaskCard from "@/components/TaskCard.vue";
 
 const API_BASE_URL =

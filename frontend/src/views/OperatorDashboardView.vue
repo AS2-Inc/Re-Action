@@ -138,7 +138,7 @@ const _viewDetails = async (id) => {
   }
 };
 
-const closeModal = () => {
+const _closeModal = () => {
   showModal.value = false;
   selectedNeighborhood.value = null;
 };
@@ -242,9 +242,9 @@ onMounted(() => {
    
     <!-- MODAL -->
     <Teleport to="body">
-        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+        <div v-if="showModal" class="modal-overlay" @click.self="_closeModal">
             <div class="modal-card">
-                <button class="close-btn" @click="closeModal">×</button>
+                <button class="close-btn" @click="_closeModal">×</button>
                 
                 <div v-if="modalLoading" class="modal-loading">
                     <div class="spinner"></div>

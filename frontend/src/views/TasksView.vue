@@ -140,7 +140,7 @@ export default {
       this.photoModalOpen = false;
       this.selectedTaskForPhoto = {};
     },
-    async onPhotoSubmitted(result) {
+    async onPhotoSubmitted(_result) {
       this.closePhotoModal();
       this.$emit("points-updated");
       await this.fetchTasks();

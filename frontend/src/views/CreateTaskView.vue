@@ -7,7 +7,7 @@ const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
 
 // TABS
-const currentTab = ref("scratch"); // 'scratch' | 'template'
+const _currentTab = ref("scratch"); // 'scratch' | 'template'
 
 // COMMON STATE
 const loading = ref(false);
@@ -74,7 +74,7 @@ const fetchTemplates = async () => {
   }
 };
 
-const handleTemplateChange = () => {
+const _handleTemplateChange = () => {
   if (!selectedTemplate.value) return;
 
   // Reset specific form data
@@ -94,7 +94,7 @@ const handleTemplateChange = () => {
   }
 };
 
-const createTask = async () => {
+const _createTask = async () => {
   loading.value = true;
   error.value = null;
   successMessage.value = "";
@@ -148,7 +148,7 @@ const createTask = async () => {
   }
 };
 
-const createTaskFromTemplate = async () => {
+const _createTaskFromTemplate = async () => {
   if (!selectedTemplateId.value) return;
 
   loading.value = true;
@@ -215,7 +215,7 @@ onMounted(() => {
         <li><router-link to="/operatorDashboard" class="nav-link">Home</router-link></li>
         <li><router-link to="/reportsList" class="nav-link">Lista Report</router-link></li>
         <li><router-link to="/taskTemplates" class="nav-link">Task attive</router-link></li>
-        <li><router-link to="/createTask" class="nav-link active">Crea Task</router-link></li>
+        <li><router-link to="/_createTask" class="nav-link active">Crea Task</router-link></li>
       </ul>
     </nav>
 
@@ -229,15 +229,15 @@ onMounted(() => {
         <div class="tabs-container">
             <button 
                 class="tab-btn" 
-                :class="{ active: currentTab === 'scratch' }"
-                @click="currentTab = 'scratch'"
+                :class="{ active: _currentTab === 'scratch' }"
+                @click="_currentTab = 'scratch'"
             >
                 Crea da Zero
             </button>
             <button 
                 class="tab-btn" 
-                :class="{ active: currentTab === 'template' }"
-                @click="currentTab = 'template'"
+                :class="{ active: _currentTab === 'template' }"
+                @click="_currentTab = 'template'"
             >
                 Usa un Modello
             </button>
@@ -246,7 +246,7 @@ onMounted(() => {
         <div class="form-card">
             
             <!-- FORM: CREATE FROM SCRATCH -->
-            <form v-if="currentTab === 'scratch'" @submit.prevent="createTask">
+            <form v-if="_currentTab === 'scratch'" @submit.prevent="_createTask">
                 <div class="form-header-note">Stai creando un task completamente personalizzato.</div>
                 
                 <div class="form-grid">
@@ -335,14 +335,14 @@ onMounted(() => {
 
 
             <!-- FORM: CREATE FROM TEMPLATE -->
-            <form v-else @submit.prevent="createTaskFromTemplate">
+            <form v-else @submit.prevent="_createTaskFromTemplate">
                 <div class="form-header-note">Scegli un modello predefinito per configurare rapidamente il task.</div>
 
                 <div class="form-grid">
                     <!-- Template Selector -->
                     <div class="form-group span-2">
                         <label>Seleziona Modello</label>
-                        <select v-model="selectedTemplateId" @change="handleTemplateChange" class="input-field" required>
+                        <select v-model="selectedTemplateId" @change="_handleTemplateChange" class="input-field" required>
                             <option value="" disabled>-- Scegli un Modello --</option>
                             <option v-for="tpl in templates" :key="tpl._id" :value="tpl._id">
                                 {{ tpl.name }} ({{ tpl.category }})

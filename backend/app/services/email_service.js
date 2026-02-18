@@ -7,6 +7,8 @@ class EmailService {
     const port = process.env.PORT || 5000;
     this.base_url =
       process.env.PUBLIC_BASE_URL || `http://localhost:${port}/api/v1`;
+    this.frontend_url =
+      process.env.PUBLIC_FRONTEND_URL || "http://localhost:5173";
   }
 
   async init_transporter() {
@@ -34,7 +36,7 @@ class EmailService {
         html: html,
       });
 
-      console.log(`📧 Email sent: ${info.messageId}`);
+      console.log(`📧 Email sent: ${html}`);
 
       return info;
     } catch (error) {
@@ -55,8 +57,19 @@ class EmailService {
     return this.send_email(email, "Attiva il tuo account Re:Action", html);
   }
 
-  async send_password_reset_email(email, token) {
-    const link = `${this.base_url}/users/reset-password?token=${token}`;
+  async send_operator_activation_email(email, token) {
+    const link = `${this.frontend_url}/operator/activate?token=${token}`;
+    const html = `
+      <h1>Benvenuto in Re:Action!</h1>
+      <p>Sei stato registrato come operatore. Per attivare il tuo account e impostare la password, clicca sul link seguente:</p>
+      <a href="${link}">Attiva Account Operatore</a>
+      <p>Il link scadrà tra 12 ore.</p>
+    `;
+    return this.send_email(email, "Re:Action - Attivazione Account Operatore", html);
+  }
+
+  async send_password_reset_email(email, token, type = 'user') {
+    const link = `${this.frontend_url}/reset-password?token=${token}&type=${type}`;
     const html = `
       <h1>Recupero Password</h1>
       <p>Hai richiesto il reset della password. Clicca sul link seguente per procedere:</p>

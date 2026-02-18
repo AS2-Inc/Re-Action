@@ -33,6 +33,14 @@ router.post(
 // GET /api/v1/users/me
 router.get("/me", token_checker, UserController.get_me);
 
+// PUT /api/v1/users/me
+router.put(
+  "/me",
+  token_checker,
+  validate_required(["name", "surname"]),
+  UserController.update_profile,
+);
+
 // GET /api/v1/users/activate
 router.get("/activate", UserController.activate);
 

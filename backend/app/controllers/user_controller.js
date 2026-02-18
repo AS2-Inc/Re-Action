@@ -80,6 +80,23 @@ export const get_me = async (req, res) => {
   }
 };
 
+export const update_profile = async (req, res) => {
+  try {
+    const { name, surname } = req.body;
+    const result = await UserService.update_profile(req.logged_user.id, {
+      name,
+      surname,
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 export const activate = async (req, res) => {
   try {
     const { token } = req.query;

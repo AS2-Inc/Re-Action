@@ -52,9 +52,9 @@ export default {
 </script>
 
 <template>
-  <div id="app" :class="{ 'has-user-column': $route.meta.requiresAuth }">
+  <div id="app" :class="{ 'has-user-column': $route.meta.requiresAuth && !$route.meta.hideUserColumn }">
     <UserInfoColumn
-      v-if="$route.meta.requiresAuth"
+      v-if="$route.meta.requiresAuth && !$route.meta.hideUserColumn"
       :quick-tasks="quickTasks"
       class="user-column"
     />

@@ -13,8 +13,8 @@ describe("EmailService", () => {
       sendMail: sendMailMock,
     };
     // Spy on console.error to keep output clean during expected errors
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => { });
+    jest.spyOn(console, "log").mockImplementation(() => { });
   });
 
   afterEach(() => {
@@ -70,6 +70,24 @@ describe("EmailService", () => {
     });
   });
 
+  describe("send_operator_activation_email", () => {
+    it("should send an operator activation email with correct link", async () => {
+      const email = "operator@example.com";
+      const token = "operator-activation-token";
+
+      await EmailService.send_operator_activation_email(email, token);
+
+      expect(sendMailMock).toHaveBeenCalledTimes(1);
+      const callArgs = sendMailMock.mock.calls[0][0];
+      expect(callArgs.to).toBe(email);
+      expect(callArgs.subject).toBe("Re:Action - Attivazione Account Operatore");
+      expect(callArgs.html).toContain("operator-activation-token");
+      expect(callArgs.html).toContain(
+        "/operator/activate?token=operator-activation-token",
+      );
+    });
+  });
+
   describe("send_password_reset_email", () => {
     it("should send a password reset email with correct link", async () => {
       const email = "user@example.com";
@@ -83,7 +101,7 @@ describe("EmailService", () => {
       expect(callArgs.subject).toBe("Re:Action - Recupero Password");
       expect(callArgs.html).toContain("reset-token-456");
       expect(callArgs.html).toContain(
-        "/users/reset-password?token=reset-token-456",
+        "/reset-password?token=reset-token-456",
       );
     });
   });

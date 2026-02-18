@@ -145,6 +145,24 @@ export const get_user_profile = async (email) => {
   return {
     name: user.name,
     surname: user.surname,
+    email: user.email,
+  };
+};
+
+export const update_profile = async (user_id, data) => {
+  const user = await User.findById(user_id);
+  if (!user) {
+    throw new ServiceError("User not found", 404);
+  }
+
+  if (data.name) user.name = data.name;
+  if (data.surname) user.surname = data.surname;
+
+  await user.save();
+  return {
+    name: user.name,
+    surname: user.surname,
+    email: user.email,
   };
 };
 

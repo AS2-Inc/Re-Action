@@ -3,9 +3,11 @@ import * as db from "../../db_helper.js";
 
 // Mock EmailService
 const mockSendActivationEmail = jest.fn().mockResolvedValue(true);
+const mockSendOperatorActivationEmail = jest.fn().mockResolvedValue(true);
 jest.unstable_mockModule("../../../app/services/email_service.js", () => ({
   default: {
     send_activation_email: mockSendActivationEmail,
+    send_operator_activation_email: mockSendOperatorActivationEmail,
     sendEmail: jest.fn().mockResolvedValue(true),
   },
 }));
@@ -47,6 +49,7 @@ describe("Operator API", () => {
   afterEach(async () => {
     await db.clear();
     mockSendActivationEmail.mockClear();
+    mockSendOperatorActivationEmail.mockClear();
   });
 
   afterAll(async () => {
@@ -67,7 +70,7 @@ describe("Operator API", () => {
         .send(operator_data);
 
       expect(response.status).toBe(201);
-      expect(mockSendActivationEmail).toHaveBeenCalledWith(
+      expect(mockSendOperatorActivationEmail).toHaveBeenCalledWith(
         operator_data.email,
         expect.any(String),
       );

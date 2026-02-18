@@ -15,6 +15,83 @@ import {
 
 const router = express.Router();
 
+/**
+ * POST /api/v1/operators/:id/force-reset-password
+ * Force password reset for an operator (Admin only)
+ */
+router.post(
+  "/:id/force-reset-password",
+  token_checker,
+  check_role(["admin"]),
+  async (req, res) => {
+    try {
+      const operator = await Operator.findById(req.params.id);
+      if (!operator) {
+        return res.status(404).json({ error: "Operator not found" });
+      }
+
+      const token = crypto.randomBytes(20).toString("hex");
+      operator.reset_password_token = token;
+      operator.reset_password_expires = Date.now() + 3600000; // 1 hour
+
+      await operator.save();
+
+      await EmailService.send_password_reset_email(
+        operator.email,
+        token,
+        "operator"
+      );
+
+      res.status(200).json({ message: "Reset email sent" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to force reset password" });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/operators/reset-password
+ * Set new password using reset token
+ */
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: "Token and password required" });
+    }
+
+    if (is_password_weak(password)) {
+      return res.status(400).json({ error: "Password is too weak" });
+    }
+
+    const operator = await Operator.findOne({
+      reset_password_token: token,
+      reset_password_expires: { $gt: Date.now() },
+    });
+
+    if (!operator) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    operator.password = await hash_password(password);
+    operator.reset_password_token = undefined;
+    operator.reset_password_expires = undefined;
+
+    // Ensure account is active if it wasn't
+    operator.is_active = true;
+    operator.activation_token = undefined;
+    operator.activation_token_expires = undefined;
+
+    await operator.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
 // POST /api/v1/operators/register
 router.post(
   "/register",
@@ -48,7 +125,7 @@ router.post(
 
     try {
       operator = await operator.save();
-      await EmailService.send_activation_email(
+      await EmailService.send_operator_activation_email(
         operator.email,
         operator.activation_token,
       );
@@ -95,7 +172,39 @@ router.post("/login", async (req, res) => {
     email: operator.email,
     id: operator._id,
     self: `/api/v1/operators/${operator._id}`,
+    role: operator.role,
   });
+});
+
+/**
+ * GET /api/v1/operators
+ * List all operators (Admin only)
+ */
+router.get("/", token_checker, check_role(["admin"]), async (_req, res) => {
+  try {
+    const operators = await Operator.find({}, "-password -activation_token -reset_password_token");
+    res.status(200).json(operators);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch operators" });
+  }
+});
+
+/**
+ * DELETE /api/v1/operators/:id
+ * Delete an operator (Admin only)
+ */
+router.delete("/:id", token_checker, check_role(["admin"]), async (req, res) => {
+  try {
+    const operator = await Operator.findByIdAndDelete(req.params.id);
+    if (!operator) {
+      return res.status(404).json({ error: "Operator not found" });
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete operator" });
+  }
 });
 
 // GET /api/v1/operators/me

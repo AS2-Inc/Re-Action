@@ -20,7 +20,7 @@
 
     <!-- Create Button -->
     <div class="create-button-container">
-      <button class="btn-action btn-create" @click="openCreateModal">
+      <button class="btn-action btn-create" @click="_openCreateModal">
         + Crea Nuovo Premio
       </button>
     </div>
@@ -52,7 +52,7 @@
               <td>{{ reward.title }}</td>
               <td>
                 <span class="badge" :class="`badge-${reward.type.toLowerCase()}`">
-                  {{ formatRewardType(reward.type) }}
+                  {{ _formatRewardType(reward.type) }}
                 </span>
               </td>
               <td>{{ reward.points_cost }}</td>
@@ -68,18 +68,18 @@
                     Tutti i quartieri
                   </span>
                   <span v-else class="neighborhoods-list">
-                    {{ formatNeighborhoods(reward.neighborhoods) }}
+                    {{ _formatNeighborhoods(reward.neighborhoods) }}
                   </span>
                 </div>
               </td>
               <td>
                 <div class="action-buttons">
-                  <button class="btn-action btn-edit" @click="openEditModal(reward)" title="Modifica">
+                  <button class="btn-action btn-edit" @click="_openEditModal(reward)" title="Modifica">
                     Modifica
                   </button>
                   <button 
                     class="btn-action btn-delete" 
-                    @click="confirmDelete(reward)" 
+                    @click="_confirmDelete(reward)" 
                     title="Rimuovi"
                   >
                     Rimuovi
@@ -115,7 +115,7 @@
               Errore: {{ modalError }}
             </div>
 
-            <form @submit.prevent="saveReward">
+            <form @submit.prevent="_saveReward">
               <div class="form-grid">
                 <div class="form-group">
                   <label for="title">Titolo *</label>
@@ -214,7 +214,7 @@
                         <input 
                           type="checkbox"
                           :checked="isAllNeighborhoodsSelected"
-                          @change="toggleAllNeighborhoods"
+                          @change="_toggleAllNeighborhoods"
                         />
                         <strong>Tutti i quartieri</strong>
                       </label>
@@ -271,7 +271,7 @@
               <button class="btn-action btn-cancel" @click="closeDeleteModal" :disabled="deleteLoading">
                 Annulla
               </button>
-              <button class="btn-action btn-delete" @click="deleteReward" :disabled="deleteLoading">
+              <button class="btn-action btn-delete" @click="_deleteReward" :disabled="deleteLoading">
                 {{ deleteLoading ? 'Rimozione...' : 'Rimuovi' }}
               </button>
             </div>
@@ -283,12 +283,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 // State
 const rewards = ref([]);
@@ -298,7 +298,7 @@ const error = ref(null);
 
 // Modal State
 const showModal = ref(false);
-const modalMode = ref('create'); // 'create' or 'edit'
+const modalMode = ref("create"); // 'create' or 'edit'
 const modalLoading = ref(false);
 const modalError = ref(null);
 
@@ -309,15 +309,15 @@ const rewardToDelete = ref(null);
 
 // Form State
 const defaultForm = () => ({
-  title: '',
-  description: '',
-  type: 'COUPON',
+  title: "",
+  description: "",
+  type: "COUPON",
   points_cost: 0,
   quantity_available: 0,
-  provider: '',
+  provider: "",
   active: true,
-  expiry_date: '',
-  neighborhoods: []
+  expiry_date: "",
+  neighborhoods: [],
 });
 
 const rewardForm = ref(defaultForm());
@@ -329,9 +329,9 @@ const isAllNeighborhoodsSelected = computed(() => {
 
 // Methods
 const fetchRewards = async () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (!token) {
-    router.push('/admin');
+    router.push("/admin");
     return;
   }
 
@@ -341,16 +341,16 @@ const fetchRewards = async () => {
   try {
     const response = await fetch(`${API_BASE}/api/v1/rewards/all`, {
       headers: {
-        'x-access-token': token
-      }
+        "x-access-token": token,
+      },
     });
 
     if (!response.ok) {
       if (response.status === 401) {
-        router.push('/admin');
+        router.push("/admin");
         return;
       }
-      throw new Error('Errore nel caricamento dei premi');
+      throw new Error("Errore nel caricamento dei premi");
     }
 
     rewards.value = await response.json();
@@ -368,30 +368,34 @@ const fetchNeighborhoods = async () => {
       neighborhoods.value = await response.json();
     }
   } catch (err) {
-    console.error('Error fetching neighborhoods:', err);
+    console.error("Error fetching neighborhoods:", err);
   }
 };
 
-const openCreateModal = () => {
-  modalMode.value = 'create';
+const _openCreateModal = () => {
+  modalMode.value = "create";
   rewardForm.value = defaultForm();
   modalError.value = null;
   showModal.value = true;
 };
 
-const openEditModal = (reward) => {
-  modalMode.value = 'edit';
+const _openEditModal = (reward) => {
+  modalMode.value = "edit";
   rewardForm.value = {
     _id: reward._id,
     title: reward.title,
-    description: reward.description || '',
+    description: reward.description || "",
     type: reward.type,
     points_cost: reward.points_cost,
     quantity_available: reward.quantity_available,
-    provider: reward.provider || '',
+    provider: reward.provider || "",
     active: reward.active,
-    expiry_date: reward.expiry_date ? new Date(reward.expiry_date).toISOString().split('T')[0] : '',
-    neighborhoods: reward.neighborhoods ? reward.neighborhoods.map(n => n._id || n) : []
+    expiry_date: reward.expiry_date
+      ? new Date(reward.expiry_date).toISOString().split("T")[0]
+      : "",
+    neighborhoods: reward.neighborhoods
+      ? reward.neighborhoods.map((n) => n._id || n)
+      : [],
   };
   modalError.value = null;
   showModal.value = true;
@@ -403,7 +407,7 @@ const closeModal = () => {
   modalError.value = null;
 };
 
-const toggleAllNeighborhoods = () => {
+const _toggleAllNeighborhoods = () => {
   // If "All" is currently checked (empty array), keep it checked (do nothing)
   // If some neighborhoods are selected, clear them to select all
   if (!isAllNeighborhoodsSelected.value) {
@@ -411,10 +415,10 @@ const toggleAllNeighborhoods = () => {
   }
 };
 
-const saveReward = async () => {
-  const token = localStorage.getItem('token');
+const _saveReward = async () => {
+  const token = localStorage.getItem("token");
   if (!token) {
-    router.push('/admin');
+    router.push("/admin");
     return;
   }
 
@@ -431,28 +435,29 @@ const saveReward = async () => {
       provider: rewardForm.value.provider,
       active: rewardForm.value.active,
       expiry_date: rewardForm.value.expiry_date || undefined,
-      neighborhoods: rewardForm.value.neighborhoods.length > 0 
-        ? rewardForm.value.neighborhoods 
-        : []
+      neighborhoods:
+        rewardForm.value.neighborhoods.length > 0
+          ? rewardForm.value.neighborhoods
+          : [],
     };
 
-    const isEdit = modalMode.value === 'edit';
-    const url = isEdit 
+    const isEdit = modalMode.value === "edit";
+    const url = isEdit
       ? `${API_BASE}/api/v1/rewards/${rewardForm.value._id}`
       : `${API_BASE}/api/v1/rewards`;
-    
+
     const response = await fetch(url, {
-      method: isEdit ? 'PUT' : 'POST',
+      method: isEdit ? "PUT" : "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-access-token': token
+        "Content-Type": "application/json",
+        "x-access-token": token,
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Errore nel salvataggio del premio');
+      throw new Error(errorData.error || "Errore nel salvataggio del premio");
     }
 
     await fetchRewards();
@@ -464,14 +469,17 @@ const saveReward = async () => {
   }
 };
 
-const confirmDelete = (reward) => {
+const _confirmDelete = (reward) => {
   rewardToDelete.value = reward;
   showDeleteModal.value = true;
 };
 
-const confirmDeleteFromModal = () => {
+const _confirmDeleteFromModal = () => {
   if (rewardForm.value._id) {
-    rewardToDelete.value = { _id: rewardForm.value._id, title: rewardForm.value.title };
+    rewardToDelete.value = {
+      _id: rewardForm.value._id,
+      title: rewardForm.value.title,
+    };
     showDeleteModal.value = true;
   }
 };
@@ -481,12 +489,12 @@ const closeDeleteModal = () => {
   rewardToDelete.value = null;
 };
 
-const deleteReward = async () => {
+const __deleteReward = async () => {
   if (!rewardToDelete.value) return;
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (!token) {
-    router.push('/admin');
+    router.push("/admin");
     return;
   }
 
@@ -496,15 +504,15 @@ const deleteReward = async () => {
     const response = await fetch(
       `${API_BASE}/api/v1/rewards/${rewardToDelete.value._id}`,
       {
-        method: 'DELETE',
+        method: "DELETE",
         headers: {
-          'x-access-token': token
-        }
-      }
+          "x-access-token": token,
+        },
+      },
     );
 
     if (!response.ok) {
-      throw new Error('Errore nella rimozione del premio');
+      throw new Error("Errore nella rimozione del premio");
     }
 
     await fetchRewards();
@@ -520,20 +528,20 @@ const deleteReward = async () => {
   }
 };
 
-const formatRewardType = (type) => {
+const _formatRewardType = (type) => {
   const types = {
-    COUPON: 'Coupon',
-    DIGITAL_BADGE: 'Badge Digitale',
-    PHYSICAL_ITEM: 'Oggetto Fisico'
+    COUPON: "Coupon",
+    DIGITAL_BADGE: "Badge Digitale",
+    PHYSICAL_ITEM: "Oggetto Fisico",
   };
   return types[type] || type;
 };
 
-const formatNeighborhoods = (neighborhoods) => {
+const _formatNeighborhoods = (neighborhoods) => {
   if (!neighborhoods || neighborhoods.length === 0) {
-    return 'Tutti';
+    return "Tutti";
   }
-  return neighborhoods.map(n => n.name || n).join(', ');
+  return neighborhoods.map((n) => n.name || n).join(", ");
 };
 
 onMounted(() => {

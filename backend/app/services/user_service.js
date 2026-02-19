@@ -108,7 +108,15 @@ export const register = async (user_data) => {
       existing.activation_token = activation_token;
 
       await existing.save();
-      await EmailService.send_activation_email(email, activation_token);
+      const emailResult = await EmailService.send_activation_email(
+        email,
+        activation_token,
+      );
+      if (!emailResult || !emailResult.success) {
+        console.warn(
+          `⚠️ Warning: Activation email could not be sent to ${email}. Manual activation might be required.`,
+        );
+      }
       return existing;
     }
 
@@ -138,7 +146,16 @@ export const register = async (user_data) => {
 
   await user.save();
 
-  await EmailService.send_activation_email(email, activation_token);
+  const emailResult = await EmailService.send_activation_email(
+    email,
+    activation_token,
+  );
+
+  if (!emailResult || !emailResult.success) {
+    console.warn(
+      `⚠️ Warning: Activation email could not be sent to ${email}. Manual activation might be required.`,
+    );
+  }
 
   return user;
 };

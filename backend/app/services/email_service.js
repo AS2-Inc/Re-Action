@@ -22,6 +22,8 @@ class EmailService {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      connectionTimeout: 5000, // 5 seconds
+      socketTimeout: 15000, // 15 seconds
     });
   }
 
@@ -38,11 +40,11 @@ class EmailService {
 
       console.log(`📧 Email sent: ${html}`);
 
-      return info;
+      return { success: true, info };
     } catch (error) {
       console.error("❌ Error sending email:", error);
       // Don't throw to prevent crashing the response flow, just log
-      return null;
+      return { success: false, error };
     }
   }
 

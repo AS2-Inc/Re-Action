@@ -9,6 +9,31 @@ const templates = ref([]);
 const loading = ref(true);
 const error = ref(null);
 
+// Task Template Modal state
+const showTemplateModal = ref(false);
+const templateModalMode = ref("create");
+const editingTemplate = ref(null);
+const templateModalLoading = ref(false);
+const templateModalError = ref(null);
+
+// Quiz state
+const quizzes = ref([]);
+const quizzesLoading = ref(false);
+const quizzesError = ref(null);
+const showQuizCreator = ref(false);
+const quizForm = ref({
+  title: "",
+  description: "",
+  passing_score: 80,
+  questions: [
+    {
+      text: "",
+      options_text: "",
+      correct_option_index: 0,
+    },
+  ],
+});
+
 // Tasks state
 const tasks = ref([]);
 const tasksLoading = ref(true);
@@ -28,6 +53,403 @@ const currentTab = ref("active");
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
+const defaultTemplateForm = () => ({
+  name: "",
+  description: "",
+  category: "Mobility",
+  verification_method: "GPS",
+  default_difficulty: "Medium",
+  default_frequency: "daily",
+  base_points_range: { min: 5, max: 100 },
+  impact_metrics_schema: {
+    co2_saved: false,
+    waste_recycled: false,
+    km_green: false,
+  },
+  verification_setup: {
+    qr_code_secret: "",
+    photo_description: "",
+    target_lat: "",
+    target_lng: "",
+    min_distance_meters: "",
+    quiz_id: "",
+  },
+  configurable_fields: [],
+  example_title: "",
+  example_description: "",
+  is_active: true,
+});
+
+const normalizeTemplateForEdit = (template) => {
+  const clone = JSON.parse(JSON.stringify(template || {}));
+  clone.base_points_range = clone.base_points_range || { min: 5, max: 100 };
+  clone.impact_metrics_schema = clone.impact_metrics_schema || {
+    co2_saved: false,
+    waste_recycled: false,
+    km_green: false,
+  };
+  clone.configurable_fields = (clone.configurable_fields || []).map((field) => {
+    const validation = field.validation || {};
+    return {
+      field_name: field.field_name || "",
+      field_type: field.field_type || "string",
+      description: field.description || "",
+      required: !!field.required,
+      default_value:
+        field.default_value !== undefined && field.default_value !== null
+          ? field.default_value
+          : "",
+      validation: {
+        min: validation.min ?? "",
+        max: validation.max ?? "",
+        pattern: validation.pattern || "",
+        options_text: (validation.options || []).join(", "),
+      },
+    };
+  });
+  const qrField = clone.configurable_fields.find(
+    (field) => field.field_name === "qr_code_secret",
+  );
+  const photoField = clone.configurable_fields.find(
+    (field) => field.field_name === "photo_description",
+  );
+  const minDistanceField = clone.configurable_fields.find(
+    (field) => field.field_name === "min_distance_meters",
+  );
+  const targetLocationField = clone.configurable_fields.find(
+    (field) => field.field_name === "target_location",
+  );
+  const quizField = clone.configurable_fields.find(
+    (field) => field.field_name === "quiz_id",
+  );
+  clone.verification_setup = {
+    qr_code_secret: qrField?.default_value ?? "",
+    photo_description: photoField?.default_value ?? "",
+    target_lat: Array.isArray(targetLocationField?.default_value)
+      ? targetLocationField.default_value[0]
+      : "",
+    target_lng: Array.isArray(targetLocationField?.default_value)
+      ? targetLocationField.default_value[1]
+      : "",
+    min_distance_meters: minDistanceField?.default_value ?? "",
+    quiz_id: quizField?.default_value ?? "",
+  };
+  clone.is_active = clone.is_active !== false;
+  return clone;
+};
+
+const coerceFieldValue = (fieldType, value) => {
+  if (value === "" || value === null || value === undefined) return undefined;
+  if (fieldType === "number") {
+    const num = Number(value);
+    return Number.isNaN(num) ? undefined : num;
+  }
+  if (fieldType === "boolean") {
+    if (value === true || value === false) return value;
+    return value === "true";
+  }
+  if (fieldType === "array") {
+    return String(value)
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (fieldType === "location") {
+    const parts = String(value)
+      .split(",")
+      .map((item) => Number(item.trim()));
+    if (parts.length === 2 && parts.every((item) => !Number.isNaN(item))) {
+      return parts;
+    }
+    return undefined;
+  }
+  return String(value);
+};
+
+const buildTemplatePayload = (template) => {
+  const baseMin = Number(template.base_points_range?.min ?? 0);
+  const baseMax = Number(template.base_points_range?.max ?? 0);
+
+  const upsertField = (fields, payload) => {
+    const index = fields.findIndex(
+      (field) => field.field_name === payload.field_name,
+    );
+    if (index >= 0) {
+      fields[index] = payload;
+    } else {
+      fields.push(payload);
+    }
+    return fields;
+  };
+
+  const removeField = (fields, fieldName) =>
+    fields.filter((field) => field.field_name !== fieldName);
+
+  const configurable_fields = (template.configurable_fields || [])
+    .map((field) => {
+      if (!field.field_name) return null;
+      const payload = {
+        field_name: field.field_name.trim(),
+        field_type: field.field_type,
+        description: field.description || "",
+        required: !!field.required,
+      };
+
+      const defaultValue = coerceFieldValue(
+        field.field_type,
+        field.default_value,
+      );
+      if (defaultValue !== undefined) payload.default_value = defaultValue;
+
+      const validation = {};
+      if (field.validation?.min !== "" && field.validation?.min !== undefined) {
+        const min = Number(field.validation.min);
+        if (!Number.isNaN(min)) validation.min = min;
+      }
+      if (field.validation?.max !== "" && field.validation?.max !== undefined) {
+        const max = Number(field.validation.max);
+        if (!Number.isNaN(max)) validation.max = max;
+      }
+      if (field.validation?.pattern) {
+        validation.pattern = field.validation.pattern;
+      }
+      if (field.validation?.options_text) {
+        const options = field.validation.options_text
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        if (options.length > 0) validation.options = options;
+      }
+      if (Object.keys(validation).length > 0) payload.validation = validation;
+
+      return payload;
+    })
+    .filter(Boolean);
+
+  const verificationSetup = template.verification_setup || {};
+  let normalizedFields = [...configurable_fields];
+
+  if (template.verification_method === "QR_SCAN") {
+    const qrSecret = verificationSetup.qr_code_secret?.trim();
+    const qrPayload = {
+      field_name: "qr_code_secret",
+      field_type: "string",
+      description: "QR secret code for validation",
+      required: true,
+    };
+    if (qrSecret) qrPayload.default_value = qrSecret;
+    normalizedFields = upsertField(normalizedFields, qrPayload);
+  } else {
+    normalizedFields = removeField(normalizedFields, "qr_code_secret");
+  }
+
+  if (template.verification_method === "PHOTO_UPLOAD") {
+    const photoDescription = verificationSetup.photo_description?.trim();
+    const photoPayload = {
+      field_name: "photo_description",
+      field_type: "string",
+      description: "Photo instructions for verification",
+      required: true,
+    };
+    if (photoDescription) photoPayload.default_value = photoDescription;
+    normalizedFields = upsertField(normalizedFields, photoPayload);
+  } else {
+    normalizedFields = removeField(normalizedFields, "photo_description");
+  }
+
+  if (template.verification_method === "GPS") {
+    const minDistance = Number(verificationSetup.min_distance_meters);
+    const targetLat = Number(verificationSetup.target_lat);
+    const targetLng = Number(verificationSetup.target_lng);
+    const minDistancePayload = {
+      field_name: "min_distance_meters",
+      field_type: "number",
+      description: "Minimum distance in meters",
+      required: true,
+    };
+    if (!Number.isNaN(minDistance)) {
+      minDistancePayload.default_value = minDistance;
+    }
+    normalizedFields = upsertField(normalizedFields, minDistancePayload);
+
+    const locationPayload = {
+      field_name: "target_location",
+      field_type: "location",
+      description: "Target GPS location [lat, lng]",
+      required: true,
+    };
+    if (!Number.isNaN(targetLat) && !Number.isNaN(targetLng)) {
+      locationPayload.default_value = [targetLat, targetLng];
+    }
+    normalizedFields = upsertField(normalizedFields, locationPayload);
+  } else {
+    normalizedFields = removeField(normalizedFields, "min_distance_meters");
+    normalizedFields = removeField(normalizedFields, "target_location");
+  }
+
+  if (template.verification_method === "QUIZ") {
+    const quizId = verificationSetup.quiz_id?.trim();
+    const quizPayload = {
+      field_name: "quiz_id",
+      field_type: "string",
+      description: "Quiz ID for verification",
+      required: true,
+    };
+    if (quizId) quizPayload.default_value = quizId;
+    normalizedFields = upsertField(normalizedFields, quizPayload);
+  } else {
+    normalizedFields = removeField(normalizedFields, "quiz_id");
+  }
+
+  return {
+    name: template.name?.trim(),
+    description: template.description?.trim(),
+    category: template.category,
+    verification_method: template.verification_method,
+    default_difficulty: template.default_difficulty,
+    default_frequency: template.default_frequency,
+    base_points_range: {
+      min: Number.isNaN(baseMin) ? 0 : baseMin,
+      max: Number.isNaN(baseMax) ? 0 : baseMax,
+    },
+    impact_metrics_schema: {
+      co2_saved: !!template.impact_metrics_schema?.co2_saved,
+      waste_recycled: !!template.impact_metrics_schema?.waste_recycled,
+      km_green: !!template.impact_metrics_schema?.km_green,
+    },
+    configurable_fields: normalizedFields,
+    example_title: template.example_title || "",
+    example_description: template.example_description || "",
+    is_active: template.is_active !== false,
+  };
+};
+
+const resetQuizForm = () => {
+  quizForm.value = {
+    title: "",
+    description: "",
+    passing_score: 80,
+    questions: [
+      {
+        text: "",
+        options_text: "",
+        correct_option_index: 0,
+      },
+    ],
+  };
+};
+
+const fetchQuizzes = async () => {
+  quizzesLoading.value = true;
+  quizzesError.value = null;
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    quizzesLoading.value = false;
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-access-token": token,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Impossibile caricare i quiz.");
+    }
+
+    const data = await response.json();
+    quizzes.value = Array.isArray(data) ? data : [];
+  } catch (err) {
+    quizzesError.value = err.message || "Impossibile caricare i quiz.";
+  } finally {
+    quizzesLoading.value = false;
+  }
+};
+
+const addQuizQuestion = () => {
+  quizForm.value.questions.push({
+    text: "",
+    options_text: "",
+    correct_option_index: 0,
+  });
+};
+
+const removeQuizQuestion = (index) => {
+  quizForm.value.questions.splice(index, 1);
+};
+
+const createQuiz = async () => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  if (!quizForm.value.title.trim()) {
+    templateModalError.value = "Inserisci un titolo per il quiz.";
+    return;
+  }
+
+  const questions = quizForm.value.questions
+    .map((question) => {
+      const options = question.options_text
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return {
+        text: question.text.trim(),
+        options,
+        correct_option_index: Number(question.correct_option_index),
+      };
+    })
+    .filter((question) => question.text && question.options.length > 0);
+
+  if (questions.length === 0) {
+    templateModalError.value = "Inserisci almeno una domanda valida.";
+    return;
+  }
+
+  const payload = {
+    title: quizForm.value.title.trim(),
+    description: quizForm.value.description?.trim() || "",
+    passing_score: Number(quizForm.value.passing_score || 0),
+    questions,
+  };
+
+  templateModalLoading.value = true;
+  templateModalError.value = null;
+
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-access-token": token,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Errore durante la creazione del quiz.");
+    }
+
+    const created = await response.json();
+    await fetchQuizzes();
+    if (editingTemplate.value?.verification_setup) {
+      editingTemplate.value.verification_setup.quiz_id = created._id;
+    }
+    showQuizCreator.value = false;
+    resetQuizForm();
+  } catch (err) {
+    templateModalError.value =
+      err.message || "Errore durante la creazione del quiz.";
+  } finally {
+    templateModalLoading.value = false;
+  }
+};
+
 // Recupera i Task Template dal database
 const fetchTemplates = async () => {
   loading.value = true;
@@ -40,12 +462,15 @@ const fetchTemplates = async () => {
   }
 
   try {
-    const response = await fetch(`${API_BASE}/api/v1/tasks/templates`, {
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
+    const response = await fetch(
+      `${API_BASE}/api/v1/tasks/templates?active_only=false`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-access-token": token,
+        },
       },
-    });
+    );
 
     if (response.status === 401 || response.status === 403) {
       throw new Error("Sessione scaduta o permessi insufficienti.");
@@ -79,19 +504,168 @@ const _filteredTemplates = computed(() => {
   });
 });
 
-const __confirmDelete = (templateId, templateTitle) => {
-  const proceed = confirm(
-    `Vuoi davvero eliminare il modello "${templateTitle}"?`,
-  );
-  if (proceed) {
-    console.log(`Eliminazione richiesta per: ${templateId}`);
-    alert("Funzionalità di eliminazione in fase di implementazione.");
+const openCreateTemplate = () => {
+  templateModalMode.value = "create";
+  editingTemplate.value = defaultTemplateForm();
+  templateModalError.value = null;
+  showQuizCreator.value = false;
+  resetQuizForm();
+  showTemplateModal.value = true;
+};
+
+const openEditTemplate = (template) => {
+  templateModalMode.value = "edit";
+  editingTemplate.value = normalizeTemplateForEdit(template);
+  templateModalError.value = null;
+  showQuizCreator.value = false;
+  resetQuizForm();
+  showTemplateModal.value = true;
+};
+
+const closeTemplateModal = () => {
+  showTemplateModal.value = false;
+  editingTemplate.value = null;
+  templateModalError.value = null;
+};
+
+const addConfigurableField = () => {
+  if (!editingTemplate.value) return;
+  editingTemplate.value.configurable_fields.push({
+    field_name: "",
+    field_type: "string",
+    description: "",
+    required: false,
+    default_value: "",
+    validation: {
+      min: "",
+      max: "",
+      pattern: "",
+      options_text: "",
+    },
+  });
+};
+
+const removeConfigurableField = (index) => {
+  if (!editingTemplate.value) return;
+  editingTemplate.value.configurable_fields.splice(index, 1);
+};
+
+const saveTemplate = async () => {
+  if (!editingTemplate.value) return;
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  if (!editingTemplate.value.name || !editingTemplate.value.description) {
+    templateModalError.value = "Nome e descrizione sono obbligatori.";
+    return;
+  }
+
+  const verificationMethod = editingTemplate.value.verification_method;
+  const verificationSetup = editingTemplate.value.verification_setup || {};
+  if (
+    verificationMethod === "QR_SCAN" &&
+    !verificationSetup.qr_code_secret?.trim()
+  ) {
+    templateModalError.value = "Inserisci il QR secret per la verifica.";
+    return;
+  }
+  if (
+    verificationMethod === "PHOTO_UPLOAD" &&
+    !verificationSetup.photo_description?.trim()
+  ) {
+    templateModalError.value =
+      "Inserisci una descrizione della foto richiesta.";
+    return;
+  }
+  if (verificationMethod === "GPS") {
+    const targetLat = Number(verificationSetup.target_lat);
+    const targetLng = Number(verificationSetup.target_lng);
+    const minDistance = Number(verificationSetup.min_distance_meters);
+    if (Number.isNaN(targetLat) || Number.isNaN(targetLng)) {
+      templateModalError.value = "Inserisci una posizione target valida.";
+      return;
+    }
+    if (Number.isNaN(minDistance) || minDistance <= 0) {
+      templateModalError.value = "Inserisci una distanza minima valida.";
+      return;
+    }
+  }
+  if (verificationMethod === "QUIZ" && !verificationSetup.quiz_id?.trim()) {
+    templateModalError.value = "Seleziona o crea un quiz.";
+    return;
+  }
+
+  templateModalLoading.value = true;
+  templateModalError.value = null;
+
+  try {
+    const payload = buildTemplatePayload(editingTemplate.value);
+    const endpoint =
+      templateModalMode.value === "edit"
+        ? `${API_BASE}/api/v1/tasks/templates/${editingTemplate.value._id}`
+        : `${API_BASE}/api/v1/tasks/templates`;
+    const method = templateModalMode.value === "edit" ? "PUT" : "POST";
+
+    const response = await fetch(endpoint, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "x-access-token": token,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Errore durante il salvataggio.");
+    }
+
+    closeTemplateModal();
+    await fetchTemplates();
+  } catch (err) {
+    templateModalError.value = err.message || "Errore durante il salvataggio.";
+  } finally {
+    templateModalLoading.value = false;
   }
 };
 
-const __updateTemplate = (templateId) => {
-  console.log(`Modifica richiesta per: ${templateId}`);
-  alert("Reindirizzamento alla pagina di modifica...");
+const deleteTemplate = async (template) => {
+  if (!template?._id) return;
+  const proceed = confirm(
+    `Vuoi davvero eliminare il modello "${template.name}"?`,
+  );
+  if (!proceed) return;
+
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  templateModalLoading.value = true;
+  templateModalError.value = null;
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/v1/tasks/templates/${template._id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-access-token": token,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Errore durante l'eliminazione.");
+    }
+
+    closeTemplateModal();
+    await fetchTemplates();
+  } catch (err) {
+    templateModalError.value = err.message || "Errore durante l'eliminazione.";
+  } finally {
+    templateModalLoading.value = false;
+  }
 };
 
 const fetchTasks = async () => {
@@ -259,6 +833,7 @@ onMounted(() => {
   fetchTemplates();
   fetchTasks();
   fetchNeighborhoods();
+  fetchQuizzes();
 });
 </script>
 
@@ -275,25 +850,37 @@ onMounted(() => {
     </nav>
 
     <div class="header-section">
+      <div class="header-left">
         <h1 class="page-title">Gestione Modelli</h1>
-        
+        <p class="page-subtitle">Crea, modifica e gestisci i task template.</p>
+      </div>
+
+      <div class="header-actions">
         <div class="tabs-container">
-            <button 
-                :class="['tab-btn', { active: currentTab === 'active' }]" 
-                @click="currentTab = 'active'">
-                🟢 Attivi
-            </button>
-            <button 
-                :class="['tab-btn', { active: currentTab === 'archived' }]" 
-                @click="currentTab = 'archived'">
-                📦 Archiviati
-            </button>
-            <button 
-                :class="['tab-btn', { active: currentTab === 'all' }]" 
-                @click="currentTab = 'all'">
-                📋 Tutti
-            </button>
+          <button
+            :class="['tab-btn', { active: currentTab === 'active' }]"
+            @click="currentTab = 'active'"
+          >
+            🟢 Attivi
+          </button>
+          <button
+            :class="['tab-btn', { active: currentTab === 'archived' }]"
+            @click="currentTab = 'archived'"
+          >
+            📦 Archiviati
+          </button>
+          <button
+            :class="['tab-btn', { active: currentTab === 'all' }]"
+            @click="currentTab = 'all'"
+          >
+            📋 Tutti
+          </button>
         </div>
+
+        <button class="btn-create" @click="openCreateTemplate">
+          + Nuovo Modello
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="state-container loading">
@@ -341,8 +928,12 @@ onMounted(() => {
         </div>
 
         <div class="card-actions">
-            <button @click="__updateTemplate(tpl._id)" class="btn-action btn-update">Modifica</button>
-            <button @click="__confirmDelete(tpl._id, tpl.title)" class="btn-action btn-delete">Elimina</button>
+          <button @click="openEditTemplate(tpl)" class="btn-action btn-update">
+            Modifica
+          </button>
+          <button @click="deleteTemplate(tpl)" class="btn-action btn-delete">
+            Elimina
+          </button>
         </div>
       </div>
     </div>
@@ -350,6 +941,448 @@ onMounted(() => {
     <div v-if="!loading && _filteredTemplates.length === 0" class="empty-state">
         <p>Nessun modello trovato in questa categoria.</p>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="showTemplateModal"
+        class="modal-overlay"
+        @click.self="closeTemplateModal"
+      >
+        <div class="modal-card template-modal-card">
+          <button class="close-btn" @click="closeTemplateModal">×</button>
+
+          <div v-if="templateModalLoading" class="modal-loading">
+            <div class="spinner"></div>
+            <p>Elaborazione...</p>
+          </div>
+
+          <div v-else-if="editingTemplate" class="modal-body-content">
+            <header class="modal-header">
+              <h2>
+                {{ templateModalMode === "edit" ? "Modifica Template" : "Nuovo Template" }}
+              </h2>
+              <span
+                v-if="templateModalMode === 'edit'"
+                :class="['status-badge', editingTemplate.is_active ? 'active' : 'inactive']"
+              >
+                {{ editingTemplate.is_active ? 'Attivo' : 'Inattivo' }}
+              </span>
+            </header>
+
+            <div v-if="templateModalError" class="modal-error">
+              ⚠️ {{ templateModalError }}
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Nome</label>
+                <input v-model="editingTemplate.name" type="text" class="form-input" />
+              </div>
+
+              <div class="form-group full-width">
+                <label>Descrizione</label>
+                <textarea
+                  v-model="editingTemplate.description"
+                  class="form-input form-textarea"
+                  rows="3"
+                ></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>Categoria</label>
+                <select v-model="editingTemplate.category" class="form-input">
+                  <option value="Mobility">Mobility</option>
+                  <option value="Waste">Waste</option>
+                  <option value="Community">Community</option>
+                  <option value="Education">Education</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Metodo Verifica</label>
+                <select
+                  v-model="editingTemplate.verification_method"
+                  class="form-input"
+                >
+                  <option value="GPS">GPS</option>
+                  <option value="QR_SCAN">QR Scan</option>
+                  <option value="PHOTO_UPLOAD">Photo Upload</option>
+                  <option value="QUIZ">Quiz</option>
+                </select>
+              </div>
+
+              <div
+                v-if="editingTemplate.verification_method === 'QR_SCAN'"
+                class="form-group full-width verification-panel"
+              >
+                <label>QR Secret</label>
+                <input
+                  v-model="editingTemplate.verification_setup.qr_code_secret"
+                  type="text"
+                  class="form-input"
+                  placeholder="Inserisci il codice segreto del QR"
+                />
+                <p class="helper-text">
+                  Questo codice deve combaciare con il QR scannerizzato.
+                </p>
+              </div>
+
+              <div
+                v-if="editingTemplate.verification_method === 'PHOTO_UPLOAD'"
+                class="form-group full-width verification-panel"
+              >
+                <label>Descrizione Foto</label>
+                <textarea
+                  v-model="editingTemplate.verification_setup.photo_description"
+                  class="form-input form-textarea"
+                  rows="2"
+                  placeholder="Descrivi cosa deve mostrare la foto"
+                ></textarea>
+                <p class="helper-text">
+                  Fornisci indicazioni chiare per la verifica manuale.
+                </p>
+              </div>
+
+              <div
+                v-if="editingTemplate.verification_method === 'GPS'"
+                class="form-group full-width verification-panel"
+              >
+                <label>Verifica GPS</label>
+                <div class="verification-grid">
+                  <div class="form-group">
+                    <label>Latitudine</label>
+                    <input
+                      v-model="editingTemplate.verification_setup.target_lat"
+                      type="number"
+                      step="any"
+                      class="form-input"
+                      placeholder="Es. 41.9028"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Longitudine</label>
+                    <input
+                      v-model="editingTemplate.verification_setup.target_lng"
+                      type="number"
+                      step="any"
+                      class="form-input"
+                      placeholder="Es. 12.4964"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Distanza massima (m)</label>
+                    <input
+                      v-model="editingTemplate.verification_setup.min_distance_meters"
+                      type="number"
+                      min="1"
+                      class="form-input"
+                      placeholder="100"
+                    />
+                  </div>
+                </div>
+                <p class="helper-text">
+                  Imposta il punto target e la distanza massima consentita.
+                </p>
+              </div>
+
+              <div
+                v-if="editingTemplate.verification_method === 'QUIZ'"
+                class="form-group full-width verification-panel"
+              >
+                <label>Seleziona Quiz</label>
+                <select
+                  v-model="editingTemplate.verification_setup.quiz_id"
+                  class="form-input"
+                >
+                  <option value="">-- Seleziona quiz --</option>
+                  <option v-for="quiz in quizzes" :key="quiz._id" :value="quiz._id">
+                    {{ quiz.title }}
+                  </option>
+                </select>
+                <div class="inline-actions">
+                  <button class="btn-action btn-update" @click="showQuizCreator = !showQuizCreator">
+                    {{ showQuizCreator ? 'Chiudi creazione quiz' : 'Crea nuovo quiz' }}
+                  </button>
+                </div>
+                <p v-if="quizzesLoading" class="helper-text">Caricamento quiz...</p>
+                <p v-else-if="quizzesError" class="helper-text">{{ quizzesError }}</p>
+
+                <div v-if="showQuizCreator" class="quiz-creator">
+                  <div class="form-grid">
+                    <div class="form-group full-width">
+                      <label>Titolo Quiz</label>
+                      <input v-model="quizForm.title" type="text" class="form-input" />
+                    </div>
+                    <div class="form-group full-width">
+                      <label>Descrizione Quiz</label>
+                      <textarea
+                        v-model="quizForm.description"
+                        class="form-input form-textarea"
+                        rows="2"
+                      ></textarea>
+                    </div>
+                    <div class="form-group">
+                      <label>Soglia Superamento (%)</label>
+                      <input
+                        v-model.number="quizForm.passing_score"
+                        type="number"
+                        min="1"
+                        max="100"
+                        class="form-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="quiz-questions">
+                    <div class="quiz-questions-header">
+                      <h4>Domande</h4>
+                      <button class="btn-action btn-update" @click="addQuizQuestion">
+                        + Aggiungi domanda
+                      </button>
+                    </div>
+
+                    <div
+                      v-for="(question, index) in quizForm.questions"
+                      :key="index"
+                      class="quiz-question-card"
+                    >
+                      <div class="form-grid">
+                        <div class="form-group full-width">
+                          <label>Testo Domanda</label>
+                          <input v-model="question.text" type="text" class="form-input" />
+                        </div>
+                        <div class="form-group full-width">
+                          <label>Opzioni (separate da virgola)</label>
+                          <input
+                            v-model="question.options_text"
+                            type="text"
+                            class="form-input"
+                          />
+                        </div>
+                        <div class="form-group">
+                          <label>Indice Risposta Corretta</label>
+                          <input
+                            v-model.number="question.correct_option_index"
+                            type="number"
+                            min="0"
+                            class="form-input"
+                          />
+                        </div>
+                      </div>
+                      <div class="config-field-actions">
+                        <button class="btn-action btn-delete" @click="removeQuizQuestion(index)">
+                          Rimuovi domanda
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="inline-actions">
+                    <button class="btn-action btn-update" @click="createQuiz">
+                      Salva quiz
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Difficolta Default</label>
+                <select
+                  v-model="editingTemplate.default_difficulty"
+                  class="form-input"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Frequenza Default</label>
+                <select
+                  v-model="editingTemplate.default_frequency"
+                  class="form-input"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="on_demand">On Demand</option>
+                  <option value="onetime">One Time</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Punti Minimi</label>
+                <input
+                  v-model.number="editingTemplate.base_points_range.min"
+                  type="number"
+                  min="0"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Punti Massimi</label>
+                <input
+                  v-model.number="editingTemplate.base_points_range.max"
+                  type="number"
+                  min="0"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group full-width">
+                <label>Impatto Ambientale</label>
+                <div class="checkbox-row">
+                  <label class="checkbox-item">
+                    <input
+                      v-model="editingTemplate.impact_metrics_schema.co2_saved"
+                      type="checkbox"
+                    />
+                    CO2 Risparmiata
+                  </label>
+                  <label class="checkbox-item">
+                    <input
+                      v-model="editingTemplate.impact_metrics_schema.waste_recycled"
+                      type="checkbox"
+                    />
+                    Rifiuti Riciclati
+                  </label>
+                  <label class="checkbox-item">
+                    <input
+                      v-model="editingTemplate.impact_metrics_schema.km_green"
+                      type="checkbox"
+                    />
+                    Km Green
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Esempio Titolo</label>
+                <input
+                  v-model="editingTemplate.example_title"
+                  type="text"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group full-width">
+                <label>Esempio Descrizione</label>
+                <textarea
+                  v-model="editingTemplate.example_description"
+                  class="form-input form-textarea"
+                  rows="2"
+                ></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label class="checkbox-item">
+                  <input v-model="editingTemplate.is_active" type="checkbox" />
+                  Template attivo
+                </label>
+              </div>
+            </div>
+
+            <div class="config-fields">
+              <div class="config-fields-header">
+                <h3>Campi Configurabili</h3>
+                <button class="btn-action btn-update" @click="addConfigurableField">
+                  + Aggiungi Campo
+                </button>
+              </div>
+
+              <div
+                v-for="(field, index) in editingTemplate.configurable_fields"
+                :key="index"
+                class="config-field-card"
+              >
+                <div class="config-grid">
+                  <div class="form-group">
+                    <label>Nome Campo</label>
+                    <input v-model="field.field_name" type="text" class="form-input" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Tipo</label>
+                    <select v-model="field.field_type" class="form-input">
+                      <option value="string">String</option>
+                      <option value="number">Number</option>
+                      <option value="boolean">Boolean</option>
+                      <option value="array">Array</option>
+                      <option value="location">Location</option>
+                      <option value="date">Date</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Richiesto</label>
+                    <select v-model="field.required" class="form-input">
+                      <option :value="true">Si</option>
+                      <option :value="false">No</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Valore Default</label>
+                    <input v-model="field.default_value" type="text" class="form-input" />
+                  </div>
+
+                  <div class="form-group full-width">
+                    <label>Descrizione</label>
+                    <input v-model="field.description" type="text" class="form-input" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Valore Min</label>
+                    <input v-model="field.validation.min" type="number" class="form-input" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Valore Max</label>
+                    <input v-model="field.validation.max" type="number" class="form-input" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Pattern</label>
+                    <input v-model="field.validation.pattern" type="text" class="form-input" />
+                  </div>
+
+                  <div class="form-group full-width">
+                    <label>Opzioni (separate da virgola)</label>
+                    <input v-model="field.validation.options_text" type="text" class="form-input" />
+                  </div>
+                </div>
+
+                <div class="config-field-actions">
+                  <button class="btn-action btn-delete" @click="removeConfigurableField(index)">
+                    Rimuovi
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="editingTemplate.configurable_fields.length === 0" class="empty-config">
+                Nessun campo configurabile.
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                v-if="templateModalMode === 'edit'"
+                class="btn-modal btn-delete-modal"
+                @click="deleteTemplate(editingTemplate)"
+              >
+                Elimina
+              </button>
+              <button class="btn-modal btn-save" @click="saveTemplate">
+                Salva
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- ALL TASKS SECTION -->
     <section class="section tasks-section">
@@ -613,6 +1646,25 @@ onMounted(() => {
   gap: 1rem;
 }
 
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .page-title {
   font-size: 1.5rem;
   font-weight: 600;
@@ -641,6 +1693,23 @@ onMounted(() => {
   padding: 0.5rem;
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
+}
+
+.btn-create {
+  border: none;
+  background: #2d6a4f;
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 14px rgba(45, 106, 79, 0.2);
+}
+
+.btn-create:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(45, 106, 79, 0.25);
 }
 
 .tab-btn {
@@ -1060,6 +2129,59 @@ onMounted(() => {
   min-height: 70px;
 }
 
+.verification-panel {
+  background: #f8fafc;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+
+.helper-text {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.verification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.inline-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
+.quiz-creator {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.quiz-questions {
+  margin-top: 1rem;
+}
+
+.quiz-questions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.quiz-question-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #f9fafb;
+  margin-bottom: 1rem;
+}
+
 .modal-actions {
   display: flex;
   gap: 0.75rem;
@@ -1101,5 +2223,83 @@ onMounted(() => {
 }
 .btn-delete-modal:hover {
   background-color: #fecaca;
+}
+
+.template-modal-card {
+  max-width: 820px;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.checkbox-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  color: #1f2937;
+}
+
+.config-fields {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+}
+
+.config-fields-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.config-fields-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1b4332;
+}
+
+.config-field-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #f8fafc;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.config-field-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.empty-config {
+  padding: 0.75rem 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .header-section {
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

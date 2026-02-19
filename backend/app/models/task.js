@@ -31,6 +31,7 @@ export default mongoose.model(
       min_distance_meters: Number, // For walking tasks
       target_location: { type: [Number] }, // For park visits
       qr_code_secret: String, // For validating QR scans
+      photo_description: String, // Operator guidance for photo verification
       quiz_id: Schema.Types.ObjectId, // If it's a quiz
     },
 

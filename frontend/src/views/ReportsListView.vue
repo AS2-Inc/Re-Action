@@ -202,6 +202,18 @@ onMounted(() => {
                     <strong>Descrizione Task:</strong>
                     <p>{{ selectedSubmission.task_id?.description || 'N/A' }}</p>
                 </div>
+                <div
+                  v-if="selectedSubmission.task_id?.verification_method === 'PHOTO_UPLOAD'"
+                  class="detail-row"
+                >
+                    <strong>Descrizione Foto Richiesta:</strong>
+                    <p>
+                      {{
+                        selectedSubmission.task_id?.verification_criteria?.photo_description ||
+                        'N/A'
+                      }}
+                    </p>
+                </div>
             </div>
 
             <div class="proof-section">

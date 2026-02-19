@@ -95,11 +95,34 @@ router.get(
   check_role(["operator", "admin"]),
   async (_req, res) => {
     try {
-      const templates = await task_template_service.get_templates();
+      const active_only = _req.query.active_only !== "false";
+      const templates = await task_template_service.get_templates(active_only);
       res.status(200).json(templates);
     } catch (error) {
       console.error("Get templates error:", error);
       res.status(500).json({ error: "Failed to fetch templates" });
+    }
+  },
+);
+
+/**
+ * POST /api/v1/tasks/templates
+ * Create a new task template (operators/admin only)
+ */
+router.post(
+  "/templates",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (req, res) => {
+    try {
+      const template = await task_template_service.create_template(req.body);
+      res.status(201).json(template);
+    } catch (error) {
+      if (error instanceof ServiceError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      console.error("Create template error:", error);
+      res.status(500).json({ error: "Failed to create template" });
     }
   },
 );
@@ -122,6 +145,55 @@ router.get(
       }
       console.error("Get template error:", error);
       res.status(500).json({ error: "Failed to fetch template" });
+    }
+  },
+);
+
+/**
+ * PUT /api/v1/tasks/templates/:id
+ * Update a task template (operators/admin only)
+ */
+router.put(
+  "/templates/:id",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (req, res) => {
+    try {
+      const template = await task_template_service.update_template(
+        req.params.id,
+        req.body,
+      );
+      res.status(200).json(template);
+    } catch (error) {
+      if (error instanceof ServiceError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      console.error("Update template error:", error);
+      res.status(500).json({ error: "Failed to update template" });
+    }
+  },
+);
+
+/**
+ * DELETE /api/v1/tasks/templates/:id
+ * Deactivate a task template (soft delete)
+ */
+router.delete(
+  "/templates/:id",
+  token_checker,
+  check_role(["operator", "admin"]),
+  async (req, res) => {
+    try {
+      const template = await task_template_service.deactivate_template(
+        req.params.id,
+      );
+      res.status(200).json(template);
+    } catch (error) {
+      if (error instanceof ServiceError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      console.error("Delete template error:", error);
+      res.status(500).json({ error: "Failed to delete template" });
     }
   },
 );

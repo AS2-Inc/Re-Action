@@ -15,6 +15,24 @@ const error = ref(null);
 const successMessage = ref("");
 const neighborhoods = ref([]);
 
+// Quiz state
+const quizzes = ref([]);
+const quizzesLoading = ref(false);
+const quizzesError = ref(null);
+const showQuizCreator = ref(false);
+const quizForm = ref({
+  title: "",
+  description: "",
+  passing_score: 80,
+  questions: [
+    {
+      text: "",
+      options_text: "",
+      correct_option_index: 0,
+    },
+  ],
+});
+
 // --- CREATE FROM SCRATCH STATE ---
 const formData = ref({
   title: "",
@@ -26,6 +44,15 @@ const formData = ref({
   category: "Community",
   verification_method: "PHOTO_UPLOAD",
   neighborhood_id: "",
+  is_active: true,
+  verification_setup: {
+    qr_code_secret: "",
+    photo_description: "",
+    target_lat: "",
+    target_lng: "",
+    min_distance_meters: "",
+    quiz_id: "",
+  },
 });
 
 // --- CREATE FROM TEMPLATE STATE ---
@@ -36,6 +63,7 @@ const templateFormData = ref({
   description: "",
   base_points: 0,
   neighborhood_id: "",
+  is_active: true,
   // Dynamic fields will be added here
 });
 
@@ -74,6 +102,122 @@ const fetchTemplates = async () => {
   }
 };
 
+const fetchQuizzes = async () => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  quizzesLoading.value = true;
+  quizzesError.value = null;
+
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
+      headers: { "x-access-token": token },
+    });
+    if (!response.ok) {
+      throw new Error("Impossibile caricare i quiz.");
+    }
+
+    const data = await response.json();
+    quizzes.value = Array.isArray(data) ? data : [];
+  } catch (err) {
+    quizzesError.value = err.message || "Impossibile caricare i quiz.";
+  } finally {
+    quizzesLoading.value = false;
+  }
+};
+
+const resetQuizForm = () => {
+  quizForm.value = {
+    title: "",
+    description: "",
+    passing_score: 80,
+    questions: [
+      {
+        text: "",
+        options_text: "",
+        correct_option_index: 0,
+      },
+    ],
+  };
+};
+
+const addQuizQuestion = () => {
+  quizForm.value.questions.push({
+    text: "",
+    options_text: "",
+    correct_option_index: 0,
+  });
+};
+
+const removeQuizQuestion = (index) => {
+  quizForm.value.questions.splice(index, 1);
+};
+
+const createQuiz = async () => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  if (!quizForm.value.title.trim()) {
+    error.value = "Inserisci un titolo per il quiz.";
+    return;
+  }
+
+  const questions = quizForm.value.questions
+    .map((question) => {
+      const options = question.options_text
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return {
+        text: question.text.trim(),
+        options,
+        correct_option_index: Number(question.correct_option_index),
+      };
+    })
+    .filter((question) => question.text && question.options.length > 0);
+
+  if (questions.length === 0) {
+    error.value = "Inserisci almeno una domanda valida.";
+    return;
+  }
+
+  const payload = {
+    title: quizForm.value.title.trim(),
+    description: quizForm.value.description?.trim() || "",
+    passing_score: Number(quizForm.value.passing_score || 0),
+    questions,
+  };
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-access-token": token,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Errore durante la creazione del quiz.");
+    }
+
+    const created = await response.json();
+    await fetchQuizzes();
+    formData.value.verification_setup.quiz_id = created._id;
+    showQuizCreator.value = false;
+    resetQuizForm();
+  } catch (err) {
+    error.value = err.message || "Errore durante la creazione del quiz.";
+  } finally {
+    loading.value = false;
+  }
+};
+
 const _handleTemplateChange = () => {
   if (!selectedTemplate.value) return;
 
@@ -84,7 +228,18 @@ const _handleTemplateChange = () => {
     description: t.example_description || t.description,
     base_points: t.base_points_range ? t.base_points_range.min : 10,
     neighborhood_id: "",
+    is_active: true,
   };
+
+  if (t.impact_metrics_schema?.co2_saved) {
+    templateFormData.value.co2_saved = 0;
+  }
+  if (t.impact_metrics_schema?.waste_recycled) {
+    templateFormData.value.waste_recycled = 0;
+  }
+  if (t.impact_metrics_schema?.km_green) {
+    templateFormData.value.km_green = 0;
+  }
 
   // Initialize configurable fields with defaults
   if (t.configurable_fields) {
@@ -106,15 +261,68 @@ const _createTask = async () => {
   }
 
   try {
+    const verificationCriteria = {};
+    const verificationSetup = formData.value.verification_setup || {};
+    const method = formData.value.verification_method;
+
+    if (method === "QR_SCAN") {
+      const secret = verificationSetup.qr_code_secret?.trim();
+      if (!secret) {
+        throw new Error("Inserisci il QR secret per la verifica.");
+      }
+      verificationCriteria.qr_code_secret = secret;
+    }
+
+    if (method === "PHOTO_UPLOAD") {
+      const photoDescription = verificationSetup.photo_description?.trim();
+      if (!photoDescription) {
+        throw new Error("Inserisci la descrizione della foto richiesta.");
+      }
+      verificationCriteria.photo_description = photoDescription;
+    }
+
+    if (method === "GPS") {
+      const targetLat = Number(verificationSetup.target_lat);
+      const targetLng = Number(verificationSetup.target_lng);
+      const minDistance = Number(verificationSetup.min_distance_meters);
+      if (Number.isNaN(targetLat) || Number.isNaN(targetLng)) {
+        throw new Error("Inserisci una posizione target valida.");
+      }
+      if (Number.isNaN(minDistance) || minDistance <= 0) {
+        throw new Error("Inserisci una distanza minima valida.");
+      }
+      verificationCriteria.target_location = [targetLat, targetLng];
+      verificationCriteria.min_distance_meters = minDistance;
+    }
+
+    if (method === "QUIZ") {
+      const quizId = verificationSetup.quiz_id?.trim();
+      if (!quizId) {
+        throw new Error("Seleziona o crea un quiz.");
+      }
+      verificationCriteria.quiz_id = quizId;
+    }
+
     const payload = {
-      ...formData.value,
-      base_points: formData.value.points, // Map points to base_points
+      title: formData.value.title,
+      description: formData.value.description,
+      category: formData.value.category,
+      difficulty: formData.value.difficulty,
+      frequency: formData.value.frequency,
+      verification_method: formData.value.verification_method,
+      base_points: formData.value.points,
+      neighborhood_id: formData.value.neighborhood_id,
+      is_active: formData.value.is_active,
+      verification_criteria:
+        Object.keys(verificationCriteria).length > 0
+          ? verificationCriteria
+          : undefined,
     };
 
-    // Remove empty neighborhood_id to avoid casting errors
-    if (!payload.neighborhood_id) {
-      delete payload.neighborhood_id;
-    }
+    // Remove empty neighborhood_id and optional verification_criteria
+    if (!payload.neighborhood_id) delete payload.neighborhood_id;
+    if (payload.is_active === undefined) delete payload.is_active;
+    if (!payload.verification_criteria) delete payload.verification_criteria;
 
     const response = await fetch(`${API_BASE}/api/v1/tasks/create`, {
       method: "POST",
@@ -168,6 +376,7 @@ const _createTaskFromTemplate = async () => {
     };
 
     if (!payload.neighborhood_id) delete payload.neighborhood_id;
+    if (payload.is_active === undefined) delete payload.is_active;
 
     const response = await fetch(`${API_BASE}/api/v1/tasks/from-template`, {
       method: "POST",
@@ -204,6 +413,7 @@ const _createTaskFromTemplate = async () => {
 onMounted(() => {
   fetchTemplates();
   fetchNeighborhoods();
+  fetchQuizzes();
 });
 </script>
 
@@ -297,6 +507,7 @@ onMounted(() => {
                             <option value="weekly">Settimanale</option>
                             <option value="monthly">Mensile</option>
                             <option value="on_demand">Su Richiesta</option>
+                        <option value="onetime">Una Tantum</option>
                         </select>
                     </div>
 
@@ -308,9 +519,181 @@ onMounted(() => {
                             <option value="QR_SCAN">Scansione QR</option>
                             <option value="QUIZ">Quiz</option>
                             <option value="PHOTO_UPLOAD">Caricamento Foto</option>
-                            <option value="MANUAL_REPORT">Report Manuale</option>
-                            <option value="AUTO">Automatico</option>
                         </select>
+                    </div>
+
+                    <div
+                      v-if="formData.verification_method === 'QR_SCAN'"
+                      class="form-group span-2 verification-panel"
+                    >
+                      <label>QR Secret</label>
+                      <input
+                        v-model="formData.verification_setup.qr_code_secret"
+                        type="text"
+                        class="input-field"
+                        placeholder="Inserisci il codice segreto del QR"
+                      />
+                      <p class="helper-text">
+                        Il codice deve combaciare con il QR scannerizzato.
+                      </p>
+                    </div>
+
+                    <div
+                      v-if="formData.verification_method === 'PHOTO_UPLOAD'"
+                      class="form-group span-2 verification-panel"
+                    >
+                      <label>Descrizione Foto</label>
+                      <textarea
+                        v-model="formData.verification_setup.photo_description"
+                        class="input-field"
+                        rows="2"
+                        placeholder="Descrivi cosa deve mostrare la foto"
+                      ></textarea>
+                      <p class="helper-text">
+                        Fornisci indicazioni chiare per la verifica manuale.
+                      </p>
+                    </div>
+
+                    <div
+                      v-if="formData.verification_method === 'GPS'"
+                      class="form-group span-2 verification-panel"
+                    >
+                      <label>Verifica GPS</label>
+                      <div class="verification-grid">
+                        <div class="form-group">
+                          <label>Latitudine</label>
+                          <input
+                            v-model="formData.verification_setup.target_lat"
+                            type="number"
+                            step="any"
+                            class="input-field"
+                            placeholder="Es. 41.9028"
+                          />
+                        </div>
+                        <div class="form-group">
+                          <label>Longitudine</label>
+                          <input
+                            v-model="formData.verification_setup.target_lng"
+                            type="number"
+                            step="any"
+                            class="input-field"
+                            placeholder="Es. 12.4964"
+                          />
+                        </div>
+                        <div class="form-group">
+                          <label>Distanza massima (m)</label>
+                          <input
+                            v-model="formData.verification_setup.min_distance_meters"
+                            type="number"
+                            min="1"
+                            class="input-field"
+                            placeholder="100"
+                          />
+                        </div>
+                      </div>
+                      <p class="helper-text">
+                        Imposta il punto target e la distanza massima consentita.
+                      </p>
+                    </div>
+
+                    <div
+                      v-if="formData.verification_method === 'QUIZ'"
+                      class="form-group span-2 verification-panel"
+                    >
+                      <label>Seleziona Quiz</label>
+                      <select
+                        v-model="formData.verification_setup.quiz_id"
+                        class="input-field"
+                      >
+                        <option value="">-- Seleziona quiz --</option>
+                        <option v-for="quiz in quizzes" :key="quiz._id" :value="quiz._id">
+                          {{ quiz.title }}
+                        </option>
+                      </select>
+                      <div class="inline-actions">
+                        <button class="btn-submit" type="button" @click="showQuizCreator = !showQuizCreator">
+                          {{ showQuizCreator ? 'Chiudi creazione quiz' : 'Crea nuovo quiz' }}
+                        </button>
+                      </div>
+                      <p v-if="quizzesLoading" class="helper-text">Caricamento quiz...</p>
+                      <p v-else-if="quizzesError" class="helper-text">{{ quizzesError }}</p>
+
+                      <div v-if="showQuizCreator" class="quiz-creator">
+                        <div class="form-grid">
+                          <div class="form-group span-2">
+                            <label>Titolo Quiz</label>
+                            <input v-model="quizForm.title" type="text" class="input-field" />
+                          </div>
+                          <div class="form-group span-2">
+                            <label>Descrizione Quiz</label>
+                            <textarea
+                              v-model="quizForm.description"
+                              class="input-field"
+                              rows="2"
+                            ></textarea>
+                          </div>
+                          <div class="form-group">
+                            <label>Soglia Superamento (%)</label>
+                            <input
+                              v-model.number="quizForm.passing_score"
+                              type="number"
+                              min="1"
+                              max="100"
+                              class="input-field"
+                            />
+                          </div>
+                        </div>
+
+                        <div class="quiz-questions">
+                          <div class="quiz-questions-header">
+                            <h4>Domande</h4>
+                            <button class="btn-submit" type="button" @click="addQuizQuestion">
+                              + Aggiungi domanda
+                            </button>
+                          </div>
+
+                          <div
+                            v-for="(question, index) in quizForm.questions"
+                            :key="index"
+                            class="quiz-question-card"
+                          >
+                            <div class="form-grid">
+                              <div class="form-group span-2">
+                                <label>Testo Domanda</label>
+                                <input v-model="question.text" type="text" class="input-field" />
+                              </div>
+                              <div class="form-group span-2">
+                                <label>Opzioni (separate da virgola)</label>
+                                <input
+                                  v-model="question.options_text"
+                                  type="text"
+                                  class="input-field"
+                                />
+                              </div>
+                              <div class="form-group">
+                                <label>Indice Risposta Corretta</label>
+                                <input
+                                  v-model.number="question.correct_option_index"
+                                  type="number"
+                                  min="0"
+                                  class="input-field"
+                                />
+                              </div>
+                            </div>
+                            <div class="inline-actions">
+                              <button class="btn-submit" type="button" @click="removeQuizQuestion(index)">
+                                Rimuovi domanda
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="inline-actions">
+                          <button class="btn-submit" type="button" @click="createQuiz">
+                            Salva quiz
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <!-- Neighborhood -->
@@ -322,6 +705,13 @@ onMounted(() => {
                                 {{ n.name }}
                             </option>
                         </select>
+                    </div>
+
+                    <div class="form-group span-2">
+                      <label class="checkbox-label">
+                        <input type="checkbox" v-model="formData.is_active" />
+                        Task attivo
+                      </label>
                     </div>
                 </div>
 
@@ -385,6 +775,55 @@ onMounted(() => {
                                     {{ n.name }}
                                 </option>
                             </select>
+                        </div>
+
+                        <div class="form-group span-2">
+                          <label class="checkbox-label">
+                            <input type="checkbox" v-model="templateFormData.is_active" />
+                            Task attivo
+                          </label>
+                        </div>
+
+                        <div
+                          v-if="selectedTemplate.impact_metrics_schema?.co2_saved"
+                          class="form-group"
+                        >
+                          <label>CO2 Risparmiata (kg)</label>
+                          <input
+                            v-model.number="templateFormData.co2_saved"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="input-field"
+                          />
+                        </div>
+
+                        <div
+                          v-if="selectedTemplate.impact_metrics_schema?.waste_recycled"
+                          class="form-group"
+                        >
+                          <label>Rifiuti Riciclati (kg)</label>
+                          <input
+                            v-model.number="templateFormData.waste_recycled"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="input-field"
+                          />
+                        </div>
+
+                        <div
+                          v-if="selectedTemplate.impact_metrics_schema?.km_green"
+                          class="form-group"
+                        >
+                          <label>Km Green</label>
+                          <input
+                            v-model.number="templateFormData.km_green"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="input-field"
+                          />
                         </div>
 
                          <!-- DYNAMIC FIELDS FROM TEMPLATE CONFIG -->
@@ -601,6 +1040,59 @@ onMounted(() => {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
+}
+
+.verification-panel {
+  background-color: #f8fafc;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.verification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.helper-text {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.inline-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
+.quiz-creator {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.quiz-questions {
+  margin-top: 1rem;
+}
+
+.quiz-questions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.quiz-question-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #f9fafb;
+  margin-bottom: 1rem;
 }
 
 .span-2 { grid-column: span 2; }

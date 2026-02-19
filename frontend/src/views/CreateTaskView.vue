@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import apiService from "@/services/api.js";
 
 const router = useRouter();
 const API_BASE =
@@ -86,38 +87,24 @@ const fetchNeighborhoods = async () => {
 };
 
 const fetchTemplates = async () => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   try {
-    const response = await fetch(`${API_BASE}/api/v1/tasks/templates`, {
-      headers: { "x-access-token": token },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      templates.value = Array.isArray(data) ? data : data.data || [];
-    }
+    const data = await apiService.get("/api/v1/tasks/templates");
+    templates.value = Array.isArray(data) ? data : data.data || [];
   } catch (err) {
     console.error("Error fetching templates config", err);
   }
 };
 
 const fetchQuizzes = async () => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   quizzesLoading.value = true;
   quizzesError.value = null;
 
   try {
-    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
-      headers: { "x-access-token": token },
-    });
-    if (!response.ok) {
-      throw new Error("Impossibile caricare i quiz.");
-    }
-
-    const data = await response.json();
+    const data = await apiService.get("/api/v1/quizzes");
     quizzes.value = Array.isArray(data) ? data : [];
   } catch (err) {
     quizzesError.value = err.message || "Impossibile caricare i quiz.";
@@ -154,8 +141,7 @@ const _removeQuizQuestion = (index) => {
 };
 
 const _createQuiz = async () => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   if (!quizForm.value.title.trim()) {
     error.value = "Inserisci un titolo per il quiz.";
@@ -192,21 +178,8 @@ const _createQuiz = async () => {
   error.value = null;
 
   try {
-    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      },
-      body: JSON.stringify(payload),
-    });
+    const created = await apiService.post("/api/v1/quizzes", payload);
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || "Errore durante la creazione del quiz.");
-    }
-
-    const created = await response.json();
     await fetchQuizzes();
     formData.value.verification_setup.quiz_id = created._id;
     showQuizCreator.value = false;
@@ -254,8 +227,7 @@ const _createTask = async () => {
   error.value = null;
   successMessage.value = "";
 
-  const token = localStorage.getItem("token");
-  if (!token) {
+  if (!apiService.isAuthenticated()) {
     router.push("/login");
     return;
   }
@@ -324,33 +296,16 @@ const _createTask = async () => {
     if (payload.is_active === undefined) delete payload.is_active;
     if (!payload.verification_criteria) delete payload.verification_criteria;
 
-    const response = await fetch(`${API_BASE}/api/v1/tasks/create`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      },
-      body: JSON.stringify(payload),
+    await apiService.post("/api/v1/tasks/create", payload, {
+      autoRedirect: true,
+      router,
+      authType: "operator",
     });
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error("Sessione scaduta o permessi insufficienti.");
-    }
-
-    if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(
-        errData.message || `Errore HTTP! status: ${response.status}`,
-      );
-    }
 
     successMessage.value = "Task creato con successo!";
     setTimeout(() => router.push("/taskTemplates"), 1500);
   } catch (err) {
     error.value = err.message || "Errore durante la creazione del task.";
-    if (err.message.includes("Sessione scaduta")) {
-      setTimeout(() => router.push("/login"), 2500);
-    }
   } finally {
     loading.value = false;
   }
@@ -363,8 +318,7 @@ const _createTaskFromTemplate = async () => {
   error.value = null;
   successMessage.value = "";
 
-  const token = localStorage.getItem("token");
-  if (!token) {
+  if (!apiService.isAuthenticated()) {
     router.push("/login");
     return;
   }
@@ -378,33 +332,16 @@ const _createTaskFromTemplate = async () => {
     if (!payload.neighborhood_id) delete payload.neighborhood_id;
     if (payload.is_active === undefined) delete payload.is_active;
 
-    const response = await fetch(`${API_BASE}/api/v1/tasks/from-template`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      },
-      body: JSON.stringify(payload),
+    await apiService.post("/api/v1/tasks/from-template", payload, {
+      autoRedirect: true,
+      router,
+      authType: "operator",
     });
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error("Sessione scaduta o permessi insufficienti.");
-    }
-
-    if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(
-        errData.message || `Errore HTTP! status: ${response.status}`,
-      );
-    }
 
     successMessage.value = "Task da modello creato con successo!";
     setTimeout(() => router.push("/taskTemplates"), 1500);
   } catch (err) {
     error.value = err.message || "Errore creazione task da modello.";
-    if (err.message.includes("Sessione scaduta")) {
-      setTimeout(() => router.push("/login"), 2500);
-    }
   } finally {
     loading.value = false;
   }

@@ -57,9 +57,7 @@ import QRScannerModal from "@/components/QRScannerModal.vue";
 import QuizModal from "@/components/QuizModal.vue";
 import TaskCard from "@/components/TaskCard.vue";
 import ToastNotification from "@/components/ToastNotification.vue";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import apiService from "@/services/api.js";
 
 export default {
   name: "TasksView",
@@ -129,23 +127,9 @@ export default {
     },
     async loadAndOpenQuiz(task) {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/quizzes/${task.verification_criteria?.quiz_id}`,
-          {
-            headers: { "x-access-token": token },
-          },
+        const quiz = await apiService.get(
+          `/api/v1/quizzes/${task.verification_criteria?.quiz_id}`,
         );
-
-        if (!response.ok) {
-          this.$refs.toast.show({
-            message: "Impossibile caricare il quiz.",
-            type: "error",
-          });
-          return;
-        }
-
-        const quiz = await response.json();
         this.selectedQuiz = quiz;
         this.selectedTaskId = task._id;
         this.selectedTask = task;
@@ -192,25 +176,12 @@ export default {
         const gpsLocation = Array.isArray(proof)
           ? proof
           : [proof?.latitude, proof?.longitude];
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-access-token": token,
-          },
-          body: JSON.stringify({
-            task_id: this.selectedTaskForGPS._id,
-            proof: { gps_location: gpsLocation },
-          }),
+
+        const result = await apiService.post("/api/v1/tasks/submit", {
+          task_id: this.selectedTaskForGPS._id,
+          proof: { gps_location: gpsLocation },
         });
 
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.error || "Errore durante la verifica GPS.");
-        }
-
-        const result = await response.json();
         if (result.submission_status === "APPROVED") {
           this.$refs.toast.show({
             title: "Task Completato!",
@@ -249,32 +220,11 @@ export default {
       if (!this.selectedTaskForQR) return;
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-access-token": token,
-          },
-          body: JSON.stringify({
-            task_id: this.selectedTaskForQR._id,
-            proof: { qr_code_data: qrContent },
-          }),
+        const result = await apiService.post("/api/v1/tasks/submit", {
+          task_id: this.selectedTaskForQR._id,
+          proof: { qr_code_data: qrContent },
         });
 
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          const errorMessage =
-            payload.error || "Errore durante la verifica QR.";
-          if (errorMessage === "Invalid QR Code") {
-            throw new Error(
-              "CODICE QR NON VALIDO!\n\nIl codice scansionato non corrisponde a questo task. Assicurati di scansionare il codice QR corretto fornito per questa attività.",
-            );
-          }
-          throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
         if (result.submission_status === "APPROVED") {
           this.$refs.toast.show({
             title: "Task Completato!",
@@ -294,31 +244,30 @@ export default {
         }
       } catch (error) {
         console.error(error);
-        this.$refs.toast.show({
-          message: error.message,
-          type: "error",
-        });
+        const errorMessage = error.message;
+        if (errorMessage === "Invalid QR Code") {
+          this.$refs.toast.show({
+            message:
+              "CODICE QR NON VALIDO!\\n\\nIl codice scansionato non corrisponde a questo task. Assicurati di scansionare il codice QR corretto fornito per questa attività.",
+            type: "error",
+            duration: 5000,
+          });
+        } else {
+          this.$refs.toast.show({
+            message: errorMessage,
+            type: "error",
+          });
+        }
       }
     },
     async fetchTasks() {
       this.loading = true;
       this.error = "";
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks`, {
-          headers: { "x-access-token": token },
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          this.error = payload?.error || "Impossibile recuperare i task.";
-          return;
-        }
-
-        this.tasks = await response.json();
+        this.tasks = await apiService.get("/api/v1/tasks");
       } catch (error) {
         console.error(error);
-        this.error = "Impossibile contattare il server.";
+        this.error = error.message || "Impossibile recuperare i task.";
       } finally {
         this.loading = false;
       }

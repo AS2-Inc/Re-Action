@@ -154,12 +154,7 @@ export default {
     async fetchProfile() {
       this.loading = true;
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-          headers: { "x-access-token": token },
-        });
-        if (!response.ok) throw new Error("Failed to fetch profile");
-        this.user = await response.json();
+        this.user = await apiService.get("/api/v1/users/me");
         // Ensure neighborhood_id is set correctly even if populated or named differently
         if (
           this.user.neighborhood_id &&
@@ -180,30 +175,18 @@ export default {
       this.profileError = false;
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-access-token": token,
-          },
-          body: JSON.stringify({
-            name: this.user.name,
-            surname: this.user.surname,
-            neighborhood: this.user.neighborhood_id || null,
-          }),
+        await apiService.put("/api/v1/users/me", {
+          name: this.user.name,
+          surname: this.user.surname,
+          neighborhood: this.user.neighborhood_id || null,
         });
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error || "Failed to update profile");
-        }
 
         this.profileMessage = "Profilo aggiornato con successo.";
       } catch (err) {
         console.error(err);
         this.profileError = true;
-        this.profileMessage = err.message;
+        this.profileMessage =
+          err.message || "Impossibile aggiornare il profilo.";
       } finally {
         this.updatingProfile = false;
       }
@@ -221,26 +204,10 @@ export default {
       }
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/users/change-password`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-access-token": token,
-            },
-            body: JSON.stringify({
-              current_password: this.pwdForm.current_password,
-              new_password: this.pwdForm.new_password,
-            }),
-          },
-        );
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error || "Failed to change password");
-        }
+        await apiService.post("/api/v1/users/change-password", {
+          current_password: this.pwdForm.current_password,
+          new_password: this.pwdForm.new_password,
+        });
 
         this.pwdMessage = "Password cambiata con successo.";
         this.pwdForm = {

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import apiService from "@/services/api.js";
 
 const router = useRouter();
 
@@ -13,12 +14,8 @@ const showModal = ref(false);
 const selectedSubmission = ref(null);
 const modalLoading = ref(false);
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
 const fetchSubmissions = async () => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
+  if (!apiService.isAuthenticated()) {
     router.push("/login");
     return;
   }
@@ -28,29 +25,19 @@ const fetchSubmissions = async () => {
 
   try {
     // Fetch PENDING submissions by default
-    const response = await fetch(`${API_BASE}/api/v1/tasks/submissions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
+    const data = await apiService.post(
+      "/api/v1/tasks/submissions",
+      { status: "PENDING" },
+      {
+        autoRedirect: true,
+        router,
+        authType: "operator",
       },
-      body: JSON.stringify({ status: "PENDING" }),
-    });
+    );
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error("Sessione scaduta. Effettua nuovamente il login.");
-      }
-      throw new Error("Errore nel recupero delle submission");
-    }
-
-    const data = await response.json();
     submissions.value = Array.isArray(data) ? data : data.data || [];
   } catch (error) {
     errorMessage.value = error.message;
-    if (error.message.includes("Sessione scaduta")) {
-      setTimeout(() => router.push("/login"), 2500);
-    }
   } finally {
     loading.value = false;
   }
@@ -69,27 +56,15 @@ const closeVerificationModal = () => {
 const _verifySubmission = async (verdict) => {
   if (!selectedSubmission.value) return;
 
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   modalLoading.value = true;
 
   try {
-    const response = await fetch(
-      `${API_BASE}/api/v1/tasks/submissions/${selectedSubmission.value._id}/verify`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-access-token": token,
-        },
-        body: JSON.stringify({ verdict }),
-      },
+    await apiService.post(
+      `/api/v1/tasks/submissions/${selectedSubmission.value._id}/verify`,
+      { verdict },
     );
-
-    if (!response.ok) {
-      throw new Error("Errore durante la verifica della submission");
-    }
 
     // Success: Remove from list and close modal
     submissions.value = submissions.value.filter(

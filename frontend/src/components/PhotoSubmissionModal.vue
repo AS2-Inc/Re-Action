@@ -63,8 +63,7 @@
 </template>
 
 <script>
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import apiService from "@/services/api.js";
 
 export default {
   name: "PhotoSubmissionModal",
@@ -132,21 +131,13 @@ export default {
         formData.append("task_id", this.task._id);
         formData.append("photo", this.selectedFile);
 
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
-          method: "POST",
-          headers: {
-            "x-access-token": token,
+        const response = await apiService.customRequest(
+          "/api/v1/tasks/submit",
+          {
+            method: "POST",
+            body: formData,
           },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          throw new Error(
-            payload.error || "Errore durante l'invio della foto.",
-          );
-        }
+        );
 
         const result = await response.json();
         this.$emit("photo-submitted", result);

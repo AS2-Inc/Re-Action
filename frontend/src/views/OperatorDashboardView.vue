@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import apiService from "@/services/api.js";
 
 const router = useRouter();
 
@@ -15,12 +16,8 @@ const showModal = ref(false);
 const selectedNeighborhood = ref(null);
 const modalLoading = ref(false);
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
 const fetchDashboardData = async () => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
+  if (!apiService.isAuthenticated()) {
     router.push("/login");
     return;
   }
@@ -29,20 +26,14 @@ const fetchDashboardData = async () => {
   errorMessage.value = "";
 
   try {
-    const [neighResponse] = await Promise.all([
-      fetch(`${API_BASE}/api/v1/operators/dashboard/neighborhoods`, {
-        headers: { "x-access-token": token },
-      }),
-    ]);
-
-    if (!neighResponse.ok) {
-      if (neighResponse.status === 401) {
-        throw new Error("Sessione scaduta. Effettua nuovamente il login.");
-      }
-      throw new Error("Errore nel recupero dei dati dal server");
-    }
-
-    const neighData = await neighResponse.json();
+    const neighData = await apiService.get(
+      "/api/v1/operators/dashboard/neighborhoods",
+      {
+        autoRedirect: true,
+        router,
+        authType: "operator",
+      },
+    );
 
     // --- 1. MAPPATURA QUARTIERI ---
     const arrayQuartieri = Array.isArray(neighData)
@@ -79,10 +70,7 @@ const fetchDashboardData = async () => {
     };
   } catch (error) {
     errorMessage.value = error.message;
-    // Redirect automatico se la sessione è scaduta
-    if (error.message.includes("Sessione scaduta")) {
-      setTimeout(() => router.push("/login"), 2500);
-    }
+    // Auto-redirect already handled by API service
   } finally {
     loading.value = false;
   }
@@ -90,24 +78,16 @@ const fetchDashboardData = async () => {
 
 // Funzione per il bottone della tabella
 const _viewDetails = async (id) => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   showModal.value = true;
   modalLoading.value = true;
   selectedNeighborhood.value = null;
 
   try {
-    const response = await fetch(
-      `${API_BASE}/api/v1/operators/dashboard/neighborhoods/${id}`,
-      {
-        headers: { "x-access-token": token },
-      },
+    const data = await apiService.get(
+      `/api/v1/operators/dashboard/neighborhoods/${id}`,
     );
-
-    if (!response.ok) throw new Error("Errore nel recupero dettagli quartiere");
-
-    const data = await response.json();
 
     // Calculate submissions this week from daily_activity
     const oneWeekAgo = new Date();

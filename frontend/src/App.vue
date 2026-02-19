@@ -1,8 +1,6 @@
 <script>
 import UserInfoColumn from "@/components/UserInfoColumn.vue";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import apiService from "@/services/api.js";
 
 export default {
   name: "App",
@@ -32,17 +30,7 @@ export default {
   methods: {
     async loadTasks() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks`, {
-          headers: { "x-access-token": token },
-        });
-
-        if (!response.ok) {
-          console.error("Failed to fetch tasks");
-          return;
-        }
-
-        this.tasks = await response.json();
+        this.tasks = await apiService.get("/api/v1/tasks");
         const assignedTasks = this.tasks.filter(
           (task) => task.assignment_status !== "AVAILABLE",
         );

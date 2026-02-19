@@ -127,21 +127,10 @@ export default {
     await this.fetchOperators();
   },
   methods: {
-    getAuthHeaders() {
-      const token = localStorage.getItem("token");
-      return {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      };
-    },
     async fetchOperators() {
       this.loading = true;
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/operators`, {
-          headers: this.getAuthHeaders(),
-        });
-        if (!response.ok) throw new Error("Failed to fetch operators");
-        this.operators = await response.json();
+        this.operators = await apiService.get("/api/v1/operators");
       } catch (err) {
         console.error(err);
         this.error = "Impossibile caricare gli operatori.";
@@ -153,11 +142,7 @@ export default {
       if (!confirm("Sei sicuro di voler eliminare questo operatore?")) return;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/operators/${id}`, {
-          method: "DELETE",
-          headers: this.getAuthHeaders(),
-        });
-        if (!response.ok) throw new Error("Failed to delete");
+        await apiService.delete(`/api/v1/operators/${id}`);
         this.operators = this.operators.filter((op) => op._id !== id);
       } catch (err) {
         console.error(err);
@@ -169,20 +154,15 @@ export default {
         return;
 
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/operators/${id}/force-reset-password`,
-          {
-            method: "POST",
-            headers: this.getAuthHeaders(),
-          },
+        await apiService.post(
+          `/api/v1/operators/${id}/force-reset-password`,
+          {},
         );
 
-        if (!response.ok) throw new Error("Failed to send reset email");
-
-        alert("Email di reset inviata con successo.");
+        alert("Email di reset password inviata con successo.");
       } catch (err) {
         console.error(err);
-        alert("Errore durante l'invio della richiesta di reset.");
+        alert("Errore durante l'invio dell'email.");
       }
     },
     async createOperator() {

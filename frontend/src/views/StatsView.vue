@@ -125,9 +125,7 @@
 <script>
 import BadgeCard from "@/components/BadgeCard.vue";
 import Navbar from "@/components/Navbar.vue";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import apiService from "@/services/api.js";
 
 export default {
   name: "StatsView",
@@ -213,28 +211,10 @@ export default {
     this.error = "";
 
     try {
-      const token = localStorage.getItem("token");
-      const [badgesRes, dashboardRes, tasksRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/v1/users/me/badges`, {
-          headers: { "x-access-token": token },
-        }),
-        fetch(`${API_BASE_URL}/api/v1/users/me/dashboard`, {
-          headers: { "x-access-token": token },
-        }),
-        fetch(`${API_BASE_URL}/api/v1/tasks`, {
-          headers: { "x-access-token": token },
-        }),
-      ]);
-
-      if (!badgesRes.ok || !dashboardRes.ok || !tasksRes.ok) {
-        this.error = "Impossibile recuperare i dati.";
-        return;
-      }
-
       const [badgesData, dashboardData, tasksData] = await Promise.all([
-        badgesRes.json(),
-        dashboardRes.json(),
-        tasksRes.json(),
+        apiService.get("/api/v1/users/me/badges"),
+        apiService.get("/api/v1/users/me/dashboard"),
+        apiService.get("/api/v1/tasks"),
       ]);
 
       this.badges = Array.isArray(badgesData) ? badgesData : [];

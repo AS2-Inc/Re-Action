@@ -54,7 +54,6 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 
 - **Framework**: Vue.js 3 (Composition API)
 - **Build Tool**: Vite
-- **Styling**: TailwindCSS + DaisyUI
 - **Routing**: Vue Router
 - **QR Scanner**: html5-qrcode
 

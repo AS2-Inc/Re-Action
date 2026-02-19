@@ -20,7 +20,7 @@
 
     <!-- Create Button -->
     <div class="create-button-container">
-      <button class="btn-action btn-create" @click="openCreateModal">
+      <button class="btn-action btn-create" @click="_openCreateModal">
         + Crea Nuovo Premio
       </button>
     </div>
@@ -52,7 +52,7 @@
               <td>{{ reward.title }}</td>
               <td>
                 <span class="badge" :class="`badge-${reward.type.toLowerCase()}`">
-                  {{ formatRewardType(reward.type) }}
+                  {{ _formatRewardType(reward.type) }}
                 </span>
               </td>
               <td>{{ reward.points_cost }}</td>
@@ -68,18 +68,18 @@
                     Tutti i quartieri
                   </span>
                   <span v-else class="neighborhoods-list">
-                    {{ formatNeighborhoods(reward.neighborhoods) }}
+                    {{ _formatNeighborhoods(reward.neighborhoods) }}
                   </span>
                 </div>
               </td>
               <td>
                 <div class="action-buttons">
-                  <button class="btn-action btn-edit" @click="openEditModal(reward)" title="Modifica">
+                  <button class="btn-action btn-edit" @click="_openEditModal(reward)" title="Modifica">
                     Modifica
                   </button>
                   <button 
                     class="btn-action btn-delete" 
-                    @click="confirmDelete(reward)" 
+                    @click="_confirmDelete(reward)" 
                     title="Rimuovi"
                   >
                     Rimuovi
@@ -115,7 +115,7 @@
               Errore: {{ modalError }}
             </div>
 
-            <form @submit.prevent="saveReward">
+            <form @submit.prevent="_saveReward">
               <div class="form-grid">
                 <div class="form-group">
                   <label for="title">Titolo *</label>
@@ -214,7 +214,7 @@
                         <input 
                           type="checkbox"
                           :checked="isAllNeighborhoodsSelected"
-                          @change="toggleAllNeighborhoods"
+                          @change="_toggleAllNeighborhoods"
                         />
                         <strong>Tutti i quartieri</strong>
                       </label>
@@ -271,7 +271,7 @@
               <button class="btn-action btn-cancel" @click="closeDeleteModal" :disabled="deleteLoading">
                 Annulla
               </button>
-              <button class="btn-action btn-delete" @click="deleteReward" :disabled="deleteLoading">
+              <button class="btn-action btn-delete" @click="_deleteReward" :disabled="deleteLoading">
                 {{ deleteLoading ? 'Rimozione...' : 'Rimuovi' }}
               </button>
             </div>
@@ -407,7 +407,7 @@ const closeModal = () => {
   modalError.value = null;
 };
 
-const toggleAllNeighborhoods = () => {
+const _toggleAllNeighborhoods = () => {
   // If "All" is currently checked (empty array), keep it checked (do nothing)
   // If some neighborhoods are selected, clear them to select all
   if (!isAllNeighborhoodsSelected.value) {
@@ -469,12 +469,12 @@ const saveReward = async () => {
   }
 };
 
-const confirmDelete = (reward) => {
+const _confirmDelete = (reward) => {
   rewardToDelete.value = reward;
   showDeleteModal.value = true;
 };
 
-const confirmDeleteFromModal = () => {
+const _confirmDeleteFromModal = () => {
   if (rewardForm.value._id) {
     rewardToDelete.value = {
       _id: rewardForm.value._id,
@@ -489,7 +489,7 @@ const closeDeleteModal = () => {
   rewardToDelete.value = null;
 };
 
-const deleteReward = async () => {
+const __deleteReward = async () => {
   if (!rewardToDelete.value) return;
 
   const token = localStorage.getItem("token");
@@ -528,7 +528,7 @@ const deleteReward = async () => {
   }
 };
 
-const formatRewardType = (type) => {
+const _formatRewardType = (type) => {
   const types = {
     COUPON: "Coupon",
     DIGITAL_BADGE: "Badge Digitale",
@@ -537,7 +537,7 @@ const formatRewardType = (type) => {
   return types[type] || type;
 };
 
-const formatNeighborhoods = (neighborhoods) => {
+const _formatNeighborhoods = (neighborhoods) => {
   if (!neighborhoods || neighborhoods.length === 0) {
     return "Tutti";
   }

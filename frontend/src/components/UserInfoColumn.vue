@@ -132,8 +132,7 @@
 </template>
 
 <script>
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import apiService from "@/services/api.js";
 
 export default {
   name: "UserInfoColumn",
@@ -216,19 +215,7 @@ export default {
   methods: {
     async refreshUserData() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/users/me/dashboard`,
-          {
-            headers: { "x-access-token": token },
-          },
-        );
-
-        if (!response.ok) {
-          return;
-        }
-
-        const data = await response.json();
+        const data = await apiService.get("/api/v1/users/me/dashboard");
         const user = data?.user || data;
         this.user.name = user?.name || "";
         this.user.surname = user?.surname || "";
@@ -269,20 +256,7 @@ export default {
   },
   async mounted() {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/users/me/dashboard`,
-        {
-          headers: { "x-access-token": token },
-        },
-      );
-
-      if (!response.ok) {
-        this.userLoadError = "Impossibile recuperare il profilo.";
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiService.get("/api/v1/users/me/dashboard");
       const user = data?.user || data;
       this.user.name = user?.name || "";
       this.user.surname = user?.surname || "";

@@ -3,7 +3,6 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="modal-title">{{ quiz.title }}</h2>
-        <button class="modal-close" @click="exitQuiz" aria-label="Chiudi">×</button>
       </div>
 
       <div class="modal-body">
@@ -95,8 +94,7 @@
 </template>
 
 <script>
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import apiService from "@/services/api.js";
 
 export default {
   name: "QuizModal",
@@ -231,30 +229,14 @@ export default {
 
       this.isSubmitting = true;
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-access-token": token,
+        const data = await apiService.post("/api/v1/tasks/submit", {
+          task_id: this.taskId,
+          proof: {
+            quiz_answers: this.answers,
           },
-          body: JSON.stringify({
-            task_id: this.taskId,
-            proof: {
-              quiz_answers: this.answers,
-            },
-          }),
         });
 
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          alert(payload?.error || "Errore durante l'invio del quiz.");
-          this.isSubmitting = false;
-          return;
-        }
-
-        const result = await response.json();
-        this.quizScore = result?.proof?.quiz_score || 0;
+        this.quizScore = data?.proof?.quiz_score || data?.score || 0;
         this.resultPassed = true;
 
         // Show confirmation button for passing, or close automatically if passing

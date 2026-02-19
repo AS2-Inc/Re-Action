@@ -115,9 +115,7 @@
 <script>
 import Navbar from "@/components/Navbar.vue";
 import RewardCard from "@/components/RewardCard.vue";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import apiService from "@/services/api.js";
 
 export default {
   name: "RewardsView",
@@ -161,16 +159,7 @@ export default {
   methods: {
     async fetchUserPoints() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-          headers: { "x-access-token": token },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch user points");
-        }
-
-        const userData = await response.json();
+        const userData = await apiService.get("/api/v1/users/me");
         this.userPoints = userData.points || 0;
       } catch (error) {
         console.error("Error fetching user points:", error);
@@ -182,16 +171,7 @@ export default {
       this.errorRewards = "";
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/api/v1/rewards`, {
-          headers: { "x-access-token": token },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch rewards");
-        }
-
-        this.availableRewards = await response.json();
+        this.availableRewards = await apiService.get("/api/v1/rewards");
       } catch (error) {
         console.error("Error fetching rewards:", error);
         this.errorRewards = "Errore nel caricamento dei premi";
@@ -205,19 +185,7 @@ export default {
       this.errorMyRewards = "";
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/rewards/my-rewards`,
-          {
-            headers: { "x-access-token": token },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch my rewards");
-        }
-
-        this.myRewards = await response.json();
+        this.myRewards = await apiService.get("/api/v1/rewards/my-rewards");
       } catch (error) {
         console.error("Error fetching my rewards:", error);
         this.errorMyRewards = "Errore nel caricamento dei tuoi premi";
@@ -234,24 +202,10 @@ export default {
       this.redeemingReward = reward._id;
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/rewards/${reward._id}/redeem`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-access-token": token,
-            },
-          },
+        const result = await apiService.post(
+          `/api/v1/rewards/${reward._id}/redeem`,
+          {},
         );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to redeem reward");
-        }
-
-        const result = await response.json();
 
         // Update UI with redemption success
         this.lastRedeemedReward = {

@@ -11,7 +11,13 @@
         <p v-if="_error" class="error-message">{{ _error }}</p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" @click="close">Annulla</button>
+        <button
+          class="btn btn-outline"
+          @click="close"
+          :disabled="loading"
+        >
+          Annulla
+        </button>
       </div>
     </div>
   </div>
@@ -128,19 +134,21 @@ export default {
   font-family: "Caladea", serif;
 }
 
-
 .modal-header {
-  border-bottom: 1px solid #333;
-  padding-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .modal-title {
-  margin: 0;
-  color: #333;
+  font-family: "Caladea", serif;
   font-size: 1.5rem;
   font-weight: 700;
+  margin: 0;
+  color: #1f1f1f;
 }
-
 
 .modal-body {
   display: flex;
@@ -184,22 +192,40 @@ export default {
 
 .btn {
   font-family: "Caladea", serif;
-  font-weight: 700;
-  font-size: 1rem;
   padding: 0.75rem 1.5rem;
-  border-radius: 5px;
-  border: none;
+  border-radius: 10px;
+  font-weight: 600;
   cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: #a9ca5f;
   color: #1f1f1f;
-  transition: opacity 0.2s ease;
 }
 
-.btn:hover:not(:disabled) {
-  opacity: 0.8;
+.btn-primary:hover:not(:disabled) {
+  background-color: #98bc50;
 }
 
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-.btn-secondary {
-  background-color: #e8ddcc;
+.btn-outline {
+  background-color: transparent;
+  color: #1f1f1f;
+  border: 1px solid #1f1f1f;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

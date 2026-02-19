@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import apiService from "@/services/api.js";
 
 const router = useRouter();
 
@@ -343,25 +344,13 @@ const fetchQuizzes = async () => {
   quizzesLoading.value = true;
   quizzesError.value = null;
 
-  const token = localStorage.getItem("token");
-  if (!token) {
+  if (!apiService.isAuthenticated()) {
     quizzesLoading.value = false;
     return;
   }
 
   try {
-    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Impossibile caricare i quiz.");
-    }
-
-    const data = await response.json();
+    const data = await apiService.get("/api/v1/quizzes");
     quizzes.value = Array.isArray(data) ? data : [];
   } catch (err) {
     quizzesError.value = err.message || "Impossibile caricare i quiz.";
@@ -370,7 +359,7 @@ const fetchQuizzes = async () => {
   }
 };
 
-const addQuizQuestion = () => {
+const _addQuizQuestion = () => {
   quizForm.value.questions.push({
     text: "",
     options_text: "",
@@ -378,13 +367,12 @@ const addQuizQuestion = () => {
   });
 };
 
-const removeQuizQuestion = (index) => {
+const _removeQuizQuestion = (index) => {
   quizForm.value.questions.splice(index, 1);
 };
 
-const createQuiz = async () => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
+const _createQuiz = async () => {
+  if (!apiService.isAuthenticated()) return;
 
   if (!quizForm.value.title.trim()) {
     templateModalError.value = "Inserisci un titolo per il quiz.";
@@ -421,21 +409,8 @@ const createQuiz = async () => {
   templateModalError.value = null;
 
   try {
-    const response = await fetch(`${API_BASE}/api/v1/quizzes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      },
-      body: JSON.stringify(payload),
-    });
+    const created = await apiService.post("/api/v1/quizzes", payload);
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || "Errore durante la creazione del quiz.");
-    }
-
-    const created = await response.json();
     await fetchQuizzes();
     if (editingTemplate.value?.verification_setup) {
       editingTemplate.value.verification_setup.quiz_id = created._id;
@@ -455,38 +430,24 @@ const fetchTemplates = async () => {
   loading.value = true;
   error.value = null;
 
-  const token = localStorage.getItem("token");
-  if (!token) {
+  if (!apiService.isAuthenticated()) {
     router.push("/login");
     return;
   }
 
   try {
-    const response = await fetch(
-      `${API_BASE}/api/v1/tasks/templates?active_only=false`,
+    const data = await apiService.get(
+      "/api/v1/tasks/templates?active_only=false",
       {
-        headers: {
-          "Content-Type": "application/json",
-          "x-access-token": token,
-        },
+        autoRedirect: true,
+        router,
+        authType: "operator",
       },
     );
 
-    if (response.status === 401 || response.status === 403) {
-      throw new Error("Sessione scaduta o permessi insufficienti.");
-    }
-
-    if (!response.ok) {
-      throw new Error(`Errore HTTP! status: ${response.status}`);
-    }
-
-    const data = await response.json();
     templates.value = Array.isArray(data) ? data : data.data || [];
   } catch (err) {
     error.value = err.message || "Impossibile caricare i modelli.";
-    if (err.message.includes("Sessione scaduta")) {
-      setTimeout(() => router.push("/login"), 2500);
-    }
   } finally {
     loading.value = false;
   }
@@ -504,7 +465,7 @@ const _filteredTemplates = computed(() => {
   });
 });
 
-const openCreateTemplate = () => {
+const _openCreateTemplate = () => {
   templateModalMode.value = "create";
   editingTemplate.value = defaultTemplateForm();
   templateModalError.value = null;
@@ -513,7 +474,7 @@ const openCreateTemplate = () => {
   showTemplateModal.value = true;
 };
 
-const openEditTemplate = (template) => {
+const _openEditTemplate = (template) => {
   templateModalMode.value = "edit";
   editingTemplate.value = normalizeTemplateForEdit(template);
   templateModalError.value = null;
@@ -528,7 +489,7 @@ const closeTemplateModal = () => {
   templateModalError.value = null;
 };
 
-const addConfigurableField = () => {
+const _addConfigurableField = () => {
   if (!editingTemplate.value) return;
   editingTemplate.value.configurable_fields.push({
     field_name: "",
@@ -545,15 +506,14 @@ const addConfigurableField = () => {
   });
 };
 
-const removeConfigurableField = (index) => {
+const _removeConfigurableField = (index) => {
   if (!editingTemplate.value) return;
   editingTemplate.value.configurable_fields.splice(index, 1);
 };
 
-const saveTemplate = async () => {
+const _saveTemplate = async () => {
   if (!editingTemplate.value) return;
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   if (!editingTemplate.value.name || !editingTemplate.value.description) {
     templateModalError.value = "Nome e descrizione sono obbligatori.";
@@ -602,22 +562,13 @@ const saveTemplate = async () => {
     const payload = buildTemplatePayload(editingTemplate.value);
     const endpoint =
       templateModalMode.value === "edit"
-        ? `${API_BASE}/api/v1/tasks/templates/${editingTemplate.value._id}`
-        : `${API_BASE}/api/v1/tasks/templates`;
-    const method = templateModalMode.value === "edit" ? "PUT" : "POST";
+        ? `/api/v1/tasks/templates/${editingTemplate.value._id}`
+        : "/api/v1/tasks/templates";
 
-    const response = await fetch(endpoint, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || "Errore durante il salvataggio.");
+    if (templateModalMode.value === "edit") {
+      await apiService.put(endpoint, payload);
+    } else {
+      await apiService.post(endpoint, payload);
     }
 
     closeTemplateModal();
@@ -629,35 +580,20 @@ const saveTemplate = async () => {
   }
 };
 
-const deleteTemplate = async (template) => {
+const _deleteTemplate = async (template) => {
   if (!template?._id) return;
   const proceed = confirm(
     `Vuoi davvero eliminare il modello "${template.name}"?`,
   );
   if (!proceed) return;
 
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   templateModalLoading.value = true;
   templateModalError.value = null;
 
   try {
-    const response = await fetch(
-      `${API_BASE}/api/v1/tasks/templates/${template._id}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "x-access-token": token,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || "Errore durante l'eliminazione.");
-    }
+    await apiService.delete(`/api/v1/tasks/templates/${template._id}`);
 
     closeTemplateModal();
     await fetchTemplates();
@@ -672,22 +608,10 @@ const fetchTasks = async () => {
   tasksLoading.value = true;
   tasksError.value = null;
 
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   try {
-    const response = await fetch(`${API_BASE}/api/v1/tasks/all`, {
-      headers: {
-        "Content-Type": "application/json",
-        "x-access-token": token,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Errore HTTP! status: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await apiService.get("/api/v1/tasks/all");
     tasks.value = Array.isArray(data) ? data : [];
   } catch (err) {
     tasksError.value = err.message || "Impossibile caricare i task.";
@@ -738,45 +662,30 @@ const closeTaskModal = () => {
 
 const saveTask = async () => {
   if (!editingTask.value) return;
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   taskModalLoading.value = true;
   taskModalError.value = null;
 
   try {
-    const response = await fetch(
-      `${API_BASE}/api/v1/tasks/${editingTask.value._id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-access-token": token,
-        },
-        body: JSON.stringify({
-          title: editingTask.value.title,
-          description: editingTask.value.description,
-          category: editingTask.value.category,
-          difficulty: editingTask.value.difficulty,
-          frequency: editingTask.value.frequency,
-          verification_method: editingTask.value.verification_method,
-          base_points: Number(editingTask.value.base_points),
-          is_active: editingTask.value.is_active,
-          neighborhood_id: editingTask.value.neighborhood_id_value || null,
-          impact_metrics: {
-            co2_saved: Number(editingTask.value.impact_metrics?.co2_saved || 0),
-            waste_recycled: Number(
-              editingTask.value.impact_metrics?.waste_recycled || 0,
-            ),
-            km_green: Number(editingTask.value.impact_metrics?.km_green || 0),
-          },
-        }),
+    await apiService.put(`/api/v1/tasks/${editingTask.value._id}`, {
+      title: editingTask.value.title,
+      description: editingTask.value.description,
+      category: editingTask.value.category,
+      difficulty: editingTask.value.difficulty,
+      frequency: editingTask.value.frequency,
+      verification_method: editingTask.value.verification_method,
+      base_points: Number(editingTask.value.base_points),
+      is_active: editingTask.value.is_active,
+      neighborhood_id: editingTask.value.neighborhood_id_value || null,
+      impact_metrics: {
+        co2_saved: Number(editingTask.value.impact_metrics?.co2_saved || 0),
+        waste_recycled: Number(
+          editingTask.value.impact_metrics?.waste_recycled || 0,
+        ),
+        km_green: Number(editingTask.value.impact_metrics?.km_green || 0),
       },
-    );
-
-    if (!response.ok) {
-      throw new Error("Errore durante il salvataggio.");
-    }
+    });
 
     closeTaskModal();
     await fetchTasks();
@@ -798,27 +707,13 @@ const _deleteTask = async () => {
   if (!confirm(`Vuoi davvero eliminare il task "${editingTask.value.title}"?`))
     return;
 
-  const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!apiService.isAuthenticated()) return;
 
   taskModalLoading.value = true;
   taskModalError.value = null;
 
   try {
-    const response = await fetch(
-      `${API_BASE}/api/v1/tasks/${editingTask.value._id}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "x-access-token": token,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error("Errore durante l'eliminazione.");
-    }
+    await apiService.delete(`/api/v1/tasks/${editingTask.value._id}`);
 
     closeTaskModal();
     await fetchTasks();
@@ -878,7 +773,7 @@ onMounted(() => {
           </button>
         </div>
 
-        <button class="btn-create" @click="openCreateTemplate">
+        <button class="btn-create" @click="_openCreateTemplate">
           + Nuovo Modello
         </button>
       </div>
@@ -929,10 +824,10 @@ onMounted(() => {
         </div>
 
         <div class="card-actions">
-          <button @click="openEditTemplate(tpl)" class="btn-action btn-update">
+          <button @click="_openEditTemplate(tpl)" class="btn-action btn-update">
             Modifica
           </button>
-          <button @click="deleteTemplate(tpl)" class="btn-action btn-delete">
+          <button @click="_deleteTemplate(tpl)" class="btn-action btn-delete">
             Elimina
           </button>
         </div>
@@ -1138,7 +1033,7 @@ onMounted(() => {
                   <div class="quiz-questions">
                     <div class="quiz-questions-header">
                       <h4>Domande</h4>
-                      <button class="btn-action btn-update" @click="addQuizQuestion">
+                      <button class="btn-action btn-update" @click="_addQuizQuestion">
                         + Aggiungi domanda
                       </button>
                     </div>
@@ -1172,7 +1067,7 @@ onMounted(() => {
                         </div>
                       </div>
                       <div class="config-field-actions">
-                        <button class="btn-action btn-delete" @click="removeQuizQuestion(index)">
+                        <button class="btn-action btn-delete" @click="_removeQuizQuestion(index)">
                           Rimuovi domanda
                         </button>
                       </div>
@@ -1180,7 +1075,7 @@ onMounted(() => {
                   </div>
 
                   <div class="inline-actions">
-                    <button class="btn-action btn-update" @click="createQuiz">
+                    <button class="btn-action btn-update" @click="_createQuiz">
                       Salva quiz
                     </button>
                   </div>
@@ -1289,7 +1184,7 @@ onMounted(() => {
             <div class="config-fields">
               <div class="config-fields-header">
                 <h3>Campi Configurabili</h3>
-                <button class="btn-action btn-update" @click="addConfigurableField">
+                <button class="btn-action btn-update" @click="_addConfigurableField">
                   + Aggiungi Campo
                 </button>
               </div>
@@ -1357,7 +1252,7 @@ onMounted(() => {
                 </div>
 
                 <div class="config-field-actions">
-                  <button class="btn-action btn-delete" @click="removeConfigurableField(index)">
+                  <button class="btn-action btn-delete" @click="_removeConfigurableField(index)">
                     Rimuovi
                   </button>
                 </div>
@@ -1372,11 +1267,11 @@ onMounted(() => {
               <button
                 v-if="templateModalMode === 'edit'"
                 class="btn-modal btn-delete-modal"
-                @click="deleteTemplate(editingTemplate)"
+                @click="_deleteTemplate(editingTemplate)"
               >
                 Elimina
               </button>
-              <button class="btn-modal btn-save" @click="saveTemplate">
+              <button class="btn-modal btn-save" @click="_saveTemplate">
                 Salva
               </button>
             </div>

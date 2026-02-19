@@ -34,27 +34,10 @@
 
 <script>
 import TextInputForm from "@/components/TextInputForm.vue";
+import apiService from "@/services/api.js";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
-// Helper function to decode JWT token
-function decodeJWT(token) {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((_c) => `%${(`00${_c.charCodeAt(0).toString(16)}`).slice(-2)}`)
-        .join(""),
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error("Error decoding JWT:", error);
-    return null;
-  }
-}
 
 export default {
   name: "AdminLoginView",
@@ -101,11 +84,7 @@ export default {
         if (operatorResponse.ok) {
           const operatorData = await operatorResponse.json();
           if (operatorData?.token) {
-            localStorage.setItem("token", operatorData.token);
-            const decoded = decodeJWT(operatorData.token);
-            if (decoded?.role) {
-              localStorage.setItem("role", decoded.role);
-            }
+            apiService.setToken(operatorData.token);
           }
           this.success = "Login admin effettuato con successo.";
           setTimeout(() => {

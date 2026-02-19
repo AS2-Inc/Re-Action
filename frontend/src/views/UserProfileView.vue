@@ -23,6 +23,16 @@
               id="surname"
               required
             />
+            <SelectInputForm
+              v-model="user.neighborhood_id"
+              label="Quartiere"
+              id="neighborhood"
+              placeholder="Seleziona il tuo quartiere"
+            >
+              <option v-for="n in neighborhoods" :key="n._id" :value="n._id">
+                {{ n.name }}
+              </option>
+            </SelectInputForm>
             <TextInputForm
               v-model="user.email"
               label="Email"
@@ -83,6 +93,7 @@
 
 <script>
 import Navbar from "@/components/Navbar.vue";
+import SelectInputForm from "@/components/SelectInputForm.vue";
 import TextInputForm from "@/components/TextInputForm.vue";
 
 const API_BASE_URL =
@@ -90,7 +101,7 @@ const API_BASE_URL =
 
 export default {
   name: "UserProfileView",
-  components: { TextInputForm, Navbar },
+  components: { TextInputForm, SelectInputForm, Navbar },
   data() {
     return {
       navLinks: [
@@ -103,7 +114,9 @@ export default {
         name: "",
         surname: "",
         email: "",
+        neighborhood_id: "",
       },
+      neighborhoods: [],
       pwdForm: {
         current_password: "",
         new_password: "",
@@ -122,17 +135,36 @@ export default {
     };
   },
   async mounted() {
-    await this.fetchProfile();
+    await Promise.all([this.fetchProfile(), this.fetchNeighborhoods()]);
   },
   methods: {
+    async fetchNeighborhoods() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/neighborhood`);
+        if (response.ok) {
+          const data = await response.json();
+          this.neighborhoods = Array.isArray(data) ? data : [];
+        }
+      } catch (err) {
+        console.error("Error fetching neighborhoods", err);
+      }
+    },
     async fetchProfile() {
       this.loading = true;
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         });
         if (!response.ok) throw new Error("Failed to fetch profile");
         this.user = await response.json();
+        // Ensure neighborhood_id is set correctly even if populated or named differently
+        if (
+          this.user.neighborhood_id &&
+          typeof this.user.neighborhood_id === "object"
+        ) {
+          this.user.neighborhood_id = this.user.neighborhood_id._id;
+        }
       } catch (err) {
         console.error(err);
         this.error = "Impossibile caricare il profilo.";
@@ -146,13 +178,17 @@ export default {
       this.profileError = false;
 
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-access-token": token,
+          },
           body: JSON.stringify({
             name: this.user.name,
             surname: this.user.surname,
+            neighborhood: this.user.neighborhood_id || null,
           }),
         });
 
@@ -183,12 +219,15 @@ export default {
       }
 
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(
           `${API_BASE_URL}/api/v1/users/change-password`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "x-access-token": token,
+            },
             body: JSON.stringify({
               current_password: this.pwdForm.current_password,
               new_password: this.pwdForm.new_password,
@@ -217,6 +256,7 @@ export default {
     },
     logout() {
       localStorage.removeItem("authenticated");
+      localStorage.removeItem("token");
       this.$router.push("/login");
     },
   },

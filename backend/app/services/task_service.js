@@ -59,7 +59,7 @@ export const award_points = async (user_id, task_id) => {
   if (task.impact_metrics) {
     user.ambient.co2_saved += task.impact_metrics.co2_saved || 0;
     user.ambient.waste_recycled += task.impact_metrics.waste_recycled || 0;
-    user.ambient.km_green += task.impact_metrics.distance || 0;
+    user.ambient.km_green += task.impact_metrics.km_green || 0;
   }
 
   // Level Logic (Moved to BadgeService)
@@ -70,7 +70,19 @@ export const award_points = async (user_id, task_id) => {
   if (user.neighborhood_id) {
     const neighborhood = await Neighborhood.findById(user.neighborhood_id);
     if (neighborhood) {
-      neighborhood.total_score += points_to_award;
+      // Update neighborhood via leaderboard service (base_points + environmental data)
+      const impact = task.impact_metrics
+        ? {
+            co2_saved: task.impact_metrics.co2_saved || 0,
+            waste_recycled: task.impact_metrics.waste_recycled || 0,
+            km_green: task.impact_metrics.km_green || 0,
+          }
+        : {};
+      await leaderboard_service.on_task_completed(
+        user.neighborhood_id,
+        points_to_award,
+        impact,
+      );
 
       // Automatic Contribution to Active Goal (RF4 Enhancement)
       const active_goal = neighborhood.active_goals.find(
@@ -81,9 +93,8 @@ export const award_points = async (user_id, task_id) => {
         if (active_goal.current_points >= active_goal.target_points) {
           active_goal.is_completed = true;
         }
+        await neighborhood.save();
       }
-
-      await neighborhood.save();
     }
   }
 
@@ -147,8 +158,19 @@ export const get_user_tasks = async (user_id) => {
         let already_done_period = false;
         if (last_completion?.task_id) {
           const last = new Date(last_completion.completed_at);
-          if (freq === "daily" && last.toDateString() === now.toDateString())
+          if (freq === "daily" && last.toDateString() === now.toDateString()) {
             already_done_period = true;
+          } else if (freq === "weekly") {
+            const diff = (now - last) / (1000 * 60 * 60 * 24);
+            if (diff < 7) already_done_period = true;
+          } else if (freq === "monthly") {
+            if (
+              now.getMonth() === last.getMonth() &&
+              now.getFullYear() === last.getFullYear()
+            ) {
+              already_done_period = true;
+            }
+          }
         }
 
         if (!already_done_period) {

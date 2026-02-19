@@ -114,7 +114,6 @@ export default {
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: "include", // Include cookies
           body: JSON.stringify({
             email: this.form.email.trim(),
             password: this.form.password,
@@ -127,10 +126,11 @@ export default {
           return;
         }
 
-        const _data = await response.json();
+        const data = await response.json();
         this.success = "Login effettuato con successo.";
 
-        // Store a flag in localStorage to indicate the user is authenticated
+        // Store token in localStorage
+        localStorage.setItem("token", data.token);
         localStorage.setItem("authenticated", "true");
 
         // Redirect to main area
@@ -204,7 +204,6 @@ export default {
             headers: {
               "Content-Type": "application/json",
             },
-            credentials: "include",
             body: JSON.stringify({ credential: response.credential }),
           },
         );
@@ -217,10 +216,11 @@ export default {
           return;
         }
 
-        const _data = await apiResponse.json();
+        const data = await apiResponse.json();
         this.success = "Login Google completato.";
 
-        // Store a flag in localStorage to indicate the user is authenticated
+        // Store token in localStorage
+        localStorage.setItem("token", data.token);
         localStorage.setItem("authenticated", "true");
 
         setTimeout(() => {

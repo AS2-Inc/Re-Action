@@ -34,14 +34,29 @@
       @close="closePhotoModal"
       @photo-submitted="onPhotoSubmitted"
     />
+    <QRScannerModal
+      :is-open="qrScannerOpen"
+      @close="closeQRScanner"
+      @scanned="onQRScanned"
+    />
+    <GPSVerificationModal
+      :is-open="gpsModalOpen"
+      :task="selectedTaskForGPS || {}"
+      @close="closeGPSModal"
+      @gps-submitted="onGPSSubmitted"
+    />
+    <ToastNotification ref="toast" />
   </div>
 </template>
 
 <script>
+import GPSVerificationModal from "@/components/GPSVerificationModal.vue";
 import Navbar from "@/components/Navbar.vue";
 import PhotoSubmissionModal from "@/components/PhotoSubmissionModal.vue";
+import QRScannerModal from "@/components/QRScannerModal.vue";
 import QuizModal from "@/components/QuizModal.vue";
 import TaskCard from "@/components/TaskCard.vue";
+import ToastNotification from "@/components/ToastNotification.vue";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -53,6 +68,9 @@ export default {
     TaskCard,
     QuizModal,
     PhotoSubmissionModal,
+    QRScannerModal,
+    GPSVerificationModal,
+    ToastNotification,
   },
   data() {
     return {
@@ -71,6 +89,10 @@ export default {
       selectedTask: null,
       photoModalOpen: false,
       selectedTaskForPhoto: {},
+      qrScannerOpen: false,
+      selectedTaskForQR: null,
+      gpsModalOpen: false,
+      selectedTaskForGPS: null,
     };
   },
   computed: {
@@ -96,19 +118,29 @@ export default {
       } else if (task.verification_method === "PHOTO_UPLOAD") {
         this.selectedTaskForPhoto = task;
         this.photoModalOpen = true;
+      } else if (task.verification_method === "GPS") {
+        this.selectedTaskForGPS = task;
+        this.gpsModalOpen = true;
+      } else if (task.verification_method === "QR_SCAN") {
+        this.selectedTaskForQR = task;
+        this.qrScannerOpen = true;
       }
     },
     async loadAndOpenQuiz(task) {
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(
           `${API_BASE_URL}/api/v1/quizzes/${task.verification_criteria?.quiz_id}`,
           {
-            credentials: "include",
+            headers: { "x-access-token": token },
           },
         );
 
         if (!response.ok) {
-          alert("Impossibile caricare il quiz.");
+          this.$refs.toast.show({
+            message: "Impossibile caricare il quiz.",
+            type: "error",
+          });
           return;
         }
 
@@ -119,7 +151,10 @@ export default {
         this.quizModalOpen = true;
       } catch (error) {
         console.error(error);
-        alert("Errore nel caricamento del quiz.");
+        this.$refs.toast.show({
+          message: "Errore nel caricamento del quiz.",
+          type: "error",
+        });
       }
     },
     closeQuizModal() {
@@ -130,7 +165,11 @@ export default {
     },
     async onQuizSubmitted(payload) {
       const pointsEarned = payload?.points_earned || 0;
-      alert(`Quiz inviato con successo! +${pointsEarned} punti`);
+      this.$refs.toast.show({
+        title: "Ottimo lavoro!",
+        message: `Quiz inviato con successo! +${pointsEarned} punti`,
+        type: "success",
+      });
 
       // Refresh tasks and emit event to parent to update user info
       this.$emit("points-updated");
@@ -146,12 +185,124 @@ export default {
       this.$emit("points-updated");
       await this.fetchTasks();
     },
+    async onGPSSubmitted(proof) {
+      try {
+        console.log("Proof: ", proof);
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-access-token": token,
+          },
+          body: JSON.stringify({
+            task_id: this.selectedTaskForGPS._id,
+            proof: { gps_location: proof },
+          }),
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error || "Errore durante la verifica GPS.");
+        }
+
+        const result = await response.json();
+        if (result.submission_status === "APPROVED") {
+          this.$refs.toast.show({
+            title: "Task Completato!",
+            message: `Hai guadagnato +${result.points_earned} punti`,
+            type: "success",
+          });
+          this.closeGPSModal();
+          this.$emit("points-updated");
+          await this.fetchTasks();
+        } else {
+          this.$refs.toast.show({
+            message:
+              "Verifica GPS fallita. Riprova più vicino alla posizione target.",
+            type: "error",
+          });
+          this.closeGPSModal();
+        }
+      } catch (error) {
+        console.error(error);
+        this.$refs.toast.show({
+          message: error.message,
+          type: "error",
+        });
+        this.closeGPSModal();
+      }
+    },
+    closeGPSModal() {
+      this.gpsModalOpen = false;
+      this.selectedTaskForGPS = null;
+    },
+    closeQRScanner() {
+      this.qrScannerOpen = false;
+      this.selectedTaskForQR = null;
+    },
+    async onQRScanned(qrContent) {
+      if (!this.selectedTaskForQR) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-access-token": token,
+          },
+          body: JSON.stringify({
+            task_id: this.selectedTaskForQR._id,
+            proof: { qr_code_data: qrContent },
+          }),
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          const errorMessage =
+            payload.error || "Errore durante la verifica QR.";
+          if (errorMessage === "Invalid QR Code") {
+            throw new Error(
+              "CODICE QR NON VALIDO!\n\nIl codice scansionato non corrisponde a questo task. Assicurati di scansionare il codice QR corretto fornito per questa attività.",
+            );
+          }
+          throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        if (result.submission_status === "APPROVED") {
+          this.$refs.toast.show({
+            title: "Task Completato!",
+            message: `Hai guadagnato +${result.points_earned} punti`,
+            type: "success",
+          });
+          this.$emit("points-updated");
+          await this.fetchTasks();
+        } else {
+          this.$refs.toast.show({
+            title: "Codice QR non valido",
+            message:
+              "Il codice scansionato non corrisponde a questo task. Assicurati di scansionare il codice QR corretto fornito per questa attività.",
+            type: "error",
+            duration: 5000,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        this.$refs.toast.show({
+          message: error.message,
+          type: "error",
+        });
+      }
+    },
     async fetchTasks() {
       this.loading = true;
       this.error = "";
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/tasks`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         });
 
         if (!response.ok) {

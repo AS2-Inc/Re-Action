@@ -50,12 +50,13 @@ const seed = async () => {
       if (!existing) {
         await Neighborhood.create({
           ...n,
-          total_score: Math.floor(Math.random() * 100), // Random starting score
+          base_points: 0,
+          normalized_points: 0,
           ranking_position: 0,
           environmental_data: {
-            air_quality_index: 30 + Math.floor(Math.random() * 50), // Random reasonable AQI
-            waste_management: 60 + Math.floor(Math.random() * 35),
-            improvement_trend: Math.floor(Math.random() * 10),
+            co2_saved: 0,
+            waste_recycled: 0,
+            km_green: 0,
             last_updated: new Date(),
           },
         });

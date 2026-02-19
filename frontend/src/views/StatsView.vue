@@ -31,15 +31,15 @@
                     <div class="neighborhood-stats">
                       <div class="neighborhood-stat">
                         <span class="stat-label">CO₂ salvata</span>
-                        <span class="stat-value">{{ co2Saved }} kg</span>
+                        <span class="stat-value">{{ co2Saved.toFixed(2) }} kg</span>
                       </div>
                       <div class="neighborhood-stat">
                         <span class="stat-label">Rifiuti riciclati</span>
-                        <span class="stat-value">{{ wasteRecycled }} kg</span>
+                        <span class="stat-value">{{ wasteRecycled.toFixed(2) }} kg</span>
                       </div>
                       <div class="neighborhood-stat">
-                        <span class="stat-label">KM verde</span>
-                        <span class="stat-value">{{ kmGreen }} km</span>
+                        <span class="stat-label">KM green</span>
+                        <span class="stat-value">{{ kmGreen.toFixed(2) }} km</span>
                       </div>
                     </div>
                   </div>
@@ -73,12 +73,16 @@
                 </div>
                 <div class="neighborhood-stats">
                   <div class="neighborhood-stat">
-                    <span class="stat-label">Qualità dell'aria </span>
-                    <span class="stat-value">{{ neighborhoodAirQuality }}%</span>
+                    <span class="stat-label">CO₂ salvata (quartiere)</span>
+                    <span class="stat-value">{{ neighborhoodCo2Saved.toFixed(1) }} kg</span>
                   </div>
                   <div class="neighborhood-stat">
                     <span class="stat-label">Rifiuti riciclati (quartiere)</span>
-                    <span class="stat-value">{{ neighborhoodWasteRecycled }} kg</span>
+                    <span class="stat-value">{{ neighborhoodWasteRecycled.toFixed(1) }} kg</span>
+                  </div>
+                  <div class="neighborhood-stat">
+                    <span class="stat-label">Km Green (quartiere)</span>
+                    <span class="stat-value">{{ neighborhoodKmGreen.toFixed(1) }} km</span>
                   </div>
                 </div>
               </div>
@@ -159,6 +163,7 @@ export default {
       neighborhoodCo2Saved: 0,
       neighborhoodWasteRecycled: 0,
       neighborhoodKmGreen: 0,
+      neighborhoodImprovement: 0,
       isLoading: false,
       error: "",
     };
@@ -211,15 +216,16 @@ export default {
     this.error = "";
 
     try {
+      const token = localStorage.getItem("token");
       const [badgesRes, dashboardRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/v1/users/me/badges`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         }),
         fetch(`${API_BASE_URL}/api/v1/users/me/dashboard`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         }),
         fetch(`${API_BASE_URL}/api/v1/tasks`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         }),
       ]);
 
@@ -240,19 +246,19 @@ export default {
       this.level = dashboardData?.user?.level || "";
       this.streak = dashboardData?.user?.streak || 0;
       this.neighborhoodTotalScore =
-        dashboardData?.neighborhood?.total_score || 0;
+        dashboardData?.neighborhood?.base_points || 0;
       this.neighborhoodName = dashboardData?.neighborhood?.name || "";
       this.neighborhoodRankingPosition =
         dashboardData?.neighborhood?.ranking_position || 0;
       this.co2Saved = dashboardData?.ambient?.co2_saved || 0;
       this.wasteRecycled = dashboardData?.ambient?.waste_recycled || 0;
       this.kmGreen = dashboardData?.ambient?.km_green || 0;
-      this.neighborhoodAirQuality =
-        dashboardData?.neighborhood?.ambient?.air_quality || 0;
+      this.neighborhoodCo2Saved =
+        dashboardData?.neighborhood?.environmental_data?.co2_saved || 0;
       this.neighborhoodWasteRecycled =
-        dashboardData?.neighborhood?.ambient?.waste_recycled || 0;
-      this.neighborhoodImprovement =
-        dashboardData?.neighborhood?.ambient?.improvement || 0;
+        dashboardData?.neighborhood?.environmental_data?.waste_recycled || 0;
+      this.neighborhoodKmGreen =
+        dashboardData?.neighborhood?.environmental_data?.km_green || 0;
       this.levelThresholds = dashboardData?.level_thresholds || [];
     } catch (error) {
       console.error(error);

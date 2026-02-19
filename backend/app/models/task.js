@@ -23,7 +23,7 @@ export default mongoose.model(
     // Verification Logic (RF12)
     verification_method: {
       type: String,
-      enum: ["GPS", "QR_SCAN", "PHOTO_UPLOAD", "QUIZ", "MANUAL_REPORT"],
+      enum: ["GPS", "QR_SCAN", "PHOTO_UPLOAD", "QUIZ"],
       required: true,
     },
     // Technical criteria for auto-verification
@@ -38,7 +38,7 @@ export default mongoose.model(
     impact_metrics: {
       co2_saved: { type: Number, default: 0 }, // kg
       waste_recycled: { type: Number, default: 0 }, // kg
-      distance: { type: Number, default: 0 }, // km
+      km_green: { type: Number, default: 0 }, // km
     },
 
     // Scheduling

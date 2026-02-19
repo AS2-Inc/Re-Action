@@ -33,7 +33,7 @@ const TaskTemplateSchema = new Schema({
   },
   verification_method: {
     type: String,
-    enum: ["GPS", "QR_SCAN", "QUIZ", "PHOTO_UPLOAD", "MANUAL_REPORT", "AUTO"],
+    enum: ["GPS", "QR_SCAN", "QUIZ", "PHOTO_UPLOAD"],
     required: true,
   },
 
@@ -59,8 +59,7 @@ const TaskTemplateSchema = new Schema({
   impact_metrics_schema: {
     co2_saved: { type: Boolean, default: false },
     waste_recycled: { type: Boolean, default: false },
-    distance: { type: Boolean, default: false },
-    time_spent: { type: Boolean, default: false },
+    km_green: { type: Boolean, default: false },
   },
 
   // Fields that operators can configure when creating a task from this template

@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import Path from "node:path";
 import { fileURLToPath } from "node:url";
-import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import yaml from "js-yaml";
@@ -23,7 +22,6 @@ const swagger_document = yaml.load(
 // Middleware Configuration
 app.use(express.json()); // Body parser
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser()); // Cookie parser for HttpOnly cookies
 app.use(
   cors({
     origin: [

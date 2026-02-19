@@ -1,229 +1,281 @@
+import mongoose from "mongoose";
 import Neighborhood from "../models/neighborhood.js";
 import Submission from "../models/submission.js";
 import User from "../models/user.js";
 
 /**
  * Leaderboard Service (RF17, RF18)
- * Manages leaderboard calculations with normalized scoring
+ *
+ * Everything is computed on-demand when the leaderboard is fetched.
+ *
+ * Neighborhood ranking is based on:
+ *  - base_points: sum of points_awarded from all APPROVED submissions by users in the neighborhood
+ *  - normalized_points: base_points / total_users  (so smaller neighborhoods can compete)
+ *  - participation_rate: active_users / total_users per period (weekly, monthly, annually)
+ *  - improvement_factor: % change in points earned vs the previous period
+ *
+ * Environmental totals (co2_saved, km_green, waste_recycled) are updated incrementally
+ * on task completion via on_task_completed().
  */
 class LeaderboardService {
+  // ──────────────────────────── Public API ────────────────────────────
+
   /**
-   * Get the current leaderboard with normalized scores
-   * @param {Object} options - { period: 'weekly'|'monthly'|'all_time', limit: number }
-   * @returns {Promise<Array>} Leaderboard entries
+   * Get the current leaderboard.
+   * Period stats (participation, improvement) are computed live.
+   *
+   * @param {Object} options - { period: 'weekly'|'monthly'|'annually'|'all_time', limit: number }
+   * @returns {Promise<Array>} Sorted leaderboard entries
    */
   async get_leaderboard(options = {}) {
     const { period = "all_time", limit = 20 } = options;
 
     const neighborhoods = await Neighborhood.find();
 
-    // Calculate normalized scores for each neighborhood
+    // Compute every entry on-demand (including period stats)
     const leaderboard_entries = await Promise.all(
-      neighborhoods.map(async (n) => {
-        const normalized_score = await this.calculate_normalized_score(
-          n._id,
-          period,
-        );
-        return {
-          neighborhood_id: n._id,
-          name: n.name,
-          city: n.city,
-          raw_score: n.total_score,
-          normalized_score: normalized_score.total,
-          delta_improvement: normalized_score.delta,
-          participation_rate: normalized_score.participation_rate,
-          environmental_bonus: normalized_score.environmental_bonus,
-        };
-      }),
+      neighborhoods.map((n) => this._build_entry(n, period)),
     );
 
-    // Sort by normalized score
-    leaderboard_entries.sort((a, b) => b.normalized_score - a.normalized_score);
+    // Sort by normalized_points descending
+    leaderboard_entries.sort(
+      (a, b) => b.normalized_points - a.normalized_points,
+    );
 
     // Assign rankings
-    let rank = 1;
-    for (const entry of leaderboard_entries) {
-      entry.rank = rank++;
-    }
+    leaderboard_entries.forEach((entry, i) => {
+      entry.rank = i + 1;
+    });
 
-    // Update neighborhood rankings in database
-    await this.update_rankings(leaderboard_entries);
+    // Persist rankings to DB
+    await this._persist_rankings(leaderboard_entries);
 
     return leaderboard_entries.slice(0, limit);
   }
 
   /**
-   * Calculate normalized score for a neighborhood (RF18)
-   * Takes into account: delta improvement, participation rate, and environmental factors
+   * Lightweight update after a single task completion.
+   * Increments base_points and environmental data.
    *
-   * @param {string} neighborhood_id - Neighborhood ID
-   * @param {string} period - Time period for calculation
-   * @returns {Promise<Object>} Score components
+   * @param {string} neighborhood_id
+   * @param {number} points - points to add
+   * @param {Object} [impact] - { co2_saved, waste_recycled, km_green }
    */
-  async calculate_normalized_score(neighborhood_id, period = "all_time") {
-    const neighborhood = await Neighborhood.findById(neighborhood_id);
-    if (!neighborhood) {
-      return {
-        total: 0,
-        delta: 0,
-        participation_rate: 0,
-        environmental_bonus: 0,
-      };
+  async on_task_completed(neighborhood_id, points = 0, impact = {}) {
+    const inc = { base_points: points };
+    if (impact.co2_saved)
+      inc["environmental_data.co2_saved"] = impact.co2_saved;
+    if (impact.waste_recycled)
+      inc["environmental_data.waste_recycled"] = impact.waste_recycled;
+    if (impact.km_green) inc["environmental_data.km_green"] = impact.km_green;
+
+    const neighborhood = await Neighborhood.findByIdAndUpdate(
+      neighborhood_id,
+      {
+        $inc: inc,
+        $set: { "environmental_data.last_updated": new Date() },
+      },
+      { new: true },
+    );
+
+    if (neighborhood) {
+      // Recalculate normalized_points with updated base_points
+      const total_users = await User.countDocuments({
+        neighborhood_id,
+        is_active: true,
+      });
+      const normalized_points =
+        total_users > 0
+          ? Math.round((neighborhood.base_points / total_users) * 100) / 100
+          : 0;
+
+      await Neighborhood.findByIdAndUpdate(neighborhood_id, {
+        $set: { normalized_points },
+      });
+    }
+  }
+
+  // ──────────────────────────── Internal helpers ────────────────────────────
+
+  /**
+   * Build a single leaderboard entry, computing period stats on-the-fly.
+   */
+  async _build_entry(neighborhood, period) {
+    const period_stats = await this._compute_period_stats(
+      neighborhood._id,
+      period,
+    );
+
+    return {
+      neighborhood_id: neighborhood._id,
+      name: neighborhood.name,
+      city: neighborhood.city,
+      base_points: neighborhood.base_points,
+      normalized_points: neighborhood.normalized_points,
+      participation_rate: period_stats.participation_rate,
+      improvement_factor: period_stats.improvement_factor,
+      active_users: period_stats.active_users,
+      total_users: period_stats.total_users,
+      points_earned_in_period: period_stats.points_earned,
+      environmental_data: {
+        co2_saved: neighborhood.environmental_data?.co2_saved || 0,
+        waste_recycled: neighborhood.environmental_data?.waste_recycled || 0,
+        km_green: neighborhood.environmental_data?.km_green || 0,
+      },
+    };
+  }
+
+  /**
+   * Compute participation_rate, improvement_factor and points_earned
+   * for a given period, on-demand.
+   *
+   * @param {ObjectId} neighborhood_id
+   * @param {string} period - 'weekly' | 'monthly' | 'annually' | 'all_time'
+   * @returns {Promise<Object>} Period stats
+   */
+  async _compute_period_stats(neighborhood_id, period) {
+    const empty = {
+      participation_rate: 0,
+      improvement_factor: 0,
+      active_users: 0,
+      total_users: 0,
+      points_earned: 0,
+    };
+
+    // For all_time, participation/improvement don't apply
+    if (period === "all_time") {
+      const neighborhood = await Neighborhood.findById(neighborhood_id);
+      return { ...empty, points_earned: neighborhood?.base_points || 0 };
     }
 
-    // Get date range for period
-    const date_range = this.get_date_range(period);
+    const { start: current_start, end: current_end } =
+      this._get_date_range(period);
+    const { start: prev_start, end: prev_end } =
+      this._get_previous_date_range(period);
 
-    // 1. Calculate participation rate
-    const total_users = await User.countDocuments({
-      neighborhood_id,
-      is_active: true,
-    });
-
-    const active_users = await User.countDocuments({
-      neighborhood_id,
-      is_active: true,
-      last_activity_date: { $gte: date_range.start },
-    });
+    // User counts
+    const [total_users, active_users] = await Promise.all([
+      User.countDocuments({
+        neighborhood_id,
+        is_active: true,
+      }),
+      User.countDocuments({
+        neighborhood_id,
+        is_active: true,
+        last_activity_date: { $gte: current_start },
+      }),
+    ]);
 
     const participation_rate =
-      total_users > 0 ? (active_users / total_users) * 100 : 0;
+      total_users > 0
+        ? Math.round((active_users / total_users) * 1000) / 10 // one decimal %
+        : 0;
 
-    // 2. Calculate delta improvement (points gained in period)
-    const period_submissions = await Submission.aggregate([
+    // Points in current & previous period
+    const [current_points, previous_points] = await Promise.all([
+      this._sum_points_in_range(neighborhood_id, current_start, current_end),
+      this._sum_points_in_range(neighborhood_id, prev_start, prev_end),
+    ]);
+
+    let improvement_factor = 0;
+    if (previous_points > 0) {
+      improvement_factor =
+        Math.round(
+          ((current_points - previous_points) / previous_points) * 1000,
+        ) / 10;
+    } else if (current_points > 0) {
+      improvement_factor = 100; // new activity where there was none
+    }
+
+    return {
+      participation_rate,
+      improvement_factor,
+      active_users,
+      total_users,
+      points_earned: current_points,
+    };
+  }
+
+  /**
+   * Sum points_awarded for a neighborhood within a date range.
+   */
+  async _sum_points_in_range(neighborhood_id, start, end) {
+    const result = await Submission.aggregate([
       {
         $match: {
-          neighborhood_id: neighborhood._id,
+          neighborhood_id: mongoose.Types.ObjectId.createFromHexString
+            ? typeof neighborhood_id === "string"
+              ? new mongoose.Types.ObjectId(neighborhood_id)
+              : neighborhood_id
+            : neighborhood_id,
           status: "APPROVED",
-          completed_at: { $gte: date_range.start, $lte: date_range.end },
+          completed_at: { $gte: start, $lt: end },
         },
       },
       {
         $group: {
           _id: null,
-          total_points: { $sum: "$points_awarded" },
-          count: { $sum: 1 },
+          total: { $sum: "$points_awarded" },
         },
       },
     ]);
-
-    const delta_points = period_submissions[0]?.total_points || 0;
-    const delta_tasks = period_submissions[0]?.count || 0;
-
-    // 3. Calculate environmental bonus (based on neighborhood's environmental data)
-    // Neighborhoods with worse initial conditions get a bonus for improvement
-    const environmental_bonus = this.calculate_environmental_bonus(
-      neighborhood.environmental_data,
-    );
-
-    // 4. Calculate normalized score
-    // Formula: base_score * participation_multiplier + delta_bonus + environmental_bonus
-    const base_score = neighborhood.total_score;
-    const participation_multiplier = 1 + (participation_rate / 100) * 0.5; // Up to 50% bonus
-    const delta_bonus = delta_points * 0.1; // 10% of period points as bonus
-
-    const total =
-      base_score * participation_multiplier + delta_bonus + environmental_bonus;
-
-    return {
-      total: Math.round(total),
-      delta: delta_points,
-      delta_tasks,
-      participation_rate: Math.round(participation_rate * 10) / 10,
-      environmental_bonus: Math.round(environmental_bonus),
-    };
+    return result[0]?.total || 0;
   }
 
   /**
-   * Calculate environmental bonus based on neighborhood conditions
-   * Neighborhoods with worse conditions get bonus for improving
-   * @param {Object} environmental_data - Neighborhood environmental data
-   * @returns {number} Environmental bonus points
+   * Get the current date range for a period.
+   * @param {string} period - 'weekly' | 'monthly' | 'annually'
+   * @returns {{ start: Date, end: Date }}
    */
-  calculate_environmental_bonus(environmental_data) {
-    if (!environmental_data) return 0;
-
-    let bonus = 0;
-
-    // Air quality: worse baseline = higher potential bonus
-    if (environmental_data.air_quality_index) {
-      // AQI above 50 (moderate) gets bonus potential
-      const aqi = environmental_data.air_quality_index;
-      if (aqi > 50) {
-        bonus += Math.min((aqi - 50) * 2, 100); // Up to 100 points
-      }
-    }
-
-    // Improvement trend bonus
-    if (environmental_data.improvement_trend) {
-      bonus += environmental_data.improvement_trend * 10;
-    }
-
-    return bonus;
-  }
-
-  /**
-   * Get date range for a period
-   * @param {string} period - 'weekly', 'monthly', or 'all_time'
-   * @returns {Object} { start: Date, end: Date }
-   */
-  get_date_range(period) {
+  _get_date_range(period) {
     const end = new Date();
-    let start = new Date(0); // Beginning of time for 'all_time'
+    const start = new Date();
 
-    if (period === "weekly") {
-      start = new Date();
-      start.setDate(start.getDate() - 7);
-    } else if (period === "monthly") {
-      start = new Date();
-      start.setMonth(start.getMonth() - 1);
+    switch (period) {
+      case "weekly":
+        start.setDate(start.getDate() - 7);
+        break;
+      case "monthly":
+        start.setMonth(start.getMonth() - 1);
+        break;
+      case "annually":
+        start.setFullYear(start.getFullYear() - 1);
+        break;
+      default:
+        return { start: new Date(0), end };
     }
 
     return { start, end };
   }
 
   /**
-   * Update neighborhood rankings based on calculated scores
-   * @param {Array} leaderboard_entries - Calculated leaderboard
+   * Get the previous period's date range (the period just before the current one).
+   * e.g. for "weekly" current = [now-7d, now], previous = [now-14d, now-7d]
    */
-  async update_rankings(leaderboard_entries) {
+  _get_previous_date_range(period) {
+    const current = this._get_date_range(period);
+    const duration_ms = current.end.getTime() - current.start.getTime();
+
+    return {
+      start: new Date(current.start.getTime() - duration_ms),
+      end: new Date(current.start.getTime()),
+    };
+  }
+
+  /**
+   * Persist ranking_position and normalized_points to each neighborhood document.
+   */
+  async _persist_rankings(leaderboard_entries) {
     const updates = leaderboard_entries.map((entry) =>
       Neighborhood.findByIdAndUpdate(entry.neighborhood_id, {
-        ranking_position: entry.rank,
-        normalized_score: entry.normalized_score,
-        last_ranking_update: new Date(),
+        $set: {
+          ranking_position: entry.rank,
+          normalized_points: entry.normalized_points,
+          last_ranking_update: new Date(),
+        },
       }),
     );
-
     await Promise.all(updates);
-  }
-
-  /**
-   * Recalculate leaderboard after a task completion
-   * Called from task_service.award_points
-   * @param {string} neighborhood_id - The neighborhood to update
-   */
-  async on_task_completed(neighborhood_id) {
-    // Increment neighborhood score
-    await Neighborhood.findByIdAndUpdate(neighborhood_id, {
-      $inc: { total_score: 1 },
-      last_activity: new Date(),
-    });
-
-    // Full recalculation could be expensive, so we just mark for batch update
-    // The full recalculation happens on leaderboard fetch or via scheduled job
-  }
-
-  /**
-   * Award points to a neighborhood
-   * @param {string} neighborhood_id - Neighborhood ID
-   * @param {number} points - Points to add
-   */
-  async award_points_to_neighborhood(neighborhood_id, points) {
-    await Neighborhood.findByIdAndUpdate(neighborhood_id, {
-      $inc: { total_score: points },
-      last_activity: new Date(),
-    });
   }
 }
 

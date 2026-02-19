@@ -4,9 +4,8 @@
     @click="handleClick"
     :class="{
       'task-card--clickable':
-        task.verification_method === 'QUIZ' ||
-        (task.verification_method === 'PHOTO_UPLOAD' &&
-          task.submission_status !== 'PENDING'),
+        ['QUIZ', 'PHOTO_UPLOAD', 'GPS', 'QR_SCAN'].includes(task.verification_method) &&
+        task.submission_status !== 'PENDING',
     }"
   >
     <div class="task-header">
@@ -77,12 +76,12 @@
         </span>
       </div>
       <div
-        v-if="(task.impact_metrics?.distance ?? 0) > 0"
+        v-if="(task.impact_metrics?.km_green ?? 0) > 0"
         class="impact-item"
       >
-        <span class="impact-label">Distanza</span>
+        <span class="impact-label">Km Green</span>
         <span class="impact-value">
-          {{ task.impact_metrics?.distance }} km
+          {{ task.impact_metrics?.km_green }} km
         </span>
       </div>
     </div>
@@ -123,7 +122,7 @@ export default {
       return (
         (metrics.co2_saved ?? 0) > 0 ||
         (metrics.waste_recycled ?? 0) > 0 ||
-        (metrics.distance ?? 0) > 0
+        (metrics.km_green ?? 0) > 0
       );
     },
     formatExpiresAt(value) {

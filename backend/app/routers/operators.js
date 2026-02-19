@@ -30,9 +30,12 @@ router.post(
         return res.status(404).json({ error: "Operator not found" });
       }
 
-      const token = crypto.randomBytes(20).toString("hex");
+      const token = jwt.sign(
+        { email: operator.email, purpose: "reset" },
+        process.env.SUPER_SECRET,
+        { expiresIn: "1h" },
+      );
       operator.reset_password_token = token;
-      operator.reset_password_expires = Date.now() + 3600000; // 1 hour
 
       await operator.save();
 
@@ -65,9 +68,14 @@ router.post("/reset-password", async (req, res) => {
       return res.status(400).json({ error: "Password is too weak" });
     }
 
+    try {
+      jwt.verify(token, process.env.SUPER_SECRET);
+    } catch (_err) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
     const operator = await Operator.findOne({
       reset_password_token: token,
-      reset_password_expires: { $gt: Date.now() },
     });
 
     if (!operator) {
@@ -76,12 +84,10 @@ router.post("/reset-password", async (req, res) => {
 
     operator.password = await hash_password(password);
     operator.reset_password_token = undefined;
-    operator.reset_password_expires = undefined;
 
     // Ensure account is active if it wasn't
     operator.is_active = true;
     operator.activation_token = undefined;
-    operator.activation_token_expires = undefined;
 
     await operator.save();
 
@@ -110,8 +116,11 @@ router.post(
       return res.status(400).json({ error: "Invalid email format" });
     }
 
-    const activation_token = crypto.randomBytes(20).toString("hex");
-    const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
+    const activation_token = jwt.sign(
+      { email: req.body.email, purpose: "activation" },
+      process.env.SUPER_SECRET,
+      { expiresIn: "12h" },
+    );
 
     let operator = new Operator({
       name: req.body.name,
@@ -120,7 +129,6 @@ router.post(
       password: crypto.randomBytes(32).toString("hex"),
       role: "operator",
       activation_token: activation_token,
-      activation_token_expires: activation_expires,
     });
 
     try {
@@ -228,7 +236,6 @@ router.get("/me", token_checker, async (req, res) => {
     surname: operator.surname,
     email: operator.email,
     role: operator.role,
-    // TODO: add more if necessary for the frontend
   });
 });
 
@@ -247,10 +254,16 @@ router.post("/activate", async (req, res) => {
     return res.status(400).json({ error: "Password is too weak" });
   }
 
-  // Find user with this token AND ensure token hasn't expired
+  try {
+    jwt.verify(token, process.env.SUPER_SECRET);
+  } catch (_err) {
+    return res
+      .status(400)
+      .json({ error: "Invalid or expired activation token" });
+  }
+
   const operator = await Operator.findOne({
     activation_token: token,
-    activation_token_expires: { $gt: Date.now() },
   });
 
   if (!operator) {
@@ -268,7 +281,6 @@ router.post("/activate", async (req, res) => {
   operator.password = await hash_password(password);
   operator.is_active = true;
   operator.activation_token = undefined;
-  operator.activation_token_expires = undefined;
 
   await operator.save();
 

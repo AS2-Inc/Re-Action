@@ -76,7 +76,7 @@ describe("Task API Endpoints", () => {
       difficulty: "Low",
       base_points: 10,
       impact_metrics: { co2_saved: 1 },
-      verification_method: "MANUAL_REPORT",
+      verification_method: "PHOTO_UPLOAD",
       frequency: "daily",
       ...data,
     });

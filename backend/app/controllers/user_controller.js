@@ -7,16 +7,9 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     const result = await UserService.login(email, password);
 
-    // Set JWT in HttpOnly cookie
-    res.cookie("token", result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    });
-
-    // Return user info without token
+    // Return user info with token
     res.status(200).json({
+      token: result.token,
       email: result.email,
       id: result.id,
       self: result.self,
@@ -35,16 +28,9 @@ export const google_auth = async (req, res) => {
     const { credential, neighborhood } = req.body;
     const result = await UserService.google_auth(credential, neighborhood);
 
-    // Set JWT in HttpOnly cookie
-    res.cookie("token", result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    });
-
-    // Return user info without token
+    // Return user info with token
     res.status(200).json({
+      token: result.token,
       email: result.email,
       id: result.id,
       self: result.self,
@@ -82,10 +68,11 @@ export const get_me = async (req, res) => {
 
 export const update_profile = async (req, res) => {
   try {
-    const { name, surname } = req.body;
+    const { name, surname, neighborhood } = req.body;
     const result = await UserService.update_profile(req.logged_user.id, {
       name,
       surname,
+      neighborhood_id: neighborhood,
     });
     res.status(200).json(result);
   } catch (error) {

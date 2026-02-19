@@ -146,7 +146,9 @@ router.get(
   check_role(["admin", "operator"]),
   async (_req, res) => {
     try {
-      const rewards = await Reward.find().sort({ active: -1, created_at: -1 });
+      const rewards = await Reward.find()
+        .populate("neighborhoods", "name")
+        .sort({ active: -1, created_at: -1 });
       res.status(200).json(rewards);
     } catch (error) {
       console.error("Error fetching all rewards:", error);
@@ -168,7 +170,7 @@ router.put(
       const reward = await Reward.findByIdAndUpdate(req.params.id, req.body, {
         new: true,
         runValidators: true,
-      });
+      }).populate("neighborhoods", "name");
       if (!reward) {
         return res.status(404).json({ error: "Reward not found" });
       }
@@ -182,7 +184,7 @@ router.put(
 
 /**
  * DELETE /api/v1/rewards/:id
- * Soft delete (deactivate) a reward
+ * Delete a reward from the database
  */
 router.delete(
   "/:id",
@@ -190,18 +192,14 @@ router.delete(
   check_role(["admin", "operator"]),
   async (req, res) => {
     try {
-      const reward = await Reward.findByIdAndUpdate(
-        req.params.id,
-        { active: false },
-        { new: true },
-      );
+      const reward = await Reward.findByIdAndDelete(req.params.id);
       if (!reward) {
         return res.status(404).json({ error: "Reward not found" });
       }
-      res.status(200).json({ message: "Reward deactivated successfully" });
+      res.status(200).json({ message: "Reward deleted successfully" });
     } catch (error) {
       console.error("Error deleting reward:", error);
-      res.status(500).json({ error: "Failed to deactivate reward" });
+      res.status(500).json({ error: "Failed to delete reward" });
     }
   },
 );

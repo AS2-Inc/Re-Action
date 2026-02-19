@@ -8,6 +8,7 @@ import LoginView from "../views/LoginView.vue";
 import NotFoundView from "../views/NotFoundView.vue";
 import OperatorActivationView from "../views/OperatorActivationView.vue";
 import OperatorDashboardView from "../views/OperatorDashboardView.vue";
+import OperatorRewardsView from "../views/OperatorRewardsView.vue";
 import PresentationView from "../views/PresentationView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import ReportsListView from "../views/ReportsListView.vue";
@@ -133,6 +134,17 @@ const router = createRouter({
       path: "/reportsList",
       name: "reportsList",
       component: ReportsListView,
+      meta: {
+        hideUserColumn: true,
+        requiresAuth: true,
+        authType: "operator",
+        roles: ["operator", "admin"],
+      },
+    },
+    {
+      path: "/operatorRewards",
+      name: "operatorRewards",
+      component: OperatorRewardsView,
       meta: {
         hideUserColumn: true,
         requiresAuth: true,

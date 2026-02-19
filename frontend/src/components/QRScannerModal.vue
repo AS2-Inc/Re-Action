@@ -8,7 +8,7 @@
         <div class="qr-reader-frame">
           <div id="qr-reader"></div>
         </div>
-        <p v-if="error" class="error-message">{{ error }}</p>
+        <p v-if="_error" class="error-message">{{ _error }}</p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="close">Annulla</button>
@@ -31,7 +31,7 @@ export default {
   data() {
     return {
       scanner: null,
-      error: null,
+      _error: null,
     };
   },
   watch: {
@@ -49,7 +49,7 @@ export default {
     startScanner() {
       if (this.scanner) return;
 
-      this.error = null;
+      this._error = null;
       // Initialize after DOM is updated
       // We need to wait for the element to be present
       setTimeout(() => {
@@ -61,8 +61,8 @@ export default {
           );
           this.scanner.render(this.onScanSuccess, this.onScanFailure);
         } catch (e) {
-          console.error("Error starting scanner", e);
-          this.error =
+          console._error("Error starting scanner", e);
+          this._error =
             "Impossibile avviare la fotocamera. Verifica i permessi.";
         }
       }, 100);
@@ -70,23 +70,23 @@ export default {
     stopScanner() {
       if (this.scanner) {
         try {
-          this.scanner.clear().catch((error) => {
-            console.error("Failed to clear html5-qrcode scanner. ", error);
+          this.scanner.clear().catch((_error) => {
+            console._error("Failed to clear html5-qrcode scanner. ", _error);
           });
         } catch (e) {
-          console.error("Error stopping scanner", e);
+          console._error("Error stopping scanner", e);
         }
         this.scanner = null;
       }
     },
-    onScanSuccess(decodedText, decodedResult) {
+    onScanSuccess(decodedText, _decodedResult) {
       this.$emit("scanned", decodedText);
       // We don't close immediately here, the parent handles it or we call close()
       // but usually we want to stop scanning once successful
       this.stopScanner();
       this.close();
     },
-    onScanFailure(error) {
+    onScanFailure(_error) {
       // console.warn(`Code scan error = ${error}`);
     },
     close() {

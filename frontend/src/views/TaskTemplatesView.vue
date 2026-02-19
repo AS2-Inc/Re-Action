@@ -122,7 +122,7 @@ const fetchTasks = async () => {
   }
 };
 
-const formatDate = (date) => {
+const _formatDate = (date) => {
   if (!date) return "N/A";
   return new Date(date).toLocaleDateString("it-IT");
 };
@@ -139,7 +139,7 @@ const fetchNeighborhoods = async () => {
   }
 };
 
-const openTaskDetail = (task) => {
+const _openTaskDetail = (task) => {
   // Deep clone, and normalize neighborhood_id to just the _id string
   const clone = JSON.parse(JSON.stringify(task));
   clone.neighborhood_id_value =
@@ -213,13 +213,13 @@ const saveTask = async () => {
   }
 };
 
-const toggleTaskActive = async () => {
+const _toggleTaskActive = async () => {
   if (!editingTask.value) return;
   editingTask.value.is_active = !editingTask.value.is_active;
   await saveTask();
 };
 
-const deleteTask = async () => {
+const _deleteTask = async () => {
   if (!editingTask.value) return;
   if (!confirm(`Vuoi davvero eliminare il task "${editingTask.value.title}"?`))
     return;
@@ -383,7 +383,7 @@ onMounted(() => {
               <tr v-if="tasks.length === 0">
                 <td colspan="9" class="text-center">Nessun task trovato.</td>
               </tr>
-              <tr v-for="task in tasks" :key="task._id" class="clickable-row" @click="openTaskDetail(task)">
+              <tr v-for="task in tasks" :key="task._id" class="clickable-row" @click="_openTaskDetail(task)">
                 <td class="primary-text">{{ task.title }}</td>
                 <td>{{ task.neighborhood_name || task.neighborhood_id?.name || '—' }}</td>
                 <td><span class="badge badge-frequency">{{ task.category }}</span></td>
@@ -396,7 +396,7 @@ onMounted(() => {
                   <span :class="['status-badge', task.is_active !== false ? 'active' : 'inactive']">{{ task.is_active !== false ? 'Attivo' : 'Inattivo' }}</span>
                 </td>
                 <td>{{ task.base_points }}</td>
-                <td>{{ formatDate(task.created_at) }}</td>
+                <td>{{ _formatDate(task.created_at) }}</td>
               </tr>
             </tbody>
           </table>
@@ -511,8 +511,8 @@ onMounted(() => {
             </div>
 
             <div class="modal-actions">
-              <button class="btn-modal btn-delete-modal" @click="deleteTask">Elimina</button>
-              <button class="btn-modal btn-toggle" @click="toggleTaskActive">
+              <button class="btn-modal btn-delete-modal" @click="_deleteTask">Elimina</button>
+              <button class="btn-modal btn-toggle" @click="_toggleTaskActive">
                 {{ editingTask.is_active ? 'Disattiva' : 'Attiva' }}
               </button>
               <button class="btn-modal btn-save" @click="saveTask">Salva</button>

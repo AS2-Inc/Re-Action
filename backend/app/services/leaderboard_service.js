@@ -106,16 +106,33 @@ class LeaderboardService {
       period,
     );
 
+    const total_users =
+      period_stats.total_users > 0
+        ? period_stats.total_users
+        : await User.countDocuments({
+            neighborhood_id: neighborhood._id,
+            is_active: true,
+          });
+
+    const normalization_users =
+      period_stats.active_users > 0 ? period_stats.active_users : total_users;
+
+    const normalized_points =
+      normalization_users > 0
+        ? Math.round((neighborhood.base_points / normalization_users) * 100) /
+          100
+        : 0;
+
     return {
       neighborhood_id: neighborhood._id,
       name: neighborhood.name,
       city: neighborhood.city,
       base_points: neighborhood.base_points,
-      normalized_points: neighborhood.normalized_points,
+      normalized_points,
       participation_rate: period_stats.participation_rate,
       improvement_factor: period_stats.improvement_factor,
       active_users: period_stats.active_users,
-      total_users: period_stats.total_users,
+      total_users,
       points_earned_in_period: period_stats.points_earned,
       environmental_data: {
         co2_saved: neighborhood.environmental_data?.co2_saved || 0,

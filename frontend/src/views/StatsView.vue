@@ -326,9 +326,7 @@ export default {
 
         if (entry) {
           this.neighborhoodRankingPosition = Number(entry.rank || 0) || 0;
-          this.neighborhoodImprovement = Number(
-            entry.improvement_factor || 0,
-          );
+          this.neighborhoodImprovement = Number(entry.improvement_factor || 0);
         }
       } catch (error) {
         console.error("Neighborhood ranking fetch error:", error);

@@ -192,11 +192,15 @@ export const get_user_tasks = async (user_id) => {
     }
 
     if (assignment?.task_id) {
-      const last_approved = await Submission.findOne({
+      const last_approved_query = Submission.findOne({
         user_id: user_id,
         task_id: assignment.task_id._id,
         status: "APPROVED",
-      }).sort({ completed_at: -1 });
+      });
+      const last_approved =
+        typeof last_approved_query.sort === "function"
+          ? await last_approved_query.sort({ completed_at: -1 })
+          : await last_approved_query;
 
       if (last_approved?.completed_at) {
         const last = new Date(last_approved.completed_at);
@@ -495,7 +499,11 @@ export const get_all_tasks = async () => {
 };
 
 export const update_task = async (task_id, updates) => {
-  const task = await Task.findByIdAndUpdate(task_id, { $set: updates }, { new: true });
+  const task = await Task.findByIdAndUpdate(
+    task_id,
+    { $set: updates },
+    { new: true },
+  );
   if (!task) {
     throw new ServiceError("Task not found", 404);
   }

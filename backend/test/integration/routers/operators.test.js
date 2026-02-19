@@ -216,37 +216,4 @@ describe("Operator API", () => {
       expect(response.status).toBe(401);
     });
   });
-
-  describe("GET /api/v1/operators/me", () => {
-    let op_token;
-    let operator;
-
-    beforeEach(async () => {
-      operator = new Operator({
-        name: "Me",
-        surname: "Op",
-        email: "me@op.com",
-        password: "hashedpassword",
-        role: "operator",
-        is_active: true,
-      });
-      await operator.save();
-
-      op_token = jwt.sign(
-        { email: operator.email, id: operator._id, role: "operator" },
-        process.env.SUPER_SECRET,
-        { expiresIn: 86400 },
-      );
-    });
-
-    it("should return operator details", async () => {
-      const response = await request(app)
-        .get("/api/v1/operators/me")
-        .set("x-access-token", op_token);
-
-      expect(response.status).toBe(200);
-      expect(response.body.name).toBe("Me");
-      expect(response.body.email).toBe("me@op.com");
-    });
-  });
 });

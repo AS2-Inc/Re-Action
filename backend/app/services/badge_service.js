@@ -93,12 +93,15 @@ class BadgeService {
    * @private
    */
   _updateUserLevel(user) {
+    let userLevel = "Cittadino Base"; // Default level
     for (const { points, level } of this.LEVEL_THRESHOLDS) {
       if (user.points >= points) {
-        user.level = level;
-        break;
+        userLevel = level;
+      } else {
+        break; // Since thresholds are ascending, stop at first one we don't meet
       }
     }
+    user.level = userLevel;
   }
 
   /**

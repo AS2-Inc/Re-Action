@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 import mongoose from "mongoose";
-import { DEFAULT_BADGES } from "../../../app/config/badges.config.js";
 import Badge from "../../../app/models/badge.js";
 import Activity from "../../../app/models/submission.js";
 import Task from "../../../app/models/task.js";
@@ -21,30 +20,10 @@ describe("BadgeService", () => {
     await close();
   });
 
-  describe("initializeDefaultBadges", () => {
-    it("should initialize default badges in the database", async () => {
-      await BadgeService.initializeDefaultBadges();
-      const badges = await Badge.find({});
-      expect(badges.length).toBe(DEFAULT_BADGES.length);
-
-      const badgeNames = badges.map((b) => b.name);
-      expect(badgeNames).toContain("Primo Passo");
-      expect(badgeNames).toContain("Operatore di Successo");
-    });
-
-    it("should not create duplicates if run multiple times", async () => {
-      await BadgeService.initializeDefaultBadges();
-      await BadgeService.initializeDefaultBadges();
-      const badges = await Badge.find({});
-      expect(badges.length).toBe(DEFAULT_BADGES.length);
-    });
-  });
-
   describe("checkAndAwardBadges", () => {
     let user;
 
     beforeEach(async () => {
-      await BadgeService.initializeDefaultBadges();
       user = await User.create({
         username: "testuser",
         email: "test@example.com",
@@ -61,6 +40,15 @@ describe("BadgeService", () => {
     });
 
     it("should award 'Primo Passo' badge after first task completion", async () => {
+      // Create the "Primo Passo" badge with the requirement of completing 1 task
+      const badge = await Badge.create({
+        name: "Primo Passo",
+        description: "First step in your journey",
+        icon: "primo_passo.png",
+        category: "Tasks",
+        requirements: { min_tasks_completed: 1 },
+      });
+
       const task = await Task.create({
         title: "Badge Test Task",
         description: "A test task for badge",
@@ -86,6 +74,15 @@ describe("BadgeService", () => {
     });
 
     it("should not re-award existing badges", async () => {
+      // Create the badge that will be awarded
+      const badge = await Badge.create({
+        name: "Primo Passo",
+        description: "First step in your journey",
+        icon: "primo_passo.png",
+        category: "Tasks",
+        requirements: { min_tasks_completed: 1 },
+      });
+
       const task = await Task.create({
         title: "Re-award Test",
         description: "Test",
@@ -115,13 +112,28 @@ describe("BadgeService", () => {
       await BadgeService.checkAndAwardBadges(user._id);
 
       const updatedUser = await User.findById(user._id);
-      expect(updatedUser.level).toBe("Eroe Locale");
+      expect(updatedUser.level).toBe("Ambasciatore Sostenibile");
     });
   });
 
   describe("getAllBadgesWithStatus", () => {
     it("should return all badges with earned status", async () => {
-      await BadgeService.initializeDefaultBadges();
+      // Create test badges
+      const badge1 = await Badge.create({
+        name: "Primo Passo",
+        description: "First step",
+        icon: "icon1.png",
+        category: "Tasks",
+        requirements: { min_tasks_completed: 1 },
+      });
+      const badge2 = await Badge.create({
+        name: "Operatore di Successo",
+        description: "Success operator",
+        icon: "icon2.png",
+        category: "Points",
+        requirements: { min_points: 500 },
+      });
+
       const user = await User.create({
         username: "testuser2",
         email: "test2@example.com",
@@ -129,8 +141,7 @@ describe("BadgeService", () => {
       });
 
       // Manually assign a badge
-      const badge = await Badge.findOne({ name: "Primo Passo" });
-      user.badges_id.push(badge._id);
+      user.badges_id.push(badge1._id);
       await user.save();
 
       const badgesWithStatus = await BadgeService.getAllBadgesWithStatus(
@@ -162,14 +173,21 @@ describe("BadgeService", () => {
 
   describe("getUserBadges", () => {
     it("should return only user's badges", async () => {
-      await BadgeService.initializeDefaultBadges();
+      // Create test badge
+      const badge = await Badge.create({
+        name: "Primo Passo",
+        description: "First step",
+        icon: "icon1.png",
+        category: "Tasks",
+        requirements: { min_tasks_completed: 1 },
+      });
+
       const user = await User.create({
         username: "testuser3",
         email: "test3@example.com",
         password: "Password123!",
       });
 
-      const badge = await Badge.findOne({ name: "Primo Passo" });
       user.badges_id.push(badge._id);
       await user.save();
 

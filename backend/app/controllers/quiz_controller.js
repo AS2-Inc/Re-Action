@@ -88,7 +88,14 @@ export const create_quiz = async (req, res) => {
 
 export const get_quiz_by_id = async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quizId = req.params.id;
+
+    // Validate quiz ID
+    if (!quizId || quizId === "undefined" || quizId === "null") {
+      return res.status(400).json({ error: "Invalid quiz ID" });
+    }
+
+    const quiz = await Quiz.findById(quizId);
     if (!quiz) {
       throw new ServiceError("Quiz not found", 404);
     }
@@ -108,6 +115,10 @@ export const get_quiz_by_id = async (req, res) => {
   } catch (error) {
     if (error instanceof ServiceError) {
       return res.status(error.status).json({ error: error.message });
+    }
+    // Handle Mongoose CastError (invalid ObjectId)
+    if (error.name === "CastError") {
+      return res.status(400).json({ error: "Invalid quiz ID format" });
     }
     console.error("Error fetching quiz:", error);
     res.status(500).json({ error: "Failed to fetch quiz" });

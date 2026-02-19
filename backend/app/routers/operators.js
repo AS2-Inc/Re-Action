@@ -145,6 +145,7 @@ router.post(
   },
 );
 
+// POST /api/v1/operators/login
 router.post("/login", async (req, res) => {
   const operator = await Operator.findOne({ email: req.body.email }).exec();
 

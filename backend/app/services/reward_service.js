@@ -62,28 +62,28 @@ export const get_user_rewards = async (user_id) => {
 export const redeem_reward = async (user_id, reward_id) => {
   const reward = await Reward.findById(reward_id);
   if (!reward) {
-    throw new ServiceError(404, "Reward not found");
+    throw new ServiceError("Reward not found", 404);
   }
 
   if (!reward.active) {
-    throw new ServiceError(400, "Reward is no longer active");
+    throw new ServiceError("Reward is no longer active", 400);
   }
 
   if (reward.quantity_available <= 0) {
-    throw new ServiceError(400, "Reward is out of stock");
+    throw new ServiceError("Reward is out of stock", 400);
   }
 
   if (reward.expiry_date && new Date(reward.expiry_date) < new Date()) {
-    throw new ServiceError(400, "Reward has expired");
+    throw new ServiceError("Reward has expired", 400);
   }
 
   const user = await User.findById(user_id);
   if (!user) {
-    throw new ServiceError(404, "User not found");
+    throw new ServiceError("User not found", 404);
   }
 
   if (user.points < reward.points_cost) {
-    throw new ServiceError(400, "Insufficient points");
+    throw new ServiceError("Insufficient points", 400);
   }
 
   // Transaction-like operations

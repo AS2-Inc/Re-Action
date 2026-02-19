@@ -206,8 +206,23 @@ describe("Reward API Endpoints", () => {
 
   describe("Admin Routes", () => {
     let adminToken;
+    let operatorToken;
     beforeEach(async () => {
       adminToken = await createAdminUser();
+      const operator = new Operator({
+        name: "Operator",
+        surname: "Tester",
+        email: "a@b.com",
+        password: "StrongPassword123!",
+        role: "operator",
+        is_active: true,
+      });
+      await operator.save();
+      operatorToken = jwt.sign(
+        { email: operator.email, id: operator._id, role: operator.role },
+        process.env.SUPER_SECRET,
+        { expiresIn: 86400 },
+      );
     });
 
     it("POST /api/v1/rewards - should create reward", async () => {
@@ -232,7 +247,7 @@ describe("Reward API Endpoints", () => {
 
       const res = await request(app)
         .get("/api/v1/rewards/all")
-        .set("x-access-token", adminToken);
+        .set("x-access-token", operatorToken);
 
       expect(res.status).toBe(200);
       expect(res.body.length).toBeGreaterThanOrEqual(2);

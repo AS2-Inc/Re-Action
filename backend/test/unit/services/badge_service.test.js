@@ -37,13 +37,6 @@ describe("BadgeService (Unit)", () => {
     jest.clearAllMocks();
   });
 
-  describe("initializeDefaultBadges", () => {
-    it("should initialize badges", async () => {
-      await BadgeService.initializeDefaultBadges();
-      expect(mockBadgeFindOneAndUpdate).toHaveBeenCalled();
-    });
-  });
-
   describe("checkAndAwardBadges", () => {
     it("should award badges if requirements met", async () => {
       const mockUser = {

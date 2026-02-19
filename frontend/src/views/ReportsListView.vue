@@ -9,6 +9,8 @@ const submissions = ref([]);
 const loading = ref(true);
 const errorMessage = ref("");
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 // Modal State
 const showModal = ref(false);
 const selectedSubmission = ref(null);

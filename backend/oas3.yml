@@ -8,20 +8,26 @@ info:
 servers:
   - url: http://localhost:5000/api/v1
     description: Development Server
+  - url: https://re-action.onrender.com/api/v1
+    description: Production Server
 
 tags:
   - name: Users
     description: User authentication, registration, and profile management
   - name: Tasks
     description: Task creation, submission, and management
+  - name: Quizzes
+    description: Quiz creation and retrieval (operators only)
   - name: Neighborhoods
     description: Neighborhood information and management
   - name: Operators
-    description: Operator registration, authentication, and dashboard
+    description: Operator registration, authentication, and management
   - name: Rewards
     description: Reward catalog and redemption
   - name: Notifications
     description: User notifications and preferences
+  - name: Stats
+    description: Public and aggregated statistics
 
 # ==================== PATHS ====================
 
@@ -154,7 +160,7 @@ paths:
   /users/me:
     get:
       summary: Get current user profile
-      description: Get profile data for logged-in user
+      description: Get basic profile data for logged-in user
       tags: [Users]
       security:
         - tokenAuth: []
@@ -168,27 +174,57 @@ paths:
                 properties:
                   name:
                     type: string
-                  points:
-                    type: integer
-                  level:
+                  surname:
                     type: string
-                  streak:
+                  email:
+                    type: string
+                  points:
                     type: integer
                   neighborhood_id:
                     type: string
-                  tasks_completed:
-                    type: integer
-                  badges_count:
-                    type: integer
-                  ambient:
-                    type: object
-                    properties:
-                      co2_saved:
-                        type: number
-                      waste_recycled:
-                        type: number
-                      km_green:
-                        type: number
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+    put:
+      summary: Update user profile
+      description: Update profile data (name, surname, neighborhood) for logged-in user
+      tags: [Users]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, surname]
+              properties:
+                name:
+                  type: string
+                surname:
+                  type: string
+                neighborhood:
+                  type: string
+                  description: Neighborhood ID (optional)
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  surname:
+                    type: string
+                  email:
+                    type: string
+                  neighborhood_id:
+                    type: string
+        '400':
+          description: Missing required fields
         '401':
           description: Unauthorized
         '404':
@@ -197,7 +233,7 @@ paths:
   /users/activate:
     get:
       summary: Activate user account
-      description: Verify activation token and activate user account
+      description: Verify activation token and activate user account. On success, redirects to frontend login page.
       tags: [Users]
       parameters:
         - in: query
@@ -207,17 +243,22 @@ paths:
             type: string
           description: Activation token received via email
       responses:
-        '200':
-          description: Account activated successfully
+        '302':
+          description: Account activated successfully, redirects to frontend login
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Redirect URL to frontend login page
+        '400':
+          description: Token missing, invalid, or expired
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  message:
+                  error:
                     type: string
-        '400':
-          description: Token missing, invalid, or expired
 
   /users/change-password:
     post:
@@ -244,6 +285,13 @@ paths:
       responses:
         '200':
           description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '400':
           description: Weak password or new password same as current
         '401':
@@ -254,7 +302,7 @@ paths:
   /users/forgot-password:
     post:
       summary: Request password reset
-      description: Generate and send password reset token
+      description: Generate and send password reset token via email
       tags: [Users]
       requestBody:
         required: true
@@ -269,7 +317,7 @@ paths:
                   format: email
       responses:
         '200':
-          description: Reset email sent
+          description: Reset email sent (returns same message whether email exists or not to prevent enumeration)
           content:
             application/json:
               schema:
@@ -277,9 +325,6 @@ paths:
                 properties:
                   message:
                     type: string
-                  token:
-                    type: string
-                    description: Only present in development
         '400':
           description: Email is required
 
@@ -327,66 +372,7 @@ paths:
         '500':
           description: Failed to fetch dashboard data
 
-  /users/me/history:
-    get:
-      summary: Get user action history
-      description: Returns paginated action history for the logged-in user (RF3)
-      tags: [Users]
-      security:
-        - tokenAuth: []
-      parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-          description: Page number
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 20
-          description: Items per page
-        - in: query
-          name: type
-          schema:
-            type: string
-            default: all
-          description: Filter by action type
-      responses:
-        '200':
-          description: Paginated action history
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: Unauthorized
-        '404':
-          description: User not found
-        '500':
-          description: Failed to fetch history
 
-  /users/me/stats:
-    get:
-      summary: Get user aggregated statistics
-      description: Returns aggregated statistics for the logged-in user (RF3)
-      tags: [Users]
-      security:
-        - tokenAuth: []
-      responses:
-        '200':
-          description: Aggregated statistics
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: Unauthorized
-        '404':
-          description: User not found
-        '500':
-          description: Failed to fetch stats
 
   # ==================== TASKS ====================
 
@@ -411,26 +397,26 @@ paths:
         '404':
           description: User not found
 
-  /tasks/active:
+  /tasks/all:
     get:
-      summary: Get active tasks
-      description: Returns all currently active tasks
+      summary: Get all tasks (Operators only)
+      description: Returns all tasks in the system (operators/admins only)
       tags: [Tasks]
       security:
         - tokenAuth: []
       responses:
         '200':
-          description: List of active tasks
+          description: List of all tasks
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
-        '401':
-          description: Unauthorized
+        '403':
+          description: Unauthorized - Operators only
         '500':
-          description: Failed to fetch active tasks
+          description: Failed to fetch tasks
 
   /tasks/create:
     post:
@@ -704,6 +690,159 @@ paths:
           description: Unauthorized
         '404':
           description: Task not found
+    put:
+      summary: Update task (Operators only)
+      description: Update an existing task (operators/admins only)
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Task ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Validation error
+        '403':
+          description: Unauthorized - Operators only
+        '404':
+          description: Task not found
+    delete:
+      summary: Delete task (Operators only)
+      description: Delete a task from the system (operators/admins only)
+      tags: [Tasks]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Task ID
+      responses:
+        '204':
+          description: Task deleted successfully
+        '403':
+          description: Unauthorized - Operators only
+        '404':
+          description: Task not found
+        '500':
+          description: Failed to delete task
+
+  # ==================== QUIZZES ====================
+
+  /quizzes:
+    get:
+      summary: List quizzes
+      description: Get all quizzes (operators only)
+      tags: [Quizzes]
+      security:
+        - tokenAuth: []
+      responses:
+        '200':
+          description: List of quizzes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quiz'
+        '403':
+          description: Unauthorized - Operators only
+        '500':
+          description: Failed to fetch quizzes
+    post:
+      summary: Create quiz
+      description: Create a new quiz (operators only)
+      tags: [Quizzes]
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, questions]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                passing_score:
+                  type: number
+                  description: Passing score as decimal (0.0-1.0) or percentage (0-100)
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    required: [text, options, correct_option_index]
+                    properties:
+                      text:
+                        type: string
+                      options:
+                        type: array
+                        items:
+                          type: string
+                      correct_option_index:
+                        type: integer
+      responses:
+        '201':
+          description: Quiz created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+        '400':
+          description: Invalid quiz data
+        '403':
+          description: Unauthorized - Operators only
+        '500':
+          description: Failed to create quiz
+
+  /quizzes/{id}:
+    get:
+      summary: Get quiz by ID
+      description: Get details of a specific quiz
+      tags: [Quizzes]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Quiz ID
+      responses:
+        '200':
+          description: Quiz details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Quiz not found
+        '500':
+          description: Failed to fetch quiz
 
   # ==================== NEIGHBORHOODS ====================
 
@@ -734,8 +873,8 @@ paths:
           name: period
           schema:
             type: string
-            enum: [weekly, monthly, all_time]
-            default: all_time
+            enum: [weekly, monthly, annually]
+            default: annually
           description: Ranking period
         - in: query
           name: limit
@@ -752,28 +891,6 @@ paths:
                 type: array
                 items:
                   type: object
-        '500':
-          description: Internal server error
-
-  /neighborhood/ranking/simple:
-    get:
-      summary: Get simple neighborhood ranking
-      description: Get neighborhoods ranked by raw total score (legacy)
-      tags: [Neighborhoods]
-      responses:
-        '200':
-          description: Simple ranked neighborhoods
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  allOf:
-                    - $ref: '#/components/schemas/Neighborhood'
-                    - type: object
-                      properties:
-                        rank:
-                          type: integer
         '500':
           description: Internal server error
 
@@ -864,11 +981,7 @@ paths:
                 properties:
                   token:
                     type: string
-                  email:
-                    type: string
-                  id:
-                    type: string
-                  self:
+                  role:
                     type: string
         '401':
           description: Wrong password
@@ -877,38 +990,10 @@ paths:
         '404':
           description: Operator not found
 
-  /operators/me:
-    get:
-      summary: Get operator profile
-      description: Get profile data for the logged-in operator
-      tags: [Operators]
-      security:
-        - tokenAuth: []
-      responses:
-        '200':
-          description: Operator profile
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  surname:
-                    type: string
-                  email:
-                    type: string
-                  role:
-                    type: string
-        '401':
-          description: Unauthorized
-        '404':
-          description: Operator not found
-
-  /operators/activate:
+  /operators/reset-password:
     post:
-      summary: Activate operator account
-      description: Verify activation token and set password for new operator
+      summary: Reset operator password
+      description: Set new password using reset token
       tags: [Operators]
       requestBody:
         required: true
@@ -920,37 +1005,105 @@ paths:
               properties:
                 token:
                   type: string
-                  description: Activation token received via email
+                  description: Password reset token
                 password:
                   type: string
                   format: password
                   minLength: 6
       responses:
         '200':
-          description: Account activated and password set
+          description: Password updated successfully
         '400':
           description: Missing fields, weak password, or invalid/expired token
-        '403':
-          description: Endpoint only for operators
+        '500':
+          description: Failed to reset password
 
-  /operators/dashboard:
+  /operators:
     get:
-      summary: Get operator dashboard overview (RF10)
-      description: Get complete dashboard overview for operators
+      summary: List all operators (Admin only)
+      description: Get list of all operators
       tags: [Operators]
       security:
         - tokenAuth: []
       responses:
         '200':
-          description: Dashboard overview data
+          description: List of operators
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                    name:
+                      type: string
+                    surname:
+                      type: string
+                    email:
+                      type: string
+                    role:
+                      type: string
+        '403':
+          description: Unauthorized - Admin only
+        '500':
+          description: Failed to fetch operators
+
+  /operators/{id}/force-reset-password:
+    post:
+      summary: Force password reset (Admin only)
+      description: Force password reset for an operator and send email
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Operator ID
+      responses:
+        '200':
+          description: Reset email sent
           content:
             application/json:
               schema:
                 type: object
+                properties:
+                  message:
+                    type: string
         '403':
-          description: Unauthorized
+          description: Unauthorized - Admin only
+        '404':
+          description: Operator not found
         '500':
-          description: Failed to fetch dashboard data
+          description: Failed to send reset email
+
+  /operators/{id}:
+    delete:
+      summary: Delete operator (Admin only)
+      description: Delete an operator from the system
+      tags: [Operators]
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Operator ID
+      responses:
+        '204':
+          description: Operator deleted successfully
+        '403':
+          description: Unauthorized - Admin only
+        '404':
+          description: Operator not found
+        '500':
+          description: Failed to delete operator
 
   /operators/dashboard/neighborhoods:
     get:
@@ -969,7 +1122,7 @@ paths:
                 items:
                   type: object
         '403':
-          description: Unauthorized
+          description: Unauthorized - Operators only
         '500':
           description: Failed to fetch neighborhoods
 
@@ -995,63 +1148,11 @@ paths:
               schema:
                 type: object
         '403':
-          description: Unauthorized
+          description: Unauthorized - Operators only
         '404':
           description: Neighborhood not found
         '500':
           description: Failed to fetch neighborhood data
-
-  /operators/dashboard/environmental:
-    get:
-      summary: Get environmental indicators (RF10)
-      description: Get environmental indicators across all neighborhoods
-      tags: [Operators]
-      security:
-        - tokenAuth: []
-      responses:
-        '200':
-          description: Environmental indicators data
-          content:
-            application/json:
-              schema:
-                type: object
-        '403':
-          description: Unauthorized
-        '500':
-          description: Failed to fetch environmental data
-
-  /operators/reports/stats:
-    get:
-      summary: Generate stats report
-      description: Generate stats report for a given period (defaults to last 30 days)
-      tags: [Operators]
-      security:
-        - tokenAuth: []
-      parameters:
-        - in: query
-          name: start_date
-          schema:
-            type: string
-            format: date
-          description: Start date (ISO format)
-        - in: query
-          name: end_date
-          schema:
-            type: string
-            format: date
-          description: End date (ISO format)
-      responses:
-        '200':
-          description: Stats report data
-          content:
-            application/json:
-              schema:
-                type: object
-        '403':
-          description: Unauthorized
-        '500':
-          description: Failed to generate report
-
   # ==================== REWARDS ====================
 
   /rewards:
@@ -1365,6 +1466,23 @@ paths:
         '500':
           description: Failed to update preferences
 
+  # ==================== STATS ====================
+
+  /stats/public:
+    get:
+      summary: Get public statistics
+      description: Get public aggregated statistics for landing page
+      tags: [Stats]
+      responses:
+        '200':
+          description: Public statistics
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Failed to fetch statistics
+
 # ==================== COMPONENTS ====================
 
 components:
@@ -1411,7 +1529,7 @@ components:
           enum: [daily, weekly, monthly, on_demand]
         verification_method:
           type: string
-          enum: [GPS, QR_SCAN, QUIZ, PHOTO_UPLOAD, MANUAL_REPORT, AUTO]
+          enum: [GPS, QR_SCAN, PHOTO_UPLOAD, QUIZ]
 
     TaskCreate:
       type: object
@@ -1431,7 +1549,7 @@ components:
           enum: [daily, weekly, monthly, on_demand]
         verification_method:
           type: string
-          enum: [GPS, QR_SCAN, QUIZ, PHOTO_UPLOAD, MANUAL_REPORT, AUTO]
+          enum: [GPS, QR_SCAN, PHOTO_UPLOAD, QUIZ]
         neighborhood_id:
           type: string
 
@@ -1449,7 +1567,7 @@ components:
           enum: [Mobility, Waste, Community, Education, Other]
         verification_method:
           type: string
-          enum: [GPS, QR_SCAN, QUIZ, PHOTO_UPLOAD, MANUAL_REPORT, AUTO]
+          enum: [GPS, QR_SCAN, PHOTO_UPLOAD, QUIZ]
         default_difficulty:
           type: string
           enum: [Low, Medium, High]
@@ -1478,6 +1596,35 @@ components:
                 type: boolean
         is_active:
           type: boolean
+
+    Quiz:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        passing_score:
+          type: number
+          description: Passing score as decimal (0.0-1.0)
+        questions:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              options:
+                type: array
+                items:
+                  type: string
+              correct_option_index:
+                type: integer
+        created_at:
+          type: string
+          format: date-time
 
     Submission:
       type: object

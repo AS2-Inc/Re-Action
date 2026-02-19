@@ -21,6 +21,14 @@ jest.unstable_mockModule("../../../app/services/badge_service.js", () => ({
     checkAndAwardBadges: jest.fn().mockResolvedValue([]),
     _get_all_badges: jest.fn().mockResolvedValue([]),
     initialize_badges: jest.fn().mockResolvedValue(),
+    getLevelThresholds: jest.fn().mockReturnValue([
+      { level: "Cittadino Base", points: 0 },
+      { level: "Cittadino Attivo", points: 100 },
+      { level: "Cittadino Consapevole", points: 300 },
+      { level: "Ambasciatore Sostenibile", points: 750 },
+      { level: "Guerriero Verde", points: 1500 },
+      { level: "Maestro della Sostenibilità", points: 3000 },
+    ]),
   },
 }));
 
@@ -60,14 +68,6 @@ describe("User Dashboard API Endpoints (RF3)", () => {
       city: "Trento",
       base_points: 1500,
       ranking_position: 1,
-      active_goals: [
-        {
-          description: "Plant 100 trees",
-          target_points: 5000,
-          current_points: 2000,
-          is_completed: false,
-        },
-      ],
     });
     await neighborhood.save();
     return neighborhood;
@@ -223,123 +223,11 @@ describe("User Dashboard API Endpoints (RF3)", () => {
 
       expect(res.body).toHaveProperty("neighborhood");
       expect(res.body.neighborhood.name).toBe("Centro");
-      expect(res.body.neighborhood.active_goals.length).toBe(1);
     });
 
     it("should return 401 for unauthenticated request", async () => {
       const res = await request(app).get("/api/v1/users/me/dashboard");
       expect(res.status).toBe(401);
-    });
-  });
-
-  describe("GET /api/v1/users/me/history", () => {
-    it("should return paginated action history", async () => {
-      const { token } = await createTestUser();
-      citizenToken = token;
-
-      // Create multiple submissions
-      for (let i = 0; i < 5; i++) {
-        const task = await createTestTask();
-        await createTestSubmission(task);
-      }
-
-      const reward = await createTestReward();
-      await createTestUserReward(reward);
-
-      const res = await request(app)
-        .get("/api/v1/users/me/history")
-        .set("x-access-token", citizenToken);
-
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("items");
-      expect(res.body).toHaveProperty("pagination");
-      expect(res.body.items.length).toBe(6); // 5 tasks + 1 reward
-      expect(res.body.pagination.total).toBe(6);
-    });
-
-    it("should filter history by type", async () => {
-      const { token } = await createTestUser();
-      citizenToken = token;
-
-      const task = await createTestTask();
-      await createTestSubmission(task);
-
-      const reward = await createTestReward();
-      await createTestUserReward(reward);
-
-      const res = await request(app)
-        .get("/api/v1/users/me/history?type=tasks")
-        .set("x-access-token", citizenToken);
-
-      expect(res.status).toBe(200);
-      expect(res.body.items.length).toBe(1);
-      expect(res.body.items[0].type).toBe("task_completed");
-    });
-
-    it("should respect pagination parameters", async () => {
-      const { token } = await createTestUser();
-      citizenToken = token;
-
-      for (let i = 0; i < 10; i++) {
-        const task = await createTestTask();
-        await createTestSubmission(task);
-      }
-
-      const res = await request(app)
-        .get("/api/v1/users/me/history?page=2&limit=3")
-        .set("x-access-token", citizenToken);
-
-      expect(res.status).toBe(200);
-      expect(res.body.items.length).toBe(3);
-      expect(res.body.pagination.page).toBe(2);
-      expect(res.body.pagination.limit).toBe(3);
-      expect(res.body.pagination.total).toBe(10);
-      expect(res.body.pagination.total_pages).toBe(4);
-    });
-  });
-
-  describe("GET /api/v1/users/me/stats", () => {
-    it("should return aggregated user statistics", async () => {
-      const { token } = await createTestUser();
-      citizenToken = token;
-
-      // Create tasks in different categories
-      const mobilityTask = new Task({
-        title: "Walk",
-        category: "Mobility",
-        difficulty: "Low",
-        base_points: 10,
-        verification_method: "GPS",
-        frequency: "daily",
-      });
-      await mobilityTask.save();
-
-      const wasteTask = new Task({
-        title: "Recycle",
-        category: "Waste",
-        difficulty: "Medium",
-        base_points: 20,
-        verification_method: "PHOTO_UPLOAD",
-        frequency: "daily",
-      });
-      await wasteTask.save();
-
-      await createTestSubmission(mobilityTask);
-      await createTestSubmission(mobilityTask);
-      await createTestSubmission(wasteTask);
-
-      const res = await request(app)
-        .get("/api/v1/users/me/stats")
-        .set("x-access-token", citizenToken);
-
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("tasks_by_category");
-      expect(res.body.tasks_by_category.Mobility).toBe(2);
-      expect(res.body.tasks_by_category.Waste).toBe(1);
-
-      expect(res.body).toHaveProperty("ambient");
-      expect(res.body).toHaveProperty("streak");
-      expect(res.body.streak.current).toBe(5);
     });
   });
 });

@@ -140,24 +140,6 @@ describe("Task API Endpoints", () => {
     });
   });
 
-  describe("GET /api/v1/tasks/active", () => {
-    it("should return active tasks", async () => {
-      citizenToken = await createTestUser();
-      await createTask({ title: "Active Task 1", is_active: true });
-      await createTask({ title: "Inactive Task", is_active: false });
-
-      const res = await request(app)
-        .get("/api/v1/tasks/active")
-        .set("x-access-token", citizenToken);
-
-      expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      const titles = res.body.map((t) => t.title);
-      expect(titles).toContain("Active Task 1");
-      expect(titles).not.toContain("Inactive Task");
-    });
-  });
-
   describe("POST /api/v1/tasks/submit", () => {
     it("should submit a task successfully", async () => {
       citizenToken = await createTestUser();

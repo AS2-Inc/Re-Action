@@ -102,9 +102,6 @@
 import TextInputForm from "@/components/TextInputForm.vue";
 import apiService from "@/services/api.js";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
 export default {
   name: "AdminOperatorsView",
   components: { TextInputForm },
@@ -169,20 +166,7 @@ export default {
       this.creating = true;
       this.createError = "";
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/operators/register`,
-          {
-            method: "POST",
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify(this.newOperator),
-          },
-        );
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error || "Failed to create");
-        }
-
+        await apiService.post("/api/v1/operators/register", this.newOperator);
         await this.fetchOperators();
         this.closeModal();
       } catch (err) {

@@ -649,7 +649,26 @@ const openTaskDetail = (task) => {
     );
     clone.neighborhood_id_value = match?._id || "";
   }
+
+  // Initialize verification_criteria if not present
+  if (!clone.verification_criteria) {
+    clone.verification_criteria = {};
+  }
+
+  // Ensure GPS target_location is an array
+  if (
+    clone.verification_method === "GPS" &&
+    !Array.isArray(clone.verification_criteria.target_location)
+  ) {
+    clone.verification_criteria.target_location = [0, 0];
+  }
+
   editingTask.value = clone;
+
+  // Fetch quizzes if this is a quiz task
+  if (clone.verification_method === "QUIZ" && quizzes.value.length === 0) {
+    fetchQuizzes();
+  }
   taskModalError.value = null;
   showTaskModal.value = true;
 };
@@ -668,6 +687,32 @@ const saveTask = async () => {
   taskModalError.value = null;
 
   try {
+    // Build verification_criteria based on verification_method
+    let verification_criteria = {};
+    const vc = editingTask.value.verification_criteria || {};
+
+    if (editingTask.value.verification_method === "GPS") {
+      verification_criteria = {
+        target_location: [
+          Number(vc.target_location?.[0] || 0),
+          Number(vc.target_location?.[1] || 0),
+        ],
+        min_distance_meters: Number(vc.min_distance_meters || 100),
+      };
+    } else if (editingTask.value.verification_method === "QR_SCAN") {
+      verification_criteria = {
+        qr_code_secret: vc.qr_code_secret || "",
+      };
+    } else if (editingTask.value.verification_method === "PHOTO_UPLOAD") {
+      verification_criteria = {
+        photo_description: vc.photo_description || "",
+      };
+    } else if (editingTask.value.verification_method === "QUIZ") {
+      verification_criteria = {
+        quiz_id: vc.quiz_id || "",
+      };
+    }
+
     await apiService.put(`/api/v1/tasks/${editingTask.value._id}`, {
       title: editingTask.value.title,
       description: editingTask.value.description,
@@ -678,6 +723,7 @@ const saveTask = async () => {
       base_points: Number(editingTask.value.base_points),
       is_active: editingTask.value.is_active,
       neighborhood_id: editingTask.value.neighborhood_id_value || null,
+      verification_criteria: verification_criteria,
       impact_metrics: {
         co2_saved: Number(editingTask.value.impact_metrics?.co2_saved || 0),
         waste_recycled: Number(
@@ -1423,6 +1469,98 @@ onMounted(() => {
                 <input v-model.number="editingTask.base_points" type="number" min="0" class="form-input" />
               </div>
 
+              <!-- Verification Parameters Section -->
+              <div class="form-group full-width verification-params-section">
+                <label class="section-label">Parametri di Verifica</label>
+                
+                <!-- GPS Parameters -->
+                <div v-if="editingTask.verification_method === 'GPS'" class="verification-params-inputs">
+                  <div class="form-group">
+                    <label>Latitudine Target</label>
+                    <input 
+                      v-model.number="editingTask.verification_criteria.target_location[0]" 
+                      type="number" 
+                      step="any"
+                      class="form-input" 
+                      placeholder="Es: 46.0664"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Longitudine Target</label>
+                    <input 
+                      v-model.number="editingTask.verification_criteria.target_location[1]" 
+                      type="number" 
+                      step="any"
+                      class="form-input" 
+                      placeholder="Es: 11.1257"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Distanza Minima (metri)</label>
+                    <input 
+                      v-model.number="editingTask.verification_criteria.min_distance_meters" 
+                      type="number" 
+                      min="0"
+                      class="form-input" 
+                      placeholder="Es: 100"
+                    />
+                  </div>
+                </div>
+                
+                <!-- QR Scan Parameters -->
+                <div v-if="editingTask.verification_method === 'QR_SCAN'" class="verification-params-inputs">
+                  <div class="form-group full-width">
+                    <label>Codice QR Segreto</label>
+                    <input 
+                      v-model="editingTask.verification_criteria.qr_code_secret" 
+                      type="text" 
+                      class="form-input" 
+                      placeholder="Es: SECRET_QR_CODE_123"
+                    />
+                  </div>
+                </div>
+                
+                <!-- Photo Upload Parameters -->
+                <div v-if="editingTask.verification_method === 'PHOTO_UPLOAD'" class="verification-params-inputs">
+                  <div class="form-group full-width">
+                    <label>Descrizione Foto</label>
+                    <textarea 
+                      v-model="editingTask.verification_criteria.photo_description" 
+                      class="form-input form-textarea" 
+                      rows="2"
+                      placeholder="Descrivi cosa deve essere fotografato..."
+                    ></textarea>
+                  </div>
+                </div>
+                
+                <!-- Quiz Parameters -->
+                <div v-if="editingTask.verification_method === 'QUIZ'" class="verification-params-inputs">
+                  <div class="form-group full-width">
+                    <label>Seleziona Quiz</label>
+                    <select 
+                      v-model="editingTask.verification_criteria.quiz_id" 
+                      class="form-input"
+                    >
+                      <option value="">-- Seleziona un quiz --</option>
+                      <option 
+                        v-for="quiz in quizzes" 
+                        :key="quiz._id" 
+                        :value="quiz._id"
+                      >
+                        {{ quiz.title }}
+                      </option>
+                    </select>
+                    <p v-if="quizzesLoading" class="help-text">Caricamento quiz...</p>
+                    <p v-if="quizzesError" class="help-text error">{{ quizzesError }}</p>
+                  </div>
+                </div>
+                
+                <!-- No verification method selected -->
+                <div v-if="!editingTask.verification_method || editingTask.verification_method === 'MANUAL_REPORT'" class="verification-params-inputs">
+                  <p class="text-muted">Nessun parametro di verifica richiesto per questo metodo</p>
+                </div>
+              </div>
+
               <div class="form-group">
                 <label>CO₂ Risparmiata (kg)</label>
                 <input v-model.number="editingTask.impact_metrics.co2_saved" type="number" min="0" step="0.1" class="form-input" />
@@ -1627,7 +1765,7 @@ onMounted(() => {
 
 .tab-btn.active {
   background: var(--primary-green);
-  color: white;
+  color: var(--primary-green);
   box-shadow: 0 2px 4px rgba(45, 106, 79, 0.2);
 }
 
@@ -2164,6 +2302,61 @@ onMounted(() => {
   padding: 1rem;
   margin-bottom: 1rem;
   background: #f8fafc;
+}
+
+/* Verification Parameters Section */
+.verification-params-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.section-label {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1b4332;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.verification-params-inputs {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.verification-params-inputs .form-group {
+  margin-bottom: 0;
+}
+
+.verification-params-inputs .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.verification-params-inputs .help-text {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.verification-params-inputs .help-text.error {
+  color: #dc2626;
+}
+
+.text-muted {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.text-muted {
+  color: #9ca3af;
+  font-style: italic;
+  background: transparent;
+  border: none;
 }
 
 .config-grid {

@@ -11,7 +11,6 @@ export default mongoose.model(
     normalized_points: { type: Number, default: 0 }, // base_points adjusted for neighborhood size
     ranking_position: Number,
     last_ranking_update: Date,
-
     // --- Aggregated Environmental / Impact Totals ---
     environmental_data: {
       co2_saved: { type: Number, default: 0 }, // total kg CO2 saved

@@ -83,7 +83,6 @@ export const award_points = async (user_id, task_id) => {
         points_to_award,
         impact,
       );
-
     }
   }
 

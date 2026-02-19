@@ -49,14 +49,14 @@ const animateNumber = (target) => {
 };
 
 watch(
-  () => _props.content,
+  () => props.content,
   (newValue) => {
     animateNumber(newValue);
   },
 );
 
 onMounted(() => {
-  animateNumber(_props.content);
+  animateNumber(props.content);
 });
 </script>
 

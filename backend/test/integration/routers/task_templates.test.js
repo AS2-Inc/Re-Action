@@ -19,14 +19,10 @@ describe("Task Templates API (RF11)", () => {
   beforeAll(async () => {
     await db.connect();
     process.env.SUPER_SECRET = "test-secret";
-
-    // Initialize default templates
-    await TaskTemplateService.initialize_default_templates();
   });
 
   afterEach(async () => {
     await db.clear();
-    await TaskTemplateService.initialize_default_templates(); // Re-seed
   });
 
   afterAll(async () => {
@@ -52,6 +48,28 @@ describe("Task Templates API (RF11)", () => {
 
   beforeEach(async () => {
     operatorToken = await createOperator();
+
+    // Create test template
+    const testTemplate = new TaskTemplate({
+      name: "Daily Walk",
+      description: "Walk in your neighborhood",
+      category: "Mobility",
+      verification_method: "GPS",
+      default_difficulty: "Low",
+      default_frequency: "daily",
+      base_points_range: { min: 5, max: 30 },
+      configurable_fields: [
+        {
+          field_name: "min_distance_meters",
+          field_type: "number",
+          description: "Minimum distance in meters",
+          required: true,
+        },
+      ],
+      is_active: true,
+    });
+    await testTemplate.save();
+
     template = await TaskTemplate.findOne({ name: "Daily Walk" });
   });
 

@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import Task from "../app/models/task.js";
+import Quiz from "../app/models/quiz.js";
 
 dotenv.config();
 
@@ -203,7 +204,7 @@ const EXAMPLE_TASKS = [
     base_points: 300,
     verification_method: "QUIZ",
     verification_criteria: {
-      photo_description: "Mentee completes a quiz about sustainability",
+      quiz_id: null, // Will be set dynamically from the quiz
     },
     impact_metrics: {},
     frequency: "monthly",
@@ -218,10 +219,37 @@ const seed = async () => {
     await mongoose.connect(dbUrl);
     console.log("Connected to MongoDB at", dbUrl);
 
+    // Find the Sustainability Basics Quiz for quiz-based tasks
+    const sustainabilityQuiz = await Quiz.findOne({
+      title: "Sustainability Basics Quiz",
+    });
+
+    if (!sustainabilityQuiz) {
+      console.warn(
+        "⚠️  Warning: 'Sustainability Basics Quiz' not found. Please run seed_quizzes.js first.",
+      );
+      console.warn(
+        "   Quiz-based tasks will be created but may need manual quiz_id assignment.",
+      );
+    } else {
+      console.log(
+        `✅ Found quiz: ${sustainabilityQuiz.title} (${sustainabilityQuiz._id})`,
+      );
+    }
+
     let created = 0;
     let updated = 0;
 
     for (const taskData of EXAMPLE_TASKS) {
+      // If this is a quiz task and we have a quiz, set the quiz_id
+      if (
+        taskData.verification_method === "QUIZ" &&
+        sustainabilityQuiz &&
+        taskData.verification_criteria
+      ) {
+        taskData.verification_criteria.quiz_id = sustainabilityQuiz._id;
+      }
+
       const existing = await Task.findOne({ title: taskData.title });
 
       if (!existing) {

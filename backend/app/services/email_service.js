@@ -8,7 +8,7 @@ class EmailService {
     this.base_url =
       process.env.BACKEND_BASE_URL || `http://localhost:${port}/api/v1`;
     this.frontend_url =
-      process.env.PUBLIC_FRONTEND_URL || "http://localhost:5173";
+      process.env.FRONTEND_BASE_URL || "http://localhost:5173";
   }
 
   async init_transporter() {

@@ -11,6 +11,27 @@ class ApiService {
     this.baseURL = API_BASE_URL;
   }
 
+  async parseJsonResponse(response) {
+    const text = await response.text();
+    const trimmed = text.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      try {
+        return JSON.parse(trimmed);
+      } catch (e) {
+        console.error("Failed to parse JSON:", trimmed);
+        return trimmed;
+      }
+    }
+
+    return trimmed;
+  }
+
   /**
    * Decode JWT token payload
    * @param {string} token - JWT token
@@ -138,6 +159,13 @@ class ApiService {
   async handleResponse(response, options = {}) {
     const { autoRedirect = false, router = null } = options;
 
+    const buildError = (message, data) => {
+      const err = new Error(message);
+      err.status = response.status;
+      err.data = data;
+      return err;
+    };
+
     // Handle authentication errors
     if (response.status === 401 || response.status === 403) {
       console.warn(`Authentication error: ${response.status}, clearing tokens`);
@@ -151,29 +179,40 @@ class ApiService {
 
       // Try to get error message from response
       try {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Authentication failed");
+        const errorData = await this.parseJsonResponse(response);
+        if (typeof errorData === "string" && errorData.trim()) {
+          throw buildError(errorData, errorData);
+        }
+        throw buildError(
+          errorData?.error || errorData?.message || "Authentication failed",
+          errorData,
+        );
       } catch {
-        throw new Error("Authentication failed");
+        throw buildError("Authentication failed", null);
       }
     }
 
     if (!response.ok) {
       try {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error ||
-            errorData.message ||
-            `HTTP error ${response.status}`,
-        );
+        const errorData = await this.parseJsonResponse(response);
+        console.log("Error response data:", errorData);
+        if (typeof errorData === "string" && errorData.trim()) {
+          throw buildError(errorData, errorData);
+        }
+        const errorMessage =
+          errorData?.error ||
+          errorData?.message ||
+          `HTTP error ${response.status}`;
+        console.log("Extracted error message:", errorMessage);
+        throw buildError(errorMessage, errorData);
       } catch (error) {
-        if (
-          error.message.includes("HTTP error") ||
-          error.message.includes("Authentication")
-        ) {
+        console.log("Error in handleResponse:", error);
+        // If error already has the right properties, re-throw it
+        if (error.status && error.message) {
           throw error;
         }
-        throw new Error(`HTTP error ${response.status}`);
+        // Otherwise, create a generic error
+        throw buildError(`HTTP error ${response.status}`, null);
       }
     }
 
@@ -199,7 +238,7 @@ class ApiService {
     });
 
     await this.handleResponse(response, options);
-    return response.json();
+    return this.parseJsonResponse(response);
   }
 
   /**
@@ -227,7 +266,7 @@ class ApiService {
     });
 
     await this.handleResponse(response, options);
-    return response.json();
+    return this.parseJsonResponse(response);
   }
 
   /**
@@ -251,7 +290,7 @@ class ApiService {
     });
 
     await this.handleResponse(response, options);
-    return response.json();
+    return this.parseJsonResponse(response);
   }
 
   /**
@@ -273,10 +312,7 @@ class ApiService {
     });
 
     await this.handleResponse(response, options);
-
-    // DELETE might return empty response
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
+    return this.parseJsonResponse(response);
   }
 
   /**

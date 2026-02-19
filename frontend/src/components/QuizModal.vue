@@ -75,16 +75,41 @@
         </div>
 
         <div v-else class="quiz-result">
-          <div class="result-icon">
-            {{ isSubmitting ? "⏳" : "✓" }}
+          <div
+            class="result-icon"
+            :class="{ failed: !isSubmitting && !resultPassed, error: !isSubmitting && submitError }"
+          >
+            {{ isSubmitting ? "⏳" : (resultPassed ? "✓" : (submitError ? "⚠" : "✗")) }}
           </div>
           <p class="result-status">
-            {{ isSubmitting ? "Invio del quiz..." : "Quiz inviato con successo!" }}
+            {{
+              isSubmitting
+                ? "Invio del quiz..."
+                : resultPassed
+                  ? "Quiz inviato con successo!"
+                  : submitError
+                    ? "Errore durante l'invio"
+                    : "Quiz non superato"
+            }}
           </p>
+          <div v-if="!isSubmitting && submitError" class="result-details error-details">
+            <p class="result-title">{{ submitError }}</p>
+            <p class="result-subtitle">Verifica la tua connessione e riprova.</p>
+          </div>
+          <div v-if="!isSubmitting && !resultPassed && !submitError" class="result-details">
+            <p class="result-title">Non hai raggiunto il punteggio minimo</p>
+            <p v-if="failScorePercent !== null" class="result-subtitle">
+              Hai ottenuto <strong>{{ failScorePercent }}%</strong> (richiesto <strong>{{ passScorePercent }}%</strong>)
+            </p>
+            <p v-else class="result-subtitle">Riprova con più attenzione.</p>
+          </div>
         </div>
       </div>
 
       <div class="modal-footer">
+        <button v-if="submitError && quizCompleted" class="btn btn-primary" @click="resetQuiz">
+          Riprova
+        </button>
         <button class="btn btn-outline" @click="exitQuiz">
           {{ quizCompleted ? "Chiudi" : "Esci" }}
         </button>
@@ -131,6 +156,9 @@ export default {
       quizScore: 0,
       alreadyCompleted: false,
       nextAvailableTime: "",
+      submitError: "",
+      failScorePercent: null,
+      passScorePercent: null,
     };
   },
   computed: {
@@ -221,6 +249,9 @@ export default {
       this.answers = new Array(this.totalQuestions).fill(undefined);
       this.quizCompleted = false;
       this.resultPassed = false;
+      this.submitError = "";
+      this.failScorePercent = null;
+      this.passScorePercent = null;
     },
     async submitQuiz() {
       if (this.isSubmitting) {
@@ -238,18 +269,50 @@ export default {
 
         this.quizScore = data?.proof?.quiz_score || data?.score || 0;
         this.resultPassed = true;
+        this.submitError = "";
+        this.failScorePercent = null;
+        this.passScorePercent = null;
 
         // Show confirmation button for passing, or close automatically if passing
         setTimeout(() => {
           this.$emit("quiz-submitted", {
-            points_earned: result?.points_earned || 0,
-            new_badges: result?.new_badges || [],
+            points_earned: data?.points_earned || 0,
+            new_badges: data?.new_badges || [],
           });
           this.exitQuiz();
-        }, 1500);
+        }, 1000);
       } catch (error) {
-        console.error(error);
-        alert("Impossibile contattare il server.");
+        console.error("Quiz submission error:", error);
+        console.log("Error message:", error?.message);
+        console.log("Error status:", error?.status);
+        console.log("Error data:", error?.data);
+
+        const message = String(error?.message || "");
+        const lowered = message.toLowerCase();
+        const status = error?.status;
+        const quizFailed =
+          lowered.includes("quiz score") ||
+          lowered.includes("passing score") ||
+          lowered.includes("below passing");
+
+        if (quizFailed) {
+          // Quiz failed due to low score - show nice failure UI
+          this.resultPassed = false;
+          this.quizCompleted = true;
+          this.submitError = "";
+          const match = message.match(
+            /quiz score\s+(\d+)%.*passing score\s+(\d+)%/i,
+          );
+          this.failScorePercent = match ? Number(match[1]) : null;
+          this.passScorePercent = match ? Number(match[2]) : null;
+          this.isSubmitting = false;
+          return;
+        }
+
+        // Show error in result view for other errors
+        this.resultPassed = false;
+        this.quizCompleted = true;
+        this.submitError = message || "Impossibile contattare il server.";
         this.isSubmitting = false;
       }
     },
@@ -273,6 +336,14 @@ export default {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+}
+
+.error-message {
+  color: #b00020;
+  background-color: #ffebee;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
 }
 
 .modal-content {
@@ -447,12 +518,52 @@ export default {
   color: #a9ca5f;
 }
 
+.result-icon.failed {
+  color: #b00020;
+}
+
+.result-icon.error {
+  color: #ff9800;
+}
+
 .result-status {
   font-family: "Caladea", serif;
   font-size: 1.3rem;
   font-weight: 700;
   margin: 0;
   color: #1f1f1f;
+}
+
+.result-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  background-color: #fff2f2;
+  color: #7a1c1c;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #f4c7c7;
+  max-width: 90%;
+}
+
+.result-details.error-details {
+  background-color: #fff8e1;
+  color: #f57c00;
+  border-color: #ffcc80;
+}
+
+.result-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.result-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .result-score {

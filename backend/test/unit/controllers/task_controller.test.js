@@ -5,14 +5,12 @@ import ServiceError from "../../../app/errors/service_error.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Mock the TaskService
 const mockGetUserTasks = jest.fn();
 const mockSubmitTask = jest.fn();
 const mockCreateTask = jest.fn();
 const mockGetSubmissions = jest.fn();
 const mockVerifySubmission = jest.fn();
 const mockGetTask = jest.fn();
-const mockGetActiveTasks = jest.fn();
 
 jest.unstable_mockModule("../../../app/services/task_service.js", () => ({
   get_user_tasks: mockGetUserTasks,
@@ -21,7 +19,6 @@ jest.unstable_mockModule("../../../app/services/task_service.js", () => ({
   get_submissions: mockGetSubmissions,
   verify_submission: mockVerifySubmission,
   get_task: mockGetTask,
-  get_active_tasks: mockGetActiveTasks,
 }));
 
 const TaskControllerModule = await import(
@@ -234,30 +231,6 @@ describe("TaskController", () => {
       await Controller.get_task(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-    });
-  });
-
-  describe("get_active_tasks", () => {
-    it("should fetch active tasks", async () => {
-      const mockTasks = [{ id: "task-1", is_active: true }];
-      mockGetActiveTasks.mockResolvedValue(mockTasks);
-
-      await Controller.get_active_tasks(req, res);
-
-      expect(mockGetActiveTasks).toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(mockTasks);
-    });
-
-    it("should handle errors", async () => {
-      mockGetActiveTasks.mockRejectedValue(new Error("Database error"));
-
-      await Controller.get_active_tasks(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
-        error: "Failed to fetch active tasks",
-      });
     });
   });
 });

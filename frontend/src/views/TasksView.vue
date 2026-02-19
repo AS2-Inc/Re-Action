@@ -127,15 +127,23 @@ export default {
     },
     async loadAndOpenQuiz(task) {
       try {
-        const quiz = await apiService.get(
-          `/api/v1/quizzes/${task.verification_criteria?.quiz_id}`,
-        );
+        const quizId = task.verification_criteria?.quiz_id;
+
+        if (!quizId) {
+          this.$refs.toast.show({
+            message: "Questo task non ha un quiz configurato correttamente.",
+            type: "error",
+          });
+          return;
+        }
+
+        const quiz = await apiService.get(`/api/v1/quizzes/${quizId}`);
         this.selectedQuiz = quiz;
         this.selectedTaskId = task._id;
         this.selectedTask = task;
         this.quizModalOpen = true;
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching quiz:", error);
         this.$refs.toast.show({
           message: "Errore nel caricamento del quiz.",
           type: "error",

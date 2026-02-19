@@ -38,7 +38,7 @@ const router = createRouter({
       path: "/leaderboard",
       name: "leaderboard",
       component: LeaderboardView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, authType: "user" },
     },
     {
       path: "/home",
@@ -53,7 +53,12 @@ const router = createRouter({
       path: "/admin/operators",
       name: "adminOperators",
       component: AdminOperatorsView,
-      meta: { requiresAuth: true, role: "admin", hideUserColumn: true },
+      meta: {
+        requiresAuth: true,
+        authType: "operator",
+        roles: ["admin"],
+        hideUserColumn: true,
+      },
     },
     {
       path: "/register",
@@ -69,39 +74,43 @@ const router = createRouter({
       path: "/profile",
       name: "profile",
       component: UserProfileView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, authType: "user" },
     },
     {
       path: "/tasks",
       name: "tasks",
       component: TasksView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, authType: "user" },
     },
     {
       path: "/stats",
       name: "stats",
       component: StatsView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, authType: "user" },
     },
     {
       path: "/operatorDashboard",
       name: "operatorDashboard",
       component: OperatorDashboardView,
+      meta: { hideUserColumn: true, requiresAuth: true, authType: "operator", roles: ["operator", "admin"] },
     },
     {
       path: "/taskTemplates",
       name: "taskTemplates",
       component: TaskTemplatesView,
+      meta: { hideUserColumn: true, requiresAuth: true, authType: "operator", roles: ["operator", "admin"] },
     },
     {
       path: "/createTask",
       name: "createTask",
       component: CreateTaskView,
+      meta: { hideUserColumn: true, requiresAuth: true, authType: "operator", roles: ["operator", "admin"] },
     },
     {
       path: "/reportsList",
       name: "reportsList",
       component: ReportsListView,
+      meta: { hideUserColumn: true, requiresAuth: true, authType: "operator", roles: ["operator", "admin"] },
     },
     {
       path: "/:pathMatch(.*)*",
@@ -113,20 +122,51 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
   const isAuthenticated = localStorage.getItem("authenticated") === "true";
-  const token = localStorage.getItem("token"); // For operator login
+  const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-  const requiredRole = to.meta.role;
+  const authType = to.meta.authType || null;
+  const allowedRoles = to.meta.roles || null;
 
-  if (requiresAuth && !isAuthenticated && !token) {
-    next("/login");
-  } else if (requiredRole && role !== requiredRole) {
-    // Redirect to appropriate dashboard or login if role doesn't match
-    if (token) next("/operatorDashboard");
-    else next("/login");
-  } else {
+  if (!requiresAuth) {
     next();
+    return;
   }
+
+  if (authType === "user") {
+    if (token && role) {
+      next("/login");
+      return;
+    }
+    if (!isAuthenticated) {
+      next("/login");
+      return;
+    }
+    next();
+    return;
+  }
+
+  if (authType === "operator") {
+    if (!token) {
+      next("/admin");
+      return;
+    }
+
+    if (allowedRoles && (!role || !allowedRoles.includes(role))) {
+      next("/admin");
+      return;
+    }
+
+    next();
+    return;
+  }
+
+  if (!isAuthenticated && !token) {
+    next("/login");
+    return;
+  }
+
+  next();
 });
 
 export default router;

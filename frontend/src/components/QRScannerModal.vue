@@ -2,10 +2,12 @@
   <div v-if="isOpen" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Scannerizza QR Code</h2>
+        <h2 class="modal-title">Scannerizza QR Code</h2>
       </div>
       <div class="modal-body">
-        <div id="qr-reader"></div>
+        <div class="qr-reader-frame">
+          <div id="qr-reader"></div>
+        </div>
         <p v-if="error" class="error-message">{{ error }}</p>
       </div>
       <div class="modal-footer">
@@ -112,22 +114,33 @@ export default {
   z-index: 1000;
 }
 
+
 .modal-content {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
+  background-color: #f7f2e7;
+  padding: 2rem;
+  border-radius: 8px;
   width: 90%;
-  max-width: 500px;
+  max-width: 540px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-family: "Caladea", serif;
 }
 
-.modal-header h2 {
-  font-family: "Caladea", serif;
-  margin: 0;
-  color: #1f1f1f;
+
+.modal-header {
+  border-bottom: 1px solid #333;
+  padding-bottom: 0.5rem;
 }
+
+.modal-title {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
 
 .modal-body {
   display: flex;
@@ -135,16 +148,32 @@ export default {
   align-items: center;
   justify-content: center;
   min-height: 300px;
+  gap: 1rem;
 }
+
+.qr-reader-frame {
+  width: 100%;
+  background-color: #fff7ea;
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid #e2d7c7;
+}
+
 
 #qr-reader {
   width: 100%;
 }
 
+
 .error-message {
-  color: #dc3545;
-  margin-top: 1rem;
+  color: #b91c1c;
+  background-color: #ffebee;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  width: 100%;
+  text-align: center;
 }
+
 
 .modal-footer {
   display: flex;
@@ -152,17 +181,25 @@ export default {
   gap: 1rem;
 }
 
+
 .btn {
+  font-family: "Caladea", serif;
+  font-weight: 700;
+  font-size: 1rem;
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 5px;
   border: none;
-  font-weight: 600;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  color: #1f1f1f;
+  transition: opacity 0.2s ease;
 }
 
+.btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+
 .btn-secondary {
-  background-color: #f1f1f1;
-  color: #1f1f1f;
+  background-color: #e8ddcc;
 }
 </style>

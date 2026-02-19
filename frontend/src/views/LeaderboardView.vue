@@ -16,7 +16,7 @@
                 <select v-model="period" @change="fetchLeaderboard">
                   <option value="weekly">Settimanale</option>
                   <option value="monthly">Mensile</option>
-                  <option value="all_time">Sempre</option>
+                  <option value="annually">Annuale</option>
                 </select>
               </label>
               <label class="control">
@@ -76,7 +76,7 @@ export default {
   data() {
     return {
       leaderboard: [],
-      period: "all_time",
+      period: "monthly",
       limit: 20,
       navLinks: [
         { label: "Tasks", to: "/tasks" },

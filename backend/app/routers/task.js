@@ -57,6 +57,30 @@ router.post(
   TaskController.verify_submission,
 );
 
+// GET /api/v1/tasks/all (Get All Tasks - Operators only)
+router.get(
+  "/all",
+  token_checker,
+  check_role(["operator"]),
+  TaskController.get_all_tasks,
+);
+
+// PUT /api/v1/tasks/:id (Update Task - Operators only)
+router.put(
+  "/:id",
+  token_checker,
+  check_role(["operator"]),
+  TaskController.update_task,
+);
+
+// DELETE /api/v1/tasks/:id (Delete Task - Operators only)
+router.delete(
+  "/:id",
+  token_checker,
+  check_role(["operator"]),
+  TaskController.delete_task,
+);
+
 // ============================================
 // Task Template Endpoints (RF11)
 // ============================================

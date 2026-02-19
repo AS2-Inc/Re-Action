@@ -448,6 +448,35 @@ export const get_active_tasks = async () => {
   return tasks;
 };
 
+export const get_all_tasks = async () => {
+  const tasks = await Task.find()
+    .populate("neighborhood_id", "name")
+    .sort({ created_at: -1 });
+
+  return tasks.map((task) => {
+    const task_obj = task.toObject();
+    task_obj.neighborhood_name = task_obj.neighborhood_id?.name || null;
+    delete task_obj.neighborhood_id;
+    return task_obj;
+  });
+};
+
+export const update_task = async (task_id, updates) => {
+  const task = await Task.findByIdAndUpdate(task_id, { $set: updates }, { new: true });
+  if (!task) {
+    throw new ServiceError("Task not found", 404);
+  }
+  return task;
+};
+
+export const delete_task = async (task_id) => {
+  const task = await Task.findByIdAndDelete(task_id);
+  if (!task) {
+    throw new ServiceError("Task not found", 404);
+  }
+  return task;
+};
+
 /**
  * Replace all expired tasks for all users (RF6)
  * Called by the scheduler to ensure tasks are replaced immediately on expiration

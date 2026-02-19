@@ -144,6 +144,13 @@ const openTaskDetail = (task) => {
   const clone = JSON.parse(JSON.stringify(task));
   clone.neighborhood_id_value =
     clone.neighborhood_id?._id || clone.neighborhood_id || "";
+
+  if (!clone.neighborhood_id_value && clone.neighborhood_name) {
+    const match = neighborhoods.value.find(
+      (n) => n.name === clone.neighborhood_name,
+    );
+    clone.neighborhood_id_value = match?._id || "";
+  }
   editingTask.value = clone;
   taskModalError.value = null;
   showTaskModal.value = true;
@@ -378,7 +385,7 @@ onMounted(() => {
               </tr>
               <tr v-for="task in tasks" :key="task._id" class="clickable-row" @click="openTaskDetail(task)">
                 <td class="primary-text">{{ task.title }}</td>
-                <td>{{ task.neighborhood_id?.name || '—' }}</td>
+                <td>{{ task.neighborhood_name || task.neighborhood_id?.name || '—' }}</td>
                 <td><span class="badge badge-frequency">{{ task.category }}</span></td>
                 <td>
                   <span :class="['badge', 'badge-' + (task.difficulty ? task.difficulty.toLowerCase() : 'default')]">{{ task.difficulty || 'N/A' }}</span>

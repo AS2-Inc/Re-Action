@@ -16,6 +16,7 @@ import StatsView from "../views/StatsView.vue";
 import TasksView from "../views/TasksView.vue";
 import TaskTemplatesView from "../views/TaskTemplatesView.vue";
 import UserProfileView from "../views/UserProfileView.vue";
+import apiService from "../services/api.js";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -148,26 +149,30 @@ const router = createRouter({
 });
 
 router.beforeEach((to, _from, next) => {
-  const isAuthenticated = localStorage.getItem("authenticated") === "true";
-  const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
   const authType = to.meta.authType || null;
   const allowedRoles = to.meta.roles || null;
 
+  // Allow public routes
   if (!requiresAuth) {
     next();
     return;
   }
 
+  // Check authentication with token expiration validation
+  const isAuthenticated = apiService.isAuthenticated();
+  const role = apiService.getRole();
+
   if (authType === "user") {
-    // Check if user is authenticated (has token with citizen role)
-    if (!token || !isAuthenticated) {
+    // Check if user is authenticated with valid token
+    if (!isAuthenticated) {
+      console.warn("No valid token found, redirecting to login");
       next("/login");
       return;
     }
     // Verify the role is citizen (not operator/admin)
     if (role && role !== "citizen") {
+      console.warn("User role mismatch, expected citizen");
       next("/login");
       return;
     }
@@ -176,12 +181,14 @@ router.beforeEach((to, _from, next) => {
   }
 
   if (authType === "operator") {
-    if (!token) {
+    if (!isAuthenticated) {
+      console.warn("No valid token found, redirecting to admin login");
       next("/admin");
       return;
     }
 
     if (allowedRoles && (!role || !allowedRoles.includes(role))) {
+      console.warn("Insufficient permissions for operator route");
       next("/admin");
       return;
     }
@@ -190,7 +197,9 @@ router.beforeEach((to, _from, next) => {
     return;
   }
 
-  if (!isAuthenticated && !token) {
+  // Generic auth check (backward compatibility)
+  if (!isAuthenticated) {
+    console.warn("Authentication required, redirecting to login");
     next("/login");
     return;
   }

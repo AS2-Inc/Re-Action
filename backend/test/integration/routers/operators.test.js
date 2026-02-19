@@ -119,17 +119,20 @@ describe("Operator API", () => {
     let operator_id;
 
     beforeEach(async () => {
+      activation_token = jwt.sign(
+        { email: "activateme@test.com", purpose: "activation" },
+        process.env.SUPER_SECRET,
+        { expiresIn: "12h" },
+      );
       const op = new Operator({
         name: "Op",
         surname: "Test",
         email: "activateme@test.com",
         role: "operator",
-        activation_token: "valid-activation-token",
-        activation_token_expires: Date.now() + 3600000,
+        activation_token: activation_token,
       });
       await op.save();
       operator_id = op._id;
-      activation_token = op.activation_token;
     });
 
     it("should activate operator with valid token and strong password", async () => {

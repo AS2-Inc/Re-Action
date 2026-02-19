@@ -7,6 +7,7 @@ const router = express.Router();
 /**
  * GET /api/v1/stats/public
  * Public aggregated stats for landing page
+ * TODO: FIX ME
  */
 router.get("/public", async (_req, res) => {
   try {

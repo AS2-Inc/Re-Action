@@ -32,8 +32,9 @@ export default {
   methods: {
     async loadTasks() {
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/tasks`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         });
 
         if (!response.ok) {

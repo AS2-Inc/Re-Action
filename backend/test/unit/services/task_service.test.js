@@ -320,5 +320,80 @@ describe("TaskService (Unit)", () => {
       // Verify assign_random_task was triggered twice (Weekly, Monthly)
       expect(mockUserTaskSave).toHaveBeenCalledTimes(2);
     });
+
+    it("should filter out completed weekly tasks within the current week", async () => {
+      // Setup Mock User
+      mockUserFindById.mockResolvedValue({
+        _id: "user-1",
+        neighborhood_id: "hood-1",
+      });
+
+      // UserTask.findOne chain mock - No active assignments
+      const mockPopulate = jest.fn();
+      mockUserTaskFindOne.mockReturnValue({ populate: mockPopulate });
+      mockPopulate.mockResolvedValue(null); // No active assignments for any frequency
+
+      // Mock Submission history
+      const now = new Date();
+      const threeDaysAgo = new Date(now);
+      threeDaysAgo.setDate(now.getDate() - 3);
+
+      const weeklyTask = {
+        _id: "task-weekly",
+        frequency: "weekly",
+        toObject: () => ({ title: "Weekly", frequency: "weekly" }),
+      };
+
+      // Mock Submission.findOne to return a recent completion for 'weekly' query
+      // We need to carefully mock the sequence of finding submissions:
+      // 1. Daily (null)
+      // 2. Weekly (Found recent)
+      // 3. Monthly (null)
+      const mockSubmissionSort = jest.fn();
+      mockSubmissionFindOne.mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: mockSubmissionSort,
+        }),
+      });
+
+      mockSubmissionSort
+        .mockResolvedValueOnce(null) // Daily
+        .mockResolvedValueOnce({
+          // Weekly - Completed recently
+          task_id: weeklyTask,
+          completed_at: threeDaysAgo,
+          status: "APPROVED",
+        })
+        .mockResolvedValueOnce(null); // Monthly
+
+      // Task assignment mocks
+      mockTaskCountDocuments.mockResolvedValue(1);
+
+      // Ensure assign_random_task finds a task only for the correct frequency
+      mockTaskFindOne.mockImplementation((query) => {
+        const mockSkip = jest.fn();
+        if (query.frequency === "weekly") {
+          mockSkip.mockResolvedValue({
+            _id: "new-weekly-task",
+            frequency: "weekly",
+            toObject: () => ({ title: "New Weekly", frequency: "weekly" }),
+          });
+        } else {
+          mockSkip.mockResolvedValue(null);
+        }
+        return { skip: mockSkip };
+      });
+
+      // Task.find called twice (on_demand, onetime)
+      mockTaskFind.mockResolvedValue([]);
+
+      // Act
+      const results = await TaskService.get_user_tasks("user-1");
+
+      // Assert
+      // Should NOT have Weekly task if logic works (it currently doesn't, so this assertion SHOULD fail)
+      const hasWeekly = results.some((t) => t.frequency === "weekly");
+      expect(hasWeekly).toBe(false);
+    });
   });
 });

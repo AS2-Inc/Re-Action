@@ -45,7 +45,7 @@ describe("Neighborhood API Endpoints", () => {
     const neighborhood = new Neighborhood({
       name: "Green Valley",
       city: "Portland",
-      total_score: 100,
+      base_points: 100,
       environmental_data: {
         air_quality: 85,
         waste_management: 90,

@@ -258,7 +258,6 @@ export default {
             headers: {
               "Content-Type": "application/json",
             },
-            credentials: "include",
             body: JSON.stringify({
               credential: this.pendingGoogleCredential,
               neighborhood: neighborhoodId,
@@ -274,7 +273,11 @@ export default {
           return;
         }
 
-        const _data = await apiResponse.json();
+        const data = await apiResponse.json();
+        if (data?.token) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("authenticated", "true");
+        }
         this.success = "Registrazione Google completata.";
         this.pendingGoogleCredential = null;
 

@@ -31,15 +31,15 @@
                     <div class="neighborhood-stats">
                       <div class="neighborhood-stat">
                         <span class="stat-label">CO₂ salvata</span>
-                        <span class="stat-value">{{ co2Saved }} kg</span>
+                        <span class="stat-value">{{ co2Saved.toFixed(2) }} kg</span>
                       </div>
                       <div class="neighborhood-stat">
                         <span class="stat-label">Rifiuti riciclati</span>
-                        <span class="stat-value">{{ wasteRecycled }} kg</span>
+                        <span class="stat-value">{{ wasteRecycled.toFixed(2) }} kg</span>
                       </div>
                       <div class="neighborhood-stat">
-                        <span class="stat-label">KM verde</span>
-                        <span class="stat-value">{{ kmGreen }} km</span>
+                        <span class="stat-label">KM green</span>
+                        <span class="stat-value">{{ kmGreen.toFixed(2) }} km</span>
                       </div>
                     </div>
                   </div>
@@ -73,12 +73,16 @@
                 </div>
                 <div class="neighborhood-stats">
                   <div class="neighborhood-stat">
-                    <span class="stat-label">Qualità dell'aria </span>
-                    <span class="stat-value">{{ neighborhoodAirQuality }}%</span>
+                    <span class="stat-label">CO₂ salvata (quartiere)</span>
+                    <span class="stat-value">{{ neighborhoodCo2Saved.toFixed(1) }} kg</span>
                   </div>
                   <div class="neighborhood-stat">
                     <span class="stat-label">Rifiuti riciclati (quartiere)</span>
-                    <span class="stat-value">{{ neighborhoodWasteRecycled }} kg</span>
+                    <span class="stat-value">{{ neighborhoodWasteRecycled.toFixed(1) }} kg</span>
+                  </div>
+                  <div class="neighborhood-stat">
+                    <span class="stat-label">Km Green (quartiere)</span>
+                    <span class="stat-value">{{ neighborhoodKmGreen.toFixed(1) }} km</span>
                   </div>
                 </div>
               </div>
@@ -151,6 +155,7 @@ export default {
       level: "",
       levelThresholds: [],
       streak: 0,
+      neighborhoodId: "",
       neighborhoodTotalScore: 0,
       neighborhoodName: "",
       neighborhoodRankingPosition: 0,
@@ -160,6 +165,8 @@ export default {
       neighborhoodCo2Saved: 0,
       neighborhoodWasteRecycled: 0,
       neighborhoodKmGreen: 0,
+      neighborhoodImprovement: 0,
+      neighborhoodPeriod: "monthly",
       isLoading: false,
       error: "",
     };
@@ -212,15 +219,16 @@ export default {
     this.error = "";
 
     try {
+      const token = localStorage.getItem("token");
       const [badgesRes, dashboardRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/v1/users/me/badges`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         }),
         fetch(`${API_BASE_URL}/api/v1/users/me/dashboard`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         }),
         fetch(`${API_BASE_URL}/api/v1/tasks`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         }),
       ]);
 
@@ -240,20 +248,32 @@ export default {
       this.points = dashboardData?.user?.points || 0;
       this.level = dashboardData?.user?.level || "";
       this.streak = dashboardData?.user?.streak || 0;
-      this.neighborhoodTotalScore =
-        dashboardData?.neighborhood?.total_score || 0;
-      this.neighborhoodName = dashboardData?.neighborhood?.name || "";
+      this.co2Saved = Number(dashboardData?.ambient?.co2_saved || 0);
+      this.wasteRecycled = Number(dashboardData?.ambient?.waste_recycled || 0);
+      this.kmGreen = Number(dashboardData?.ambient?.km_green || 0);
+
+      const neighborhood = dashboardData?.neighborhood || null;
+      this.neighborhoodId = neighborhood?.id || neighborhood?._id || "";
+      this.neighborhoodName = neighborhood?.name || "";
+      this.neighborhoodTotalScore = Number(neighborhood?.base_points || 0);
       this.neighborhoodRankingPosition =
-        dashboardData?.neighborhood?.ranking_position || 0;
-      this.co2Saved = dashboardData?.ambient?.co2_saved || 0;
-      this.wasteRecycled = dashboardData?.ambient?.waste_recycled || 0;
-      this.kmGreen = dashboardData?.ambient?.km_green || 0;
-      this.neighborhoodAirQuality =
-        dashboardData?.neighborhood?.ambient?.air_quality || 0;
-      this.neighborhoodWasteRecycled =
-        dashboardData?.neighborhood?.ambient?.waste_recycled || 0;
-      this.neighborhoodImprovement =
-        dashboardData?.neighborhood?.ambient?.improvement || 0;
+        Number(neighborhood?.ranking_position || 0) || 0;
+      this.neighborhoodCo2Saved = Number(
+        neighborhood?.environmental_data?.co2_saved || 0,
+      );
+      this.neighborhoodWasteRecycled = Number(
+        neighborhood?.environmental_data?.waste_recycled || 0,
+      );
+      this.neighborhoodKmGreen = Number(
+        neighborhood?.environmental_data?.km_green || 0,
+      );
+
+      if (this.neighborhoodId) {
+        await Promise.all([
+          this.fetchNeighborhoodDetails(this.neighborhoodId),
+          this.fetchNeighborhoodRanking(this.neighborhoodId),
+        ]);
+      }
       this.levelThresholds = dashboardData?.level_thresholds || [];
     } catch (error) {
       console.error(error);
@@ -261,6 +281,65 @@ export default {
     } finally {
       this.isLoading = false;
     }
+  },
+  methods: {
+    async fetchNeighborhoodDetails(neighborhoodId) {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/v1/neighborhood/${neighborhoodId}`,
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        this.neighborhoodName = data?.name || this.neighborhoodName;
+        this.neighborhoodTotalScore = Number(data?.base_points || 0);
+        this.neighborhoodCo2Saved = Number(
+          data?.environmental_data?.co2_saved || 0,
+        );
+        this.neighborhoodWasteRecycled = Number(
+          data?.environmental_data?.waste_recycled || 0,
+        );
+        this.neighborhoodKmGreen = Number(
+          data?.environmental_data?.km_green || 0,
+        );
+      } catch (error) {
+        console.error("Neighborhood details fetch error:", error);
+      }
+    },
+    async fetchNeighborhoodRanking(neighborhoodId) {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/v1/neighborhood/ranking?period=${this.neighborhoodPeriod}&limit=200`,
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const leaderboard = Array.isArray(data) ? data : [];
+        const entry = leaderboard.find(
+          (item) => String(item.neighborhood_id) === String(neighborhoodId),
+        );
+
+        if (entry) {
+          this.neighborhoodRankingPosition = Number(entry.rank || 0) || 0;
+          this.neighborhoodImprovement = Number(entry.improvement_factor || 0);
+        }
+      } catch (error) {
+        console.error("Neighborhood ranking fetch error:", error);
+      }
+    },
+    async onNeighborhoodPeriodChange() {
+      if (!this.neighborhoodId) {
+        return;
+      }
+
+      await this.fetchNeighborhoodRanking(this.neighborhoodId);
+    },
   },
 };
 </script>
@@ -424,6 +503,14 @@ export default {
   margin-bottom: 1rem;
 }
 
+.neighborhood-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .neighborhood-name {
   margin: 0;
   padding: 0;
@@ -431,6 +518,23 @@ export default {
   font-size: 1.4rem;
   font-weight: 700;
   color: #333;
+}
+
+.period-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: "Caladea", serif;
+  font-size: 0.85rem;
+  color: #333;
+}
+
+.period-control select {
+  padding: 0.4rem 0.7rem;
+  border-radius: 10px;
+  border: 2px solid #cac6b2;
+  background: #f7f2e7;
+  font-family: "Caladea", serif;
 }
 
 

@@ -53,7 +53,7 @@ const fetchDashboardData = async () => {
       return {
         id: n._id || n.id,
         name: n.name || "N/A",
-        score: n.normalized_score || 0,
+        score: n.normalized_points || 0,
         completed_tasks: n.completed_tasks || 0,
       };
     });
@@ -65,10 +65,9 @@ const fetchDashboardData = async () => {
 
     arrayQuartieri.forEach((quartiere) => {
       if (quartiere.environmental_data) {
-        // Sommiamo i valori specifici di ogni quartiere
-        totalCo2 += quartiere.environmental_data.air_quality_index || 0;
-        totalWaste += quartiere.environmental_data.waste_management || 0;
-        totalGreenKm += quartiere.environmental_data.improvement_trend || 0;
+        totalCo2 += quartiere.environmental_data.co2_saved || 0;
+        totalWaste += quartiere.environmental_data.waste_recycled || 0;
+        totalGreenKm += quartiere.environmental_data.km_green || 0;
       }
     });
 
@@ -124,7 +123,8 @@ const _viewDetails = async (id) => {
     selectedNeighborhood.value = {
       name: data.neighborhood.name,
       city: data.neighborhood.city,
-      total_score: data.neighborhood.normalized_score,
+      base_points: data.neighborhood.base_points,
+      normalized_points: data.neighborhood.normalized_points,
       ranking_position: data.neighborhood.ranking_position,
       user_count: data.stats.total_users,
       submissions_this_week: submissionsThisWeek,
@@ -187,7 +187,7 @@ onMounted(() => {
             <div class="stat-icon">🍃</div>
             <div class="stat-info">
               <span class="stat-label">{{ key }}</span>
-              <strong class="stat-value">{{ value }}</strong>
+              <strong class="stat-value">{{ Number(value).toFixed(2) }}</strong>
             </div>
           </div>
         </div>
@@ -264,7 +264,7 @@ onMounted(() => {
                         </div>
                         <div class="detail-item">
                             <label>Punteggio Eco</label>
-                            <div class="value highlight">{{ selectedNeighborhood.total_score }}</div>
+                            <div class="value highlight">{{ selectedNeighborhood.normalized_points }}</div>
                         </div>
                         <div class="detail-item">
                             <label>Utenti Attivi</label>
@@ -280,16 +280,16 @@ onMounted(() => {
                         <h3>Dati Ambientali</h3>
                         <div class="env-grid">
                             <div class="env-item">
-                                <span class="env-label">Qualità Aria (AQI)</span>
-                                <span class="env-value">{{ selectedNeighborhood.environmental_data.air_quality_index || 'N/A' }}</span>
+                                <span class="env-label">CO2 Risparmiata (kg)</span>
+                                <span class="env-value">{{ Number(selectedNeighborhood.environmental_data.co2_saved || 0).toFixed(2) }}</span>
                             </div>
                             <div class="env-item">
-                                <span class="env-label">Gestione Rifiuti</span>
-                                <span class="env-value">{{ selectedNeighborhood.environmental_data.waste_management || 'N/A' }}%</span>
+                                <span class="env-label">Rifiuti Riciclati (kg)</span>
+                                <span class="env-value">{{ Number(selectedNeighborhood.environmental_data.waste_recycled || 0).toFixed(2) }}</span>
                             </div>
                              <div class="env-item">
-                                <span class="env-label">Trend Miglioramento</span>
-                                <span class="env-value">{{ selectedNeighborhood.environmental_data.improvement_trend || 0 }}%</span>
+                                <span class="env-label">Km Green Percorsi</span>
+                                <span class="env-value">{{ Number(selectedNeighborhood.environmental_data.km_green || 0).toFixed(2) }}</span>
                             </div>
                         </div>
                         <div class="last-updated">

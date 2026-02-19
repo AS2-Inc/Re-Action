@@ -52,7 +52,7 @@ describe("Operator Dashboard API (RF10)", () => {
       name: "Green Valley",
       city: "EcoCity",
       description: "A green place",
-      total_score: 100,
+      base_points: 100,
       ranking_position: 1,
       environmental_data: { co2: 50 },
     });
@@ -76,7 +76,7 @@ describe("Operator Dashboard API (RF10)", () => {
       difficulty: "Low",
       base_points: 10,
       is_active: true,
-      verification_method: "MANUAL_REPORT",
+      verification_method: "PHOTO_UPLOAD",
     });
 
     // 4. Create Submissions (Pending and Approved)

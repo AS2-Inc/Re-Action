@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import ServiceError from "../errors/service_error.js";
@@ -95,8 +94,11 @@ export const register = async (user_data) => {
         throw new ServiceError("Password is too weak", 400);
       }
 
-      const activation_token = crypto.randomBytes(20).toString("hex");
-      const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
+      const activation_token = jwt.sign(
+        { email, purpose: "activation" },
+        process.env.SUPER_SECRET,
+        { expiresIn: "12h" },
+      );
 
       existing.name = name;
       existing.surname = surname;
@@ -104,7 +106,6 @@ export const register = async (user_data) => {
       existing.neighborhood_id = neighborhood || null;
       existing.password = await hash_password(password);
       existing.activation_token = activation_token;
-      existing.activation_token_expires = activation_expires;
 
       await existing.save();
       await EmailService.send_activation_email(email, activation_token);
@@ -118,8 +119,11 @@ export const register = async (user_data) => {
     throw new ServiceError("Password is too weak", 400);
   }
 
-  const activation_token = crypto.randomBytes(20).toString("hex");
-  const activation_expires = Date.now() + 12 * 60 * 60 * 1000;
+  const activation_token = jwt.sign(
+    { email, purpose: "activation" },
+    process.env.SUPER_SECRET,
+    { expiresIn: "12h" },
+  );
   const hashed_password = await hash_password(password);
 
   const user = new User({
@@ -130,7 +134,6 @@ export const register = async (user_data) => {
     age,
     neighborhood_id: neighborhood || null,
     activation_token,
-    activation_token_expires: activation_expires,
   });
 
   await user.save();
@@ -148,6 +151,7 @@ export const get_user_profile = async (email) => {
     surname: user.surname,
     email: user.email,
     points: user.points,
+    neighborhood_id: user.neighborhood_id,
   };
 };
 
@@ -159,19 +163,26 @@ export const update_profile = async (user_id, data) => {
 
   if (data.name) user.name = data.name;
   if (data.surname) user.surname = data.surname;
+  if (data.neighborhood_id) user.neighborhood_id = data.neighborhood_id;
 
   await user.save();
   return {
     name: user.name,
     surname: user.surname,
     email: user.email,
+    neighborhood_id: user.neighborhood_id,
   };
 };
 
 export const activate_account = async (token) => {
+  try {
+    jwt.verify(token, process.env.SUPER_SECRET);
+  } catch (_err) {
+    throw new ServiceError("Invalid or expired activation token", 400);
+  }
+
   const user = await User.findOne({
     activation_token: token,
-    activation_token_expires: { $gt: Date.now() },
   }).exec();
 
   if (!user) {
@@ -180,7 +191,6 @@ export const activate_account = async (token) => {
 
   user.is_active = true;
   user.activation_token = undefined;
-  user.activation_token_expires = undefined;
 
   await user.save();
   return { message: "Account activated successfully. You can now log in." };
@@ -228,11 +238,13 @@ export const forgot_password = async (email) => {
     };
   }
 
-  const reset_token = crypto.randomBytes(32).toString("hex");
-  const reset_expires = Date.now() + 60 * 60 * 1000;
+  const reset_token = jwt.sign(
+    { email, purpose: "reset" },
+    process.env.SUPER_SECRET,
+    { expiresIn: "1h" },
+  );
 
   user.reset_password_token = reset_token;
-  user.reset_password_expires = reset_expires;
   await user.save();
 
   await EmailService.send_password_reset_email(user.email, reset_token);

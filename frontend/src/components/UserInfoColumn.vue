@@ -216,10 +216,11 @@ export default {
   methods: {
     async refreshUserData() {
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(
           `${API_BASE_URL}/api/v1/users/me/dashboard`,
           {
-            credentials: "include",
+            headers: { "x-access-token": token },
           },
         );
 
@@ -268,10 +269,11 @@ export default {
   },
   async mounted() {
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(
         `${API_BASE_URL}/api/v1/users/me/dashboard`,
         {
-          credentials: "include",
+          headers: { "x-access-token": token },
         },
       );
 

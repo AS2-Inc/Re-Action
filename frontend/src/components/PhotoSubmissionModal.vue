@@ -132,10 +132,13 @@ export default {
         formData.append("task_id", this.task._id);
         formData.append("photo", this.selectedFile);
 
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
           method: "POST",
+          headers: {
+            "x-access-token": token,
+          },
           body: formData,
-          credentials: "include",
         });
 
         if (!response.ok) {

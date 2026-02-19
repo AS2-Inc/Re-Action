@@ -231,12 +231,13 @@ export default {
 
       this.isSubmitting = true;
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-access-token": token,
           },
-          credentials: "include",
           body: JSON.stringify({
             task_id: this.taskId,
             proof: {

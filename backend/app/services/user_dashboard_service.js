@@ -60,18 +60,17 @@ class UserDashboardService {
         neighborhood_data = {
           id: neighborhood._id,
           name: neighborhood.name,
-          total_score: neighborhood.total_score,
+          base_points: neighborhood.base_points,
+          normalized_points: neighborhood.normalized_points,
           ranking_position: neighborhood.ranking_position,
           active_goals: neighborhood.active_goals.filter(
             (g) => !g.is_completed,
           ),
-          ambient: {
-            air_quality:
-              neighborhood.environmental_data?.air_quality_index || 0,
+          environmental_data: {
+            co2_saved: neighborhood.environmental_data?.co2_saved || 0,
             waste_recycled:
-              neighborhood.environmental_data?.waste_management || 0,
-            improvement:
-              neighborhood.environmental_data?.improvement_trend || 0,
+              neighborhood.environmental_data?.waste_recycled || 0,
+            km_green: neighborhood.environmental_data?.km_green || 0,
           },
         };
       }

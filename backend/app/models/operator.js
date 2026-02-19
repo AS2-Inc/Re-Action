@@ -16,9 +16,7 @@ export default mongoose.model(
     is_active: { type: Boolean, default: false },
 
     activation_token: String,
-    activation_token_expires: Date,
 
     reset_password_token: String,
-    reset_password_expires: Date,
   }),
 );

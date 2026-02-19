@@ -123,3 +123,62 @@ export const get_active_tasks = async (_req, res) => {
     res.status(500).json({ error: "Failed to fetch active tasks" });
   }
 };
+
+export const update_task = async (req, res) => {
+  try {
+    const updates = {
+      title: req.body.title,
+      description: req.body.description,
+      category: req.body.category,
+      difficulty: req.body.difficulty,
+      frequency: req.body.frequency,
+      verification_method: req.body.verification_method,
+      base_points: req.body.base_points,
+      is_active: req.body.is_active,
+      neighborhood_id: req.body.neighborhood_id || null,
+      impact_metrics: req.body.impact_metrics,
+      verification_criteria: req.body.verification_criteria,
+    };
+
+    Object.keys(updates).forEach((key) => {
+      if (updates[key] === undefined) {
+        delete updates[key];
+      }
+    });
+
+    const task = await TaskService.update_task(req.params.id, updates);
+    res.status(200).json(task);
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    console.error("Error updating task:", error);
+    res.status(500).json({ error: "Failed to update task" });
+  }
+};
+
+export const delete_task = async (req, res) => {
+  try {
+    await TaskService.delete_task(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    console.error("Error deleting task:", error);
+    res.status(500).json({ error: "Failed to delete task" });
+  }
+};
+
+export const get_all_tasks = async (_req, res) => {
+  try {
+    const tasks = await TaskService.get_all_tasks();
+    res.status(200).json(tasks);
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    console.error("Error fetching all tasks:", error);
+    res.status(500).json({ error: "Failed to fetch tasks" });
+  }
+};

@@ -58,7 +58,7 @@ describe("User Dashboard API Endpoints (RF3)", () => {
     const neighborhood = new Neighborhood({
       name: "Centro",
       city: "Trento",
-      total_score: 1500,
+      base_points: 1500,
       ranking_position: 1,
       active_goals: [
         {

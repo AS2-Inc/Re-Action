@@ -16,7 +16,7 @@
                 <select v-model="period" @change="fetchLeaderboard">
                   <option value="weekly">Settimanale</option>
                   <option value="monthly">Mensile</option>
-                  <option value="all_time">Sempre</option>
+                  <option value="annually">Annuale</option>
                 </select>
               </label>
               <label class="control">
@@ -38,9 +38,9 @@
               <span>#</span>
               <span>Quartiere</span>
               <span>Città</span>
-              <span>Punteggio</span>
+              <span>Punteggio Norm.</span>
               <span>Partecipazione</span>
-              <span>Bonus Amb.</span>
+              <span>Miglioramento</span>
             </div>
 
             <div
@@ -51,9 +51,9 @@
               <span class="rank">{{ entry.rank }}</span>
               <span class="name">{{ entry.name }}</span>
               <span class="city">{{ entry.city }}</span>
-              <span class="score">{{ formatNumber(entry.normalized_score) }}</span>
+              <span class="score">{{ formatNumber(entry.normalized_points) }}</span>
               <span class="metric">{{ formatPercent(entry.participation_rate) }}</span>
-              <span class="metric">{{ formatNumber(entry.environmental_bonus) }}</span>
+              <span class="metric">{{ formatNumber(entry.improvement_factor) }}%</span>
             </div>
           </div>
         </section>
@@ -76,7 +76,7 @@ export default {
   data() {
     return {
       leaderboard: [],
-      period: "all_time",
+      period: "monthly",
       limit: 20,
       navLinks: [
         { label: "Tasks", to: "/tasks" },

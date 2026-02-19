@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 
 const token_checker = (req, res, next) => {
-  // Check for token in cookie first, then fall back to header
-  const token = req.cookies?.token || req.headers["x-access-token"];
+  // Check for token in header
+  const token = req.headers["x-access-token"];
 
   // if there is no token
   if (!token) {

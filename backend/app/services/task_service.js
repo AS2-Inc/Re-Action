@@ -59,7 +59,7 @@ export const award_points = async (user_id, task_id) => {
   if (task.impact_metrics) {
     user.ambient.co2_saved += task.impact_metrics.co2_saved || 0;
     user.ambient.waste_recycled += task.impact_metrics.waste_recycled || 0;
-    user.ambient.km_green += task.impact_metrics.distance || 0;
+    user.ambient.km_green += task.impact_metrics.km_green || 0;
   }
 
   // Level Logic (Moved to BadgeService)
@@ -70,7 +70,19 @@ export const award_points = async (user_id, task_id) => {
   if (user.neighborhood_id) {
     const neighborhood = await Neighborhood.findById(user.neighborhood_id);
     if (neighborhood) {
-      neighborhood.total_score += points_to_award;
+      // Update neighborhood via leaderboard service (base_points + environmental data)
+      const impact = task.impact_metrics
+        ? {
+            co2_saved: task.impact_metrics.co2_saved || 0,
+            waste_recycled: task.impact_metrics.waste_recycled || 0,
+            km_green: task.impact_metrics.km_green || 0,
+          }
+        : {};
+      await leaderboard_service.on_task_completed(
+        user.neighborhood_id,
+        points_to_award,
+        impact,
+      );
 
       // Automatic Contribution to Active Goal (RF4 Enhancement)
       const active_goal = neighborhood.active_goals.find(
@@ -81,9 +93,8 @@ export const award_points = async (user_id, task_id) => {
         if (active_goal.current_points >= active_goal.target_points) {
           active_goal.is_completed = true;
         }
+        await neighborhood.save();
       }
-
-      await neighborhood.save();
     }
   }
 
@@ -117,8 +128,7 @@ export const get_user_tasks = async (user_id) => {
       .populate("task_id")
       .then((assignment) => {
         // Filter by frequency match just in case
-        if (assignment && assignment.task_id.frequency === freq)
-          return assignment;
+        if (assignment?.task_id?.frequency === freq) return assignment;
         return null;
       });
 
@@ -126,6 +136,7 @@ export const get_user_tasks = async (user_id) => {
       const existing_assignment = await UserTask.findOne({
         user_id: user_id,
         status: "ASSIGNED",
+        expires_at: { $gt: now },
       }).populate({
         path: "task_id",
         match: { frequency: freq },
@@ -147,8 +158,19 @@ export const get_user_tasks = async (user_id) => {
         let already_done_period = false;
         if (last_completion?.task_id) {
           const last = new Date(last_completion.completed_at);
-          if (freq === "daily" && last.toDateString() === now.toDateString())
+          if (freq === "daily" && last.toDateString() === now.toDateString()) {
             already_done_period = true;
+          } else if (freq === "weekly") {
+            const diff = (now - last) / (1000 * 60 * 60 * 24);
+            if (diff < 7) already_done_period = true;
+          } else if (freq === "monthly") {
+            if (
+              now.getMonth() === last.getMonth() &&
+              now.getFullYear() === last.getFullYear()
+            ) {
+              already_done_period = true;
+            }
+          }
         }
 
         if (!already_done_period) {
@@ -170,6 +192,43 @@ export const get_user_tasks = async (user_id) => {
     }
 
     if (assignment?.task_id) {
+      const last_approved_query = Submission.findOne({
+        user_id: user_id,
+        task_id: assignment.task_id._id,
+        status: "APPROVED",
+      });
+      const last_approved =
+        typeof last_approved_query.sort === "function"
+          ? await last_approved_query.sort({ completed_at: -1 })
+          : await last_approved_query;
+
+      if (last_approved?.completed_at) {
+        const last = new Date(last_approved.completed_at);
+        let already_done_period = false;
+
+        if (freq === "daily" && last.toDateString() === now.toDateString()) {
+          already_done_period = true;
+        } else if (freq === "weekly") {
+          const diff = (now - last) / (1000 * 60 * 60 * 24);
+          if (diff < 7) already_done_period = true;
+        } else if (freq === "monthly") {
+          if (
+            now.getMonth() === last.getMonth() &&
+            now.getFullYear() === last.getFullYear()
+          ) {
+            already_done_period = true;
+          }
+        }
+
+        if (already_done_period) {
+          if (assignment.status !== "COMPLETED") {
+            assignment.status = "COMPLETED";
+            await assignment.save();
+          }
+          continue;
+        }
+      }
+
       // Check for pending submission
       const pending_submission = await Submission.findOne({
         user_id: user_id,
@@ -424,6 +483,39 @@ export const get_task = async (task_id) => {
 export const get_active_tasks = async () => {
   const tasks = await Task.find({ is_active: true });
   return tasks;
+};
+
+export const get_all_tasks = async () => {
+  const tasks = await Task.find()
+    .populate("neighborhood_id", "name")
+    .sort({ created_at: -1 });
+
+  return tasks.map((task) => {
+    const task_obj = task.toObject();
+    task_obj.neighborhood_name = task_obj.neighborhood_id?.name || null;
+    delete task_obj.neighborhood_id;
+    return task_obj;
+  });
+};
+
+export const update_task = async (task_id, updates) => {
+  const task = await Task.findByIdAndUpdate(
+    task_id,
+    { $set: updates },
+    { new: true },
+  );
+  if (!task) {
+    throw new ServiceError("Task not found", 404);
+  }
+  return task;
+};
+
+export const delete_task = async (task_id) => {
+  const task = await Task.findByIdAndDelete(task_id);
+  if (!task) {
+    throw new ServiceError("Task not found", 404);
+  }
+  return task;
 };
 
 /**

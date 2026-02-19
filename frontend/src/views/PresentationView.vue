@@ -16,7 +16,7 @@
 </div>
 <div class="statistics">
   <Statistic title="Utenti Registrati" :content="totalUsers" />
-  <Statistic title="Comuni Aderenti" :content="totalNeighborhoods" />
+  <Statistic title="Quartieri Aderenti" :content="totalNeighborhoods" />
   <Statistic title="CO₂ Risparmiata" :content="totalCO2Saved" />
 </div>
 <div class="button-container">

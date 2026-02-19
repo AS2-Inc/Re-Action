@@ -78,9 +78,8 @@ describe("User API Endpoints", () => {
       });
 
       expect(response.status).toBe(200);
-      // Token is in HttpOnly cookie
-      expect(response.headers["set-cookie"]).toBeDefined();
-      expect(response.headers["set-cookie"][0]).toMatch(/token=/);
+      // Token is in body
+      expect(response.body.token).toBeDefined();
       expect(response.body).toHaveProperty("email", "user@example.com");
       expect(response.body).toHaveProperty("id");
     });
@@ -386,6 +385,11 @@ describe("User API Endpoints", () => {
 
   describe("GET /api/v1/users/activate", () => {
     it("should activate citizen account with valid token", async () => {
+      const activation_token = jwt.sign(
+        { email: "inactive@example.com", purpose: "activation" },
+        process.env.SUPER_SECRET,
+        { expiresIn: "12h" },
+      );
       const user = await createTestUser({
         name: "Inactive",
         surname: "User",
@@ -393,13 +397,12 @@ describe("User API Endpoints", () => {
         password: "password123!A!A",
         role: "citizen",
         is_active: false,
-        activation_token: "valid-token",
-        activation_token_expires: Date.now() + 10000,
+        activation_token: activation_token,
       });
 
       const response = await request(app)
         .get("/api/v1/users/activate")
-        .query({ token: "valid-token" });
+        .query({ token: activation_token });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toMatch(/\/login\?activated=true$/);
@@ -410,6 +413,11 @@ describe("User API Endpoints", () => {
     });
 
     it("should return password setup info for operator activation", async () => {
+      const op_activation_token = jwt.sign(
+        { email: "operator_inactive@example.com", purpose: "activation" },
+        process.env.SUPER_SECRET,
+        { expiresIn: "12h" },
+      );
       await createTestUser({
         name: "Inactive",
         surname: "Operator",
@@ -417,13 +425,12 @@ describe("User API Endpoints", () => {
         password: "password123!A!A",
         role: "operator",
         is_active: false,
-        activation_token: "operator-token",
-        activation_token_expires: Date.now() + 10000,
+        activation_token: op_activation_token,
       });
 
       const response = await request(app)
         .get("/api/v1/users/activate")
-        .query({ token: "operator-token" });
+        .query({ token: op_activation_token });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toMatch(/\/login\?activated=true$/);
@@ -449,6 +456,13 @@ describe("User API Endpoints", () => {
     });
 
     it("should return 400 when token is expired", async () => {
+      const expired_token = jwt.sign(
+        { email: "expired@example.com", purpose: "activation" },
+        process.env.SUPER_SECRET,
+        { expiresIn: "0s" },
+      );
+      // Small delay to ensure token is expired
+      await new Promise((r) => setTimeout(r, 1100));
       await createTestUser({
         name: "Expired",
         surname: "User",
@@ -456,13 +470,12 @@ describe("User API Endpoints", () => {
         password: "password123!A!A",
         role: "citizen",
         is_active: false,
-        activation_token: "expired-token",
-        activation_token_expires: Date.now() - 10000,
+        activation_token: expired_token,
       });
 
       const response = await request(app)
         .get("/api/v1/users/activate")
-        .query({ token: "expired-token" });
+        .query({ token: expired_token });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty(
@@ -687,7 +700,6 @@ describe("User API Endpoints", () => {
 
       const updatedUser = await User.findById(user._id);
       expect(updatedUser.reset_password_token).toBeDefined();
-      expect(updatedUser.reset_password_expires).toBeDefined();
     });
 
     it("should return success message even for non-existent email", async () => {

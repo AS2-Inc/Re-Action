@@ -21,8 +21,8 @@ router.get("", async (_req, res) => {
 
 /**
  * GET /api/v1/neighborhood/ranking
- * Get neighborhoods ranked by normalized score (RF17, RF18)
- * Query params: period (weekly|monthly|all_time), limit
+ * Get neighborhoods ranked by normalized points (RF17, RF18)
+ * Query params: period (weekly|monthly|annually|all_time), limit
  */
 router.get("/ranking", async (req, res) => {
   try {
@@ -42,11 +42,11 @@ router.get("/ranking", async (req, res) => {
 
 /**
  * GET /api/v1/neighborhood/ranking/simple
- * Get simple ranking based on raw total score (legacy endpoint)
+ * Get simple ranking based on raw base_points (legacy endpoint)
  */
 router.get("/ranking/simple", async (_req, res) => {
   try {
-    const neighborhoods = await Neighborhood.find().sort({ total_score: -1 });
+    const neighborhoods = await Neighborhood.find().sort({ base_points: -1 });
 
     const ranked = neighborhoods.map((n, index) => ({
       ...n.toObject(),

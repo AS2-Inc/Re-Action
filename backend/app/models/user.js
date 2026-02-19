@@ -7,7 +7,7 @@ export default mongoose.model(
     surname: String,
     email: { type: String, required: true, unique: true },
     age: { type: Number },
-    // null if using OAuth
+    // null/random if using OAuth
     password: { type: String, required: false },
     auth_provider: {
       type: String,
@@ -54,17 +54,14 @@ export default mongoose.model(
       positive_reinforcement: { type: Boolean, default: true },
       informational: { type: Boolean, default: true },
       motivational: { type: Boolean, default: true },
-      // TODO
     },
 
     language: { type: String, default: "it", enum: ["it", "en", "de"] }, // RNF3
 
     is_active: { type: Boolean, default: false }, // Activated after email verification
     activation_token: String,
-    activation_token_expires: Date,
 
     // Password reset tokens
     reset_password_token: String,
-    reset_password_expires: Date,
   }),
 );

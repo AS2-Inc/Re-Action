@@ -90,8 +90,8 @@ export default {
       return (
         this.latitude !== null &&
         this.longitude !== null &&
-        !isNaN(this.latitude) &&
-        !isNaN(this.longitude) &&
+        !Number.isNaN(this.latitude) &&
+        !Number.isNaN(this.longitude) &&
         this.latitude >= -90 &&
         this.latitude <= 90 &&
         this.longitude >= -180 &&
@@ -234,6 +234,7 @@ export default {
   margin: 0;
   color: #4a4a4a;
   line-height: 1.5;
+  padding-bottom: 1rem;
 }
 
 .actions {

@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import Task from "../app/models/task.js";
 import Quiz from "../app/models/quiz.js";
+import Task from "../app/models/task.js";
 
 dotenv.config();
 

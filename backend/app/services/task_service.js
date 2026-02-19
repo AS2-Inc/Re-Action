@@ -387,6 +387,9 @@ export const submit_task = async (user_id, task_id, proof) => {
 
   if (status === "APPROVED") {
     const { new_badges, points_awarded } = await award_points(user_id, task_id);
+    submission.points_awarded = points_awarded;
+    await submission.save();
+
     response.new_badges = new_badges;
     response.points_earned = points_awarded;
 
@@ -398,13 +401,12 @@ export const submit_task = async (user_id, task_id, proof) => {
       user_task.status = "COMPLETED";
       await user_task.save();
     }
-  } else if (
-    status === "REJECTED"
-    // Note: We already throw Errors for auto-rejection above, so this might be redundant
-    // but good for safety if we change logic flow.
-  ) {
-    // If we reached here with REJECTED status and didn't throw, it's an error state
-    // But currently we throw inside the blocks.
+  } else if (status === "REJECTED") {
+    // Mark UserTask completed
+    if (user_task) {
+      user_task.status = "REJECTED";
+      await user_task.save();
+    }
   }
 
   return response;
@@ -440,7 +442,12 @@ export const verify_submission = async (submission_id, verdict) => {
   await submission.save();
 
   if (verdict === "APPROVED") {
-    await award_points(submission.user_id, submission.task_id);
+    const { points_awarded } = await award_points(
+      submission.user_id,
+      submission.task_id,
+    );
+    submission.points_awarded = points_awarded;
+    await submission.save();
 
     // Recalculate leaderboard immediately
     await leaderboard_service.get_leaderboard();

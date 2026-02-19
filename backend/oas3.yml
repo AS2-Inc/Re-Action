@@ -1,4 +1,4 @@
-openapi: 3.0.4
+openapi: 3.0.0
 info:
   version: "1.0"
   title: "Re:Action"
@@ -11,24 +11,6 @@ servers:
   - url: https://re-action.onrender.com/api/v1
     description: Production Server
 
-tags:
-  - name: Users
-    description: User authentication, registration, and profile management
-  - name: Tasks
-    description: Task creation, submission, and management
-  - name: Quizzes
-    description: Quiz creation and retrieval (operators only)
-  - name: Neighborhoods
-    description: Neighborhood information and management
-  - name: Operators
-    description: Operator registration, authentication, and management
-  - name: Rewards
-    description: Reward catalog and redemption
-  - name: Notifications
-    description: User notifications and preferences
-  - name: Stats
-    description: Public and aggregated statistics
-
 # ==================== PATHS ====================
 
 paths:
@@ -39,7 +21,6 @@ paths:
     post:
       summary: User login
       description: Authenticate user and receive JWT token
-      tags: [Users]
       requestBody:
         required: true
         content:
@@ -85,7 +66,6 @@ paths:
     post:
       summary: Google OAuth login/register
       description: Authenticate or register user via Google OAuth 2.0 credential
-      tags: [Users]
       requestBody:
         required: true
         content:
@@ -97,6 +77,9 @@ paths:
                 credential:
                   type: string
                   description: Google ID token
+                neighborhood:
+                  type: string
+                  description: Neighborhood ID (optional, only used during registration)
       responses:
         '200':
           description: Authentication successful, returns JWT token
@@ -120,7 +103,6 @@ paths:
     post:
       summary: Register new citizen user
       description: Create a new user account (RF1)
-      tags: [Users]
       requestBody:
         required: true
         content:
@@ -161,7 +143,6 @@ paths:
     get:
       summary: Get current user profile
       description: Get basic profile data for logged-in user
-      tags: [Users]
       security:
         - tokenAuth: []
       responses:
@@ -189,7 +170,6 @@ paths:
     put:
       summary: Update user profile
       description: Update profile data (name, surname, neighborhood) for logged-in user
-      tags: [Users]
       security:
         - tokenAuth: []
       requestBody:
@@ -234,7 +214,6 @@ paths:
     get:
       summary: Activate user account
       description: Verify activation token and activate user account. On success, redirects to frontend login page.
-      tags: [Users]
       parameters:
         - in: query
           name: token
@@ -264,7 +243,6 @@ paths:
     post:
       summary: Change user password
       description: Change password for logged-in user
-      tags: [Users]
       security:
         - tokenAuth: []
       requestBody:
@@ -303,7 +281,6 @@ paths:
     post:
       summary: Request password reset
       description: Generate and send password reset token via email
-      tags: [Users]
       requestBody:
         required: true
         content:
@@ -332,7 +309,6 @@ paths:
     get:
       summary: Get user's badges
       description: Returns badges for the logged-in user (RF4)
-      tags: [Users]
       security:
         - tokenAuth: []
       responses:
@@ -355,7 +331,6 @@ paths:
     get:
       summary: Get user dashboard data
       description: Returns complete dashboard data for the logged-in user (RF3)
-      tags: [Users]
       security:
         - tokenAuth: []
       responses:
@@ -380,7 +355,6 @@ paths:
     get:
       summary: Get available tasks for user
       description: Returns tasks available for user's neighborhood (RF6)
-      tags: [Tasks]
       security:
         - tokenAuth: []
       responses:
@@ -401,7 +375,6 @@ paths:
     get:
       summary: Get all tasks (Operators only)
       description: Returns all tasks in the system (operators/admins only)
-      tags: [Tasks]
       security:
         - tokenAuth: []
       responses:
@@ -422,7 +395,6 @@ paths:
     post:
       summary: Create new task (Operators only)
       description: Create a new task in the system
-      tags: [Tasks]
       security:
         - tokenAuth: []
       requestBody:
@@ -454,7 +426,6 @@ paths:
         Supports multipart/form-data for photo upload.
         - Manual tasks go to PENDING status
         - GPS/QR tasks are verified automatically
-      tags: [Tasks]
       security:
         - tokenAuth: []
       requestBody:
@@ -511,7 +482,6 @@ paths:
     post:
       summary: Get task submissions (Operators only)
       description: View task submissions, optionally filtered by status
-      tags: [Tasks]
       security:
         - tokenAuth: []
       requestBody:
@@ -540,7 +510,6 @@ paths:
     post:
       summary: Verify task submission (Operators only)
       description: Approve or reject a manual task submission
-      tags: [Tasks]
       security:
         - tokenAuth: []
       parameters:
@@ -584,7 +553,6 @@ paths:
     get:
       summary: Get task templates (RF11)
       description: List all available task templates (operators/admins only)
-      tags: [Tasks]
       security:
         - tokenAuth: []
       responses:
@@ -600,12 +568,35 @@ paths:
           description: Unauthorized
         '500':
           description: Failed to fetch templates
+    post:
+      summary: Create task template
+      description: Create a new task template (operators/admins only)
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskTemplate'
+      responses:
+        '201':
+          description: Task template created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskTemplate'
+        '400':
+          description: Validation error
+        '403':
+          description: Unauthorized
+        '500':
+          description: Failed to create template
 
   /tasks/templates/{id}:
     get:
       summary: Get task template by ID
       description: Get a specific task template (operators/admins only)
-      tags: [Tasks]
       security:
         - tokenAuth: []
       parameters:
@@ -628,12 +619,69 @@ paths:
           description: Template not found
         '500':
           description: Failed to fetch template
+    put:
+      summary: Update task template
+      description: Update a task template (operators/admins only)
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Template ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskTemplate'
+      responses:
+        '200':
+          description: Template updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskTemplate'
+        '400':
+          description: Validation error
+        '403':
+          description: Unauthorized
+        '404':
+          description: Template not found
+        '500':
+          description: Failed to update template
+    delete:
+      summary: Deactivate task template
+      description: Deactivate a task template (soft delete, operators/admins only)
+      security:
+        - tokenAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Template ID
+      responses:
+        '200':
+          description: Template deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskTemplate'
+        '403':
+          description: Unauthorized
+        '404':
+          description: Template not found
+        '500':
+          description: Failed to deactivate template
 
   /tasks/from-template:
     post:
       summary: Create task from template (RF11)
       description: Create a new task based on a template (operators/admins only)
-      tags: [Tasks]
       security:
         - tokenAuth: []
       requestBody:
@@ -669,7 +717,6 @@ paths:
     get:
       summary: Get task by ID
       description: Get details of a specific task
-      tags: [Tasks]
       security:
         - tokenAuth: []
       parameters:
@@ -693,7 +740,6 @@ paths:
     put:
       summary: Update task (Operators only)
       description: Update an existing task (operators/admins only)
-      tags: [Tasks]
       security:
         - tokenAuth: []
       parameters:
@@ -725,7 +771,6 @@ paths:
     delete:
       summary: Delete task (Operators only)
       description: Delete a task from the system (operators/admins only)
-      tags: [Tasks]
       security:
         - tokenAuth: []
       parameters:
@@ -751,18 +796,27 @@ paths:
     get:
       summary: List quizzes
       description: Get all quizzes (operators only)
-      tags: [Quizzes]
       security:
         - tokenAuth: []
       responses:
         '200':
-          description: List of quizzes
+          description: List of quizzes with basic info
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Quiz'
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
         '403':
           description: Unauthorized - Operators only
         '500':
@@ -770,7 +824,6 @@ paths:
     post:
       summary: Create quiz
       description: Create a new quiz (operators only)
-      tags: [Quizzes]
       security:
         - tokenAuth: []
       requestBody:
@@ -787,7 +840,7 @@ paths:
                   type: string
                 passing_score:
                   type: number
-                  description: Passing score as decimal (0.0-1.0) or percentage (0-100)
+                  description: Passing score as decimal (0.0-1.0) or percentage (0-100). Defaults to 0.8 (80%) if not provided
                 questions:
                   type: array
                   items:
@@ -802,15 +855,26 @@ paths:
                           type: string
                       correct_option_index:
                         type: integer
+                        description: Zero-based index of the correct option
       responses:
         '201':
           description: Quiz created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Quiz'
+                type: object
+                properties:
+                  _id:
+                    type: string
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
         '400':
-          description: Invalid quiz data
+          description: Invalid quiz data (missing title, empty questions, invalid passing score, or invalid question format)
         '403':
           description: Unauthorized - Operators only
         '500':
@@ -819,8 +883,7 @@ paths:
   /quizzes/{id}:
     get:
       summary: Get quiz by ID
-      description: Get details of a specific quiz
-      tags: [Quizzes]
+      description: Get details of a specific quiz (questions returned without revealing correct answers)
       security:
         - tokenAuth: []
       parameters:
@@ -832,11 +895,34 @@ paths:
           description: Quiz ID
       responses:
         '200':
-          description: Quiz details
+          description: Quiz details with questions (correct answers obfuscated)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Quiz'
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        text:
+                          type: string
+                        options:
+                          type: array
+                          items:
+                            type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid quiz ID format
         '401':
           description: Unauthorized
         '404':
@@ -850,7 +936,6 @@ paths:
     get:
       summary: List all neighborhoods
       description: Get list of all available neighborhoods
-      tags: [Neighborhoods]
       responses:
         '200':
           description: List of neighborhoods
@@ -867,7 +952,6 @@ paths:
     get:
       summary: Get neighborhood ranking (RF17)
       description: Get neighborhoods ranked by normalized score
-      tags: [Neighborhoods]
       parameters:
         - in: query
           name: period
@@ -884,13 +968,51 @@ paths:
           description: Max number of results
       responses:
         '200':
-          description: Ranked neighborhoods
+          description: Ranked neighborhoods with detailed stats
           content:
             application/json:
               schema:
                 type: array
                 items:
                   type: object
+                  properties:
+                    neighborhood_id:
+                      type: string
+                    name:
+                      type: string
+                    city:
+                      type: string
+                    rank:
+                      type: integer
+                      description: Ranking position
+                    base_points:
+                      type: number
+                      description: Total points earned
+                    normalized_points:
+                      type: number
+                      description: Points normalized by active users
+                    participation_rate:
+                      type: number
+                      description: Percentage of active users (0-100)
+                    improvement_factor:
+                      type: number
+                      description: change in points vs previous period
+                    active_users:
+                      type: integer
+                    total_users:
+                      type: integer
+                    points_earned_in_period:
+                      type: integer
+                      description: Points earned in the specified period
+                    environmental_data:
+                      type: object
+                      properties:
+                        co2_saved:
+                          type: number
+                        waste_recycled:
+                          type: number
+                        km_green:
+                          type: number
         '500':
           description: Internal server error
 
@@ -898,7 +1020,6 @@ paths:
     get:
       summary: Get neighborhood by ID
       description: Get details of a specific neighborhood
-      tags: [Neighborhoods]
       parameters:
         - in: path
           name: id
@@ -924,7 +1045,6 @@ paths:
     post:
       summary: Register new operator (Admin only)
       description: Create a new operator account and send activation email
-      tags: [Operators]
       security:
         - tokenAuth: []
       requestBody:
@@ -956,7 +1076,6 @@ paths:
     post:
       summary: Operator login
       description: Authenticate operator and receive JWT token
-      tags: [Operators]
       requestBody:
         required: true
         content:
@@ -994,7 +1113,6 @@ paths:
     post:
       summary: Reset operator password
       description: Set new password using reset token
-      tags: [Operators]
       requestBody:
         required: true
         content:
@@ -1018,11 +1136,43 @@ paths:
         '500':
           description: Failed to reset password
 
+  /operators/activate:
+    post:
+      summary: Activate operator account
+      description: Set password and activate operator account using activation token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Activation token received via email
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '200':
+          description: Password set and account activated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Missing fields, weak password, or invalid/expired token
+        '403':
+          description: This endpoint is only for operators
+
   /operators:
     get:
       summary: List all operators (Admin only)
       description: Get list of all operators
-      tags: [Operators]
       security:
         - tokenAuth: []
       responses:
@@ -1054,7 +1204,6 @@ paths:
     post:
       summary: Force password reset (Admin only)
       description: Force password reset for an operator and send email
-      tags: [Operators]
       security:
         - tokenAuth: []
       parameters:
@@ -1085,7 +1234,6 @@ paths:
     delete:
       summary: Delete operator (Admin only)
       description: Delete an operator from the system
-      tags: [Operators]
       security:
         - tokenAuth: []
       parameters:
@@ -1109,7 +1257,6 @@ paths:
     get:
       summary: Get neighborhoods summary (RF10)
       description: Get summary stats for all neighborhoods
-      tags: [Operators]
       security:
         - tokenAuth: []
       responses:
@@ -1121,6 +1268,37 @@ paths:
                 type: array
                 items:
                   type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    city:
+                      type: string
+                    base_points:
+                      type: number
+                    normalized_points:
+                      type: number
+                    ranking_position:
+                      type: integer
+                    user_count:
+                      type: integer
+                    submissions_this_week:
+                      type: integer
+                    completed_tasks:
+                      type: integer
+                    environmental_data:
+                      type: object
+                      properties:
+                        co2_saved:
+                          type: number
+                        waste_recycled:
+                          type: number
+                        km_green:
+                          type: number
+                        last_updated:
+                          type: string
+                          format: date-time
         '403':
           description: Unauthorized - Operators only
         '500':
@@ -1129,8 +1307,7 @@ paths:
   /operators/dashboard/neighborhoods/{id}:
     get:
       summary: Get neighborhood detail (RF10)
-      description: Get detailed stats for a specific neighborhood
-      tags: [Operators]
+      description: Get detailed stats for a specific neighborhood including users, activity, and environmental data
       security:
         - tokenAuth: []
       parameters:
@@ -1147,6 +1324,71 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  neighborhood:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      city:
+                        type: string
+                      base_points:
+                        type: number
+                      normalized_points:
+                        type: number
+                      ranking_position:
+                        type: integer
+                      environmental_data:
+                        type: object
+                        properties:
+                          co2_saved:
+                            type: number
+                          waste_recycled:
+                            type: number
+                          km_green:
+                            type: number
+                  stats:
+                    type: object
+                    properties:
+                      total_users:
+                        type: integer
+                      participation_rate:
+                        type: number
+                        description: Percentage of users who have completed tasks
+                      submissions_by_category:
+                        type: object
+                        description: Count of submissions by task category
+                  daily_activity:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          description: Date in YYYY-MM-DD format
+                        count:
+                          type: integer
+                          description: Number of submissions on this date
+                        points:
+                          type: integer
+                          description: Total points earned on this date
+                  top_users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        points:
+                          type: integer
+                        level:
+                          type: integer
+                        tasks_completed:
+                          type: integer
         '403':
           description: Unauthorized - Operators only
         '404':
@@ -1159,7 +1401,6 @@ paths:
     get:
       summary: List active rewards
       description: Get all active, non-expired rewards
-      tags: [Rewards]
       security:
         - tokenAuth: []
       responses:
@@ -1178,7 +1419,6 @@ paths:
     post:
       summary: Create reward (Operators/Admins)
       description: Create a new reward in the catalog
-      tags: [Rewards]
       security:
         - tokenAuth: []
       requestBody:
@@ -1203,7 +1443,6 @@ paths:
     get:
       summary: List all rewards (Operators/Admins)
       description: Get all rewards including inactive ones
-      tags: [Rewards]
       security:
         - tokenAuth: []
       responses:
@@ -1224,7 +1463,6 @@ paths:
     get:
       summary: Get user's redeemed rewards
       description: List rewards redeemed by the logged-in user
-      tags: [Rewards]
       security:
         - tokenAuth: []
       responses:
@@ -1245,7 +1483,6 @@ paths:
     post:
       summary: Redeem a reward
       description: Redeem a reward using accumulated points
-      tags: [Rewards]
       security:
         - tokenAuth: []
       parameters:
@@ -1283,7 +1520,6 @@ paths:
     put:
       summary: Update reward (Operators/Admins)
       description: Update an existing reward
-      tags: [Rewards]
       security:
         - tokenAuth: []
       parameters:
@@ -1313,9 +1549,8 @@ paths:
         '404':
           description: Reward not found
     delete:
-      summary: Deactivate reward (Operators/Admins)
-      description: Soft delete (deactivate) a reward
-      tags: [Rewards]
+      summary: Delete reward (Operators/Admins)
+      description: Delete a reward from the system
       security:
         - tokenAuth: []
       parameters:
@@ -1327,7 +1562,7 @@ paths:
           description: Reward ID
       responses:
         '200':
-          description: Reward deactivated
+          description: Reward deleted successfully
           content:
             application/json:
               schema:
@@ -1340,7 +1575,7 @@ paths:
         '404':
           description: Reward not found
         '500':
-          description: Failed to deactivate reward
+          description: Failed to delete reward
 
   # ==================== NOTIFICATIONS ====================
 
@@ -1348,7 +1583,6 @@ paths:
     get:
       summary: Get user notifications
       description: Get notifications for the logged-in user
-      tags: [Notifications]
       security:
         - tokenAuth: []
       responses:
@@ -1369,7 +1603,6 @@ paths:
     patch:
       summary: Mark notification as read
       description: Mark a single notification as read
-      tags: [Notifications]
       security:
         - tokenAuth: []
       parameters:
@@ -1397,7 +1630,6 @@ paths:
     patch:
       summary: Mark all notifications as read
       description: Mark all notifications as read for the logged-in user
-      tags: [Notifications]
       security:
         - tokenAuth: []
       responses:
@@ -1419,7 +1651,6 @@ paths:
     get:
       summary: Get notification preferences
       description: Get current notification preferences for the logged-in user
-      tags: [Notifications]
       security:
         - tokenAuth: []
       responses:
@@ -1438,7 +1669,6 @@ paths:
     patch:
       summary: Update notification preferences
       description: Update notification preferences for the logged-in user (RF5)
-      tags: [Notifications]
       security:
         - tokenAuth: []
       requestBody:
@@ -1472,7 +1702,6 @@ paths:
     get:
       summary: Get public statistics
       description: Get public aggregated statistics for landing page
-      tags: [Stats]
       responses:
         '200':
           description: Public statistics
@@ -1519,17 +1748,56 @@ components:
           type: string
         description:
           type: string
-        points:
+        category:
+          type: string
+          enum: [Mobility, Waste, Community, Volunteering]
+        base_points:
           type: integer
+          description: Base points for the task
         difficulty:
           type: string
           enum: [Low, Medium, High]
         frequency:
           type: string
-          enum: [daily, weekly, monthly, on_demand]
+          enum: [daily, weekly, monthly, on_demand, onetime]
         verification_method:
           type: string
           enum: [GPS, QR_SCAN, PHOTO_UPLOAD, QUIZ]
+        verification_criteria:
+          type: object
+          properties:
+            min_distance_meters:
+              type: number
+            target_location:
+              type: array
+              items:
+                type: number
+            qr_code_secret:
+              type: string
+            photo_description:
+              type: string
+            quiz_id:
+              type: string
+        impact_metrics:
+          type: object
+          properties:
+            co2_saved:
+              type: number
+            waste_recycled:
+              type: number
+            km_green:
+              type: number
+        neighborhood_id:
+          type: string
+        is_active:
+          type: boolean
+        template_id:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
 
     TaskCreate:
       type: object
@@ -1539,18 +1807,50 @@ components:
           type: string
         description:
           type: string
-        points:
+        category:
+          type: string
+          enum: [Mobility, Waste, Community, Volunteering]
+        base_points:
           type: integer
+          description: Base points for the task
         difficulty:
           type: string
           enum: [Low, Medium, High]
         frequency:
           type: string
-          enum: [daily, weekly, monthly, on_demand]
+          enum: [daily, weekly, monthly, on_demand, onetime]
         verification_method:
           type: string
           enum: [GPS, QR_SCAN, PHOTO_UPLOAD, QUIZ]
+        verification_criteria:
+          type: object
+          properties:
+            min_distance_meters:
+              type: number
+            target_location:
+              type: array
+              items:
+                type: number
+            qr_code_secret:
+              type: string
+            photo_description:
+              type: string
+            quiz_id:
+              type: string
+        impact_metrics:
+          type: object
+          properties:
+            co2_saved:
+              type: number
+            waste_recycled:
+              type: number
+            km_green:
+              type: number
         neighborhood_id:
+          type: string
+        is_active:
+          type: boolean
+        template_id:
           type: string
 
     TaskTemplate:
@@ -1651,8 +1951,34 @@ components:
           type: string
         name:
           type: string
-        total_score:
+        city:
+          type: string
+        base_points:
           type: number
+          description: Sum of all approved task points from neighborhood users
+        normalized_points:
+          type: number
+          description: base_points adjusted for neighborhood size (base_points / active_users)
+        ranking_position:
+          type: integer
+        last_ranking_update:
+          type: string
+          format: date-time
+        environmental_data:
+          type: object
+          properties:
+            co2_saved:
+              type: number
+              description: Total kg CO2 saved
+            waste_recycled:
+              type: number
+              description: Total kg waste recycled
+            km_green:
+              type: number
+              description: Total green km
+            last_updated:
+              type: string
+              format: date-time
 
     Reward:
       type: object
@@ -1675,6 +2001,14 @@ components:
         active:
           type: boolean
         expiry_date:
+          type: string
+          format: date-time
+        neighborhoods:
+          type: array
+          items:
+            type: string
+          description: IDs of neighborhoods where this reward is available (empty = available to all)
+        created_at:
           type: string
           format: date-time
 
@@ -1700,6 +2034,11 @@ components:
         expiry_date:
           type: string
           format: date-time
+        neighborhoods:
+          type: array
+          items:
+            type: string
+          description: Array of neighborhood IDs where this reward is available (optional, empty = available to all)
 
     UserReward:
       type: object

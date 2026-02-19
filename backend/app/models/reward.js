@@ -12,5 +12,6 @@ export default mongoose.model(
     quantity_available: { type: Number, default: 0 }, // Stock available
     active: { type: Boolean, default: true }, // If false, reward cannot be redeemed
     expiry_date: Date,
+    neighborhoods: [{ type: Schema.Types.ObjectId, ref: "Neighborhood" }], // Neighborhoods where this reward is available
   }),
 );

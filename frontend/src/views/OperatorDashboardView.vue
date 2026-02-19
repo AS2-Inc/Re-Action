@@ -160,6 +160,7 @@ onMounted(() => {
         <li><router-link to="/reportsList" class="nav-link">Lista Report</router-link></li>
         <li><router-link to="/taskTemplates" class="nav-link">Task Attive</router-link></li>
         <li><router-link to="/createTask" class="nav-link">Crea Task</router-link></li>
+        <li><router-link to="/operatorRewards" class="nav-link">Premi</router-link></li>
         
       </ul>
     </nav>

@@ -187,7 +187,7 @@ onMounted(() => {
             <div class="stat-icon">🍃</div>
             <div class="stat-info">
               <span class="stat-label">{{ key }}</span>
-              <strong class="stat-value">{{ value }}</strong>
+              <strong class="stat-value">{{ Number(value).toFixed(2) }}</strong>
             </div>
           </div>
         </div>
@@ -281,15 +281,15 @@ onMounted(() => {
                         <div class="env-grid">
                             <div class="env-item">
                                 <span class="env-label">CO2 Risparmiata (kg)</span>
-                                <span class="env-value">{{ selectedNeighborhood.environmental_data.co2_saved || 0 }}</span>
+                                <span class="env-value">{{ Number(selectedNeighborhood.environmental_data.co2_saved || 0).toFixed(2) }}</span>
                             </div>
                             <div class="env-item">
                                 <span class="env-label">Rifiuti Riciclati (kg)</span>
-                                <span class="env-value">{{ selectedNeighborhood.environmental_data.waste_recycled || 0 }}</span>
+                                <span class="env-value">{{ Number(selectedNeighborhood.environmental_data.waste_recycled || 0).toFixed(2) }}</span>
                             </div>
                              <div class="env-item">
                                 <span class="env-label">Km Green Percorsi</span>
-                                <span class="env-value">{{ selectedNeighborhood.environmental_data.km_green || 0 }}</span>
+                                <span class="env-value">{{ Number(selectedNeighborhood.environmental_data.km_green || 0).toFixed(2) }}</span>
                             </div>
                         </div>
                         <div class="last-updated">

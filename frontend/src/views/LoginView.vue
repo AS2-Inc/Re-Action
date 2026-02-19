@@ -48,6 +48,9 @@ export default {
   components: {
     TextInputForm,
   },
+  created() {
+    localStorage.removeItem("role");
+  },
   data() {
     return {
       form: {

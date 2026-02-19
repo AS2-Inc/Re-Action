@@ -128,8 +128,7 @@ export const get_user_tasks = async (user_id) => {
       .populate("task_id")
       .then((assignment) => {
         // Filter by frequency match just in case
-        if (assignment && assignment.task_id.frequency === freq)
-          return assignment;
+        if (assignment?.task_id?.frequency === freq) return assignment;
         return null;
       });
 
@@ -137,6 +136,7 @@ export const get_user_tasks = async (user_id) => {
       const existing_assignment = await UserTask.findOne({
         user_id: user_id,
         status: "ASSIGNED",
+        expires_at: { $gt: now },
       }).populate({
         path: "task_id",
         match: { frequency: freq },
@@ -192,6 +192,39 @@ export const get_user_tasks = async (user_id) => {
     }
 
     if (assignment?.task_id) {
+      const last_approved = await Submission.findOne({
+        user_id: user_id,
+        task_id: assignment.task_id._id,
+        status: "APPROVED",
+      }).sort({ completed_at: -1 });
+
+      if (last_approved?.completed_at) {
+        const last = new Date(last_approved.completed_at);
+        let already_done_period = false;
+
+        if (freq === "daily" && last.toDateString() === now.toDateString()) {
+          already_done_period = true;
+        } else if (freq === "weekly") {
+          const diff = (now - last) / (1000 * 60 * 60 * 24);
+          if (diff < 7) already_done_period = true;
+        } else if (freq === "monthly") {
+          if (
+            now.getMonth() === last.getMonth() &&
+            now.getFullYear() === last.getFullYear()
+          ) {
+            already_done_period = true;
+          }
+        }
+
+        if (already_done_period) {
+          if (assignment.status !== "COMPLETED") {
+            assignment.status = "COMPLETED";
+            await assignment.save();
+          }
+          continue;
+        }
+      }
+
       // Check for pending submission
       const pending_submission = await Submission.findOne({
         user_id: user_id,

@@ -65,10 +65,4 @@ router.get("/me/badges", token_checker, UserController.get_my_badges);
 // GET /api/v1/users/me/dashboard (RF3: Complete dashboard data)
 router.get("/me/dashboard", token_checker, UserController.get_dashboard);
 
-// GET /api/v1/users/me/history (RF3: Action history with pagination)
-router.get("/me/history", token_checker, UserController.get_history);
-
-// GET /api/v1/users/me/stats (RF3: Aggregated statistics)
-router.get("/me/stats", token_checker, UserController.get_stats);
-
 export default router;

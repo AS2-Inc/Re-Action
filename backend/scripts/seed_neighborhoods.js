@@ -49,7 +49,6 @@ const buildDefaults = () => ({
     km_green: 0,
     last_updated: new Date(),
   },
-  active_goals: [],
 });
 
 const seed = async () => {
@@ -97,10 +96,6 @@ const seed = async () => {
         env.last_updated === undefined
       ) {
         updates.environmental_data = envUpdates;
-      }
-
-      if (!Array.isArray(existing.active_goals)) {
-        updates.active_goals = [];
       }
 
       if (Object.keys(updates).length > 0) {

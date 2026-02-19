@@ -177,9 +177,6 @@ router.post("/login", async (req, res) => {
 
   res.json({
     token: token,
-    email: operator.email,
-    id: operator._id,
-    self: `/api/v1/operators/${operator._id}`,
     role: operator.role,
   });
 });
@@ -222,22 +219,6 @@ router.delete(
     }
   },
 );
-
-// GET /api/v1/operators/me
-router.get("/me", token_checker, async (req, res) => {
-  const logged_user = req.logged_user;
-
-  const operator = await Operator.findOne({ email: logged_user.email }).exec();
-
-  if (!operator) return res.status(404).send();
-
-  res.status(200).json({
-    name: operator.name,
-    surname: operator.surname,
-    email: operator.email,
-    role: operator.role,
-  });
-});
 
 /**
  * GET /api/v1/operators/activate
@@ -294,25 +275,6 @@ router.post("/activate", async (req, res) => {
 // ============================================
 
 /**
- * GET /api/v1/operators/dashboard
- * Get complete dashboard overview for operators
- */
-router.get(
-  "/dashboard",
-  token_checker,
-  check_role(["operator", "admin"]),
-  async (_req, res) => {
-    try {
-      const data = await operator_dashboard_service.get_dashboard_overview();
-      res.status(200).json(data);
-    } catch (error) {
-      console.error("Dashboard error:", error);
-      res.status(500).json({ error: "Failed to fetch dashboard data" });
-    }
-  },
-);
-
-/**
  * GET /api/v1/operators/dashboard/neighborhoods
  * Get summary stats for all neighborhoods
  */
@@ -352,56 +314,6 @@ router.get(
       }
       console.error("Neighborhood detail error:", error);
       res.status(500).json({ error: "Failed to fetch neighborhood data" });
-    }
-  },
-);
-
-/**
- * GET /api/v1/operators/dashboard/environmental
- * Get environmental indicators across all neighborhoods
- */
-router.get(
-  "/dashboard/environmental",
-  token_checker,
-  check_role(["operator", "admin"]),
-  async (_req, res) => {
-    try {
-      const data =
-        await operator_dashboard_service.get_environmental_indicators();
-      res.status(200).json(data);
-    } catch (error) {
-      console.error("Environmental indicators error:", error);
-      res.status(500).json({ error: "Failed to fetch environmental data" });
-    }
-  },
-);
-
-/**
- * GET /api/v1/operators/reports/stats
- * Generate stats report for a given period
- */
-router.get(
-  "/reports/stats",
-  token_checker,
-  check_role(["operator", "admin"]),
-  async (req, res) => {
-    try {
-      const { start_date, end_date } = req.query;
-
-      // Default to last 30 days if not specified
-      const end = end_date ? new Date(end_date) : new Date();
-      const start = start_date
-        ? new Date(start_date)
-        : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      const report = await operator_dashboard_service.generate_stats_report(
-        start,
-        end,
-      );
-      res.status(200).json(report);
-    } catch (error) {
-      console.error("Report generation error:", error);
-      res.status(500).json({ error: "Failed to generate report" });
     }
   },
 );

@@ -1,9 +1,13 @@
-/**
- * Badge Configuration
- * Centralized definitions for all badges in the system
- */
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+import Badge from "../app/models/badge.js";
 
-export const BADGE_CATEGORIES = {
+dotenv.config();
+
+/**
+ * Badge Configuration - Inlined badge definitions for seeding
+ */
+const BADGE_CATEGORIES = {
   POINTS: "Points",
   TASKS: "Tasks",
   STREAK: "Streak",
@@ -11,32 +15,21 @@ export const BADGE_CATEGORIES = {
   SPECIAL: "Special",
 };
 
-export const BADGE_RARITIES = {
+const BADGE_RARITIES = {
   COMMON: "Common",
   RARE: "Rare",
   EPIC: "Epic",
   LEGENDARY: "Legendary",
 };
 
-export const TASK_CATEGORIES = {
+const TASK_CATEGORIES = {
   MOBILITY: "Mobility",
   WASTE: "Waste",
   COMMUNITY: "Community",
   VOLUNTEERING: "Volunteering",
 };
 
-/**
- * Default badge definitions
- * Each badge has:
- * - name: Unique identifier and display name
- * - description: User-facing description
- * - icon: Emoji or URL
- * - category: Type of achievement
- * - requirements: Conditions to earn the badge
- * - rarity: Indicator of difficulty/prestige
- * - display_order: Sort order for UI
- */
-export const DEFAULT_BADGES = [
+const DEFAULT_BADGES = [
   // Task-based badges
   {
     name: "Primo Passo",
@@ -163,13 +156,33 @@ export const DEFAULT_BADGES = [
   },
 ];
 
-/**
- * User level thresholds based on points
- */
-export const LEVEL_THRESHOLDS = [
-  { points: 5000, level: "King della Sostenibilità" },
-  { points: 1000, level: "Eroe Locale" },
-  { points: 500, level: "Cittadino Attivo" },
-  { points: 100, level: "Nuovo Arrivato" },
-  { points: 0, level: "Cittadino Base" },
-];
+const seed = async () => {
+  const dbUrl = process.env.DB_URL || "mongodb://localhost:27017/re-action";
+
+  try {
+    await mongoose.connect(dbUrl);
+    console.log("Connected to MongoDB at", dbUrl);
+
+    for (const badgeData of DEFAULT_BADGES) {
+      const existing = await Badge.findOne({ name: badgeData.name });
+
+      if (!existing) {
+        await Badge.create(badgeData);
+        console.log(`Created badge: ${badgeData.name}`);
+      } else {
+        await Badge.findOneAndUpdate({ name: badgeData.name }, badgeData, {
+          new: true,
+        });
+        console.log(`Updated badge: ${badgeData.name}`);
+      }
+    }
+
+    console.log("✅ Badge seeding complete.");
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ Badge seeding failed:", err);
+    process.exit(1);
+  }
+};
+
+seed();

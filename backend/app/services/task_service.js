@@ -480,11 +480,6 @@ export const get_task = async (task_id) => {
   return task;
 };
 
-export const get_active_tasks = async () => {
-  const tasks = await Task.find({ is_active: true });
-  return tasks;
-};
-
 export const get_all_tasks = async () => {
   const tasks = await Task.find()
     .populate("neighborhood_id", "name")

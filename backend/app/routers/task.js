@@ -16,14 +16,6 @@ router.get(
   TaskController.get_user_tasks,
 );
 
-// GET /api/v1/tasks/active (Get Active Tasks for Logged-in User)
-router.get(
-  "/active",
-  token_checker,
-  check_role(["citizen"]),
-  TaskController.get_active_tasks,
-);
-
 // POST /api/v1/tasks/submit
 router.post(
   "/submit",
@@ -92,7 +84,7 @@ router.delete(
 router.get(
   "/templates",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   async (_req, res) => {
     try {
       const active_only = _req.query.active_only !== "false";
@@ -107,12 +99,12 @@ router.get(
 
 /**
  * POST /api/v1/tasks/templates
- * Create a new task template (operators/admin only)
+ * Create a new task template (operators only)
  */
 router.post(
   "/templates",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   async (req, res) => {
     try {
       const template = await task_template_service.create_template(req.body);
@@ -134,7 +126,7 @@ router.post(
 router.get(
   "/templates/:id",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   async (req, res) => {
     try {
       const template = await task_template_service.get_template(req.params.id);
@@ -151,12 +143,12 @@ router.get(
 
 /**
  * PUT /api/v1/tasks/templates/:id
- * Update a task template (operators/admin only)
+ * Update a task template (operators only)
  */
 router.put(
   "/templates/:id",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   async (req, res) => {
     try {
       const template = await task_template_service.update_template(
@@ -181,7 +173,7 @@ router.put(
 router.delete(
   "/templates/:id",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   async (req, res) => {
     try {
       const template = await task_template_service.deactivate_template(
@@ -205,7 +197,7 @@ router.delete(
 router.post(
   "/from-template",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   async (req, res) => {
     try {
       const { template_id, ...task_data } = req.body;

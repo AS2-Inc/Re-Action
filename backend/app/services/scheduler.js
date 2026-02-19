@@ -1,4 +1,3 @@
-import notification_scheduler from "./notification_scheduler.js";
 import task_scheduler from "./task_scheduler.js";
 
 /**
@@ -8,7 +7,6 @@ import task_scheduler from "./task_scheduler.js";
 class SchedulerService {
   init() {
     console.log("Initializing System Schedulers...");
-    notification_scheduler.init();
     task_scheduler.init();
   }
 }

@@ -12,7 +12,7 @@ const router = express.Router();
 router.get(
   "",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   QuizController.list_quizzes,
 );
 
@@ -23,7 +23,7 @@ router.get(
 router.post(
   "",
   token_checker,
-  check_role(["operator", "admin"]),
+  check_role(["operator"]),
   QuizController.create_quiz,
 );
 

@@ -95,7 +95,7 @@ const router = createRouter({
       path: "/rewards",
       name: "rewards",
       component: RewardsView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, authType: "user" },
     },
     {
       path: "/operatorDashboard",

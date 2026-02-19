@@ -19,15 +19,5 @@ export default mongoose.model(
       km_green: { type: Number, default: 0 }, // total green km
       last_updated: { type: Date, default: Date.now },
     },
-
-    active_goals: [
-      {
-        description: String,
-        target_points: Number,
-        current_points: Number,
-        is_completed: { type: Boolean, default: false },
-        deadline: Date,
-      },
-    ],
   }),
 );

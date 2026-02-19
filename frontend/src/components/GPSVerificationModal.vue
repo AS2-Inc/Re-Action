@@ -234,6 +234,7 @@ export default {
   margin: 0;
   color: #4a4a4a;
   line-height: 1.5;
+  padding-bottom: 1rem;
 }
 
 .actions {

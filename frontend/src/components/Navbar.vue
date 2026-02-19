@@ -1,7 +1,7 @@
 <template>
 	<nav class="navbar">
 		<ul class="navbar-list">
-			<li v-for="link in _props.links" :key="link.to" class="navbar-item">
+			<li v-for="link in links" :key="link.to" class="navbar-item">
 				<RouterLink
 					:to="link.to"
 					class="navbar-link"
@@ -16,7 +16,7 @@
 </template>
 
 <script setup>
-const _props = defineProps({
+const props = defineProps({
   links: {
     type: Array,
     default: () => [],

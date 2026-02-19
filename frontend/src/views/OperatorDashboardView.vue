@@ -77,7 +77,7 @@ const fetchDashboardData = async () => {
 };
 
 // Funzione per il bottone della tabella
-const _viewDetails = async (id) => {
+const viewDetails = async (id) => {
   if (!apiService.isAuthenticated()) return;
 
   showModal.value = true;
@@ -118,7 +118,7 @@ const _viewDetails = async (id) => {
   }
 };
 
-const _closeModal = () => {
+const closeModal = () => {
   showModal.value = false;
   selectedNeighborhood.value = null;
 };
@@ -205,7 +205,7 @@ onMounted(() => {
                     </td>
                     <td class="task-count">{{ neighborhood.completed_tasks }}</td>
                     <td class="text-right">
-                      <button class="btn-details" @click="_viewDetails(neighborhood.id)">
+                      <button class="btn-details" @click="viewDetails(neighborhood.id)">
                         Vedi Dettagli
                       </button>
                     </td>
@@ -223,9 +223,9 @@ onMounted(() => {
    
     <!-- MODAL -->
     <Teleport to="body">
-        <div v-if="showModal" class="modal-overlay" @click.self="_closeModal">
+        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
             <div class="modal-card">
-                <button class="close-btn" @click="_closeModal">×</button>
+                <button class="close-btn" @click="closeModal">×</button>
                 
                 <div v-if="modalLoading" class="modal-loading">
                     <div class="spinner"></div>

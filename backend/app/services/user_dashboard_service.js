@@ -14,7 +14,7 @@ import BadgeService from "./badge_service.js";
 class UserDashboardService {
   /**
    * Get complete dashboard data for a user
-   * Includes: points, streak, badges, ambient stats, neighborhood info, active goals
+   * Includes: points, streak, badges, ambient stats, neighborhood info
    *
    * @param {string} user_id - User MongoDB ID
    * @returns {Promise<Object>} Complete dashboard data
@@ -63,9 +63,6 @@ class UserDashboardService {
           base_points: neighborhood.base_points,
           normalized_points: neighborhood.normalized_points,
           ranking_position: neighborhood.ranking_position,
-          active_goals: neighborhood.active_goals.filter(
-            (g) => !g.is_completed,
-          ),
           environmental_data: {
             co2_saved: neighborhood.environmental_data?.co2_saved || 0,
             waste_recycled:

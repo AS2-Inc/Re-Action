@@ -8,8 +8,8 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
 
-const _props = defineProps(["title", "content"]);
-const displayContent = ref(_props.content);
+const props = defineProps(["title", "content"]);
+const displayContent = ref(props.content);
 
 const animateNumber = (target) => {
   // Remove commas and convert to number

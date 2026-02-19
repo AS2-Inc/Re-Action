@@ -1,11 +1,11 @@
 <template>
-  <RouterLink :to="_props.to" class="btn">
-    {{ _props.label }}
+  <RouterLink :to="to" class="btn">
+    {{ label }}
   </RouterLink>
 </template>
 
 <script setup>
-const _props = defineProps({
+const props = defineProps({
   to: {
     type: String,
     default: "/login",

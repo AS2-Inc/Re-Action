@@ -8,7 +8,7 @@
         <div class="qr-reader-frame">
           <div id="qr-reader"></div>
         </div>
-        <p v-if="_error" class="error-message">{{ _error }}</p>
+        <p v-if="error" class="error-message">{{ error }}</p>
       </div>
       <div class="modal-footer">
         <button
@@ -37,7 +37,7 @@ export default {
   data() {
     return {
       scanner: null,
-      _error: null,
+      error: null,
     };
   },
   watch: {
@@ -55,7 +55,7 @@ export default {
     startScanner() {
       if (this.scanner) return;
 
-      this._error = null;
+      this.error = null;
       // Initialize after DOM is updated
       // We need to wait for the element to be present
       setTimeout(() => {
@@ -67,8 +67,8 @@ export default {
           );
           this.scanner.render(this.onScanSuccess, this.onScanFailure);
         } catch (e) {
-          console._error("Error starting scanner", e);
-          this._error =
+          console.error("Error starting scanner", e);
+          this.error =
             "Impossibile avviare la fotocamera. Verifica i permessi.";
         }
       }, 100);
@@ -76,11 +76,11 @@ export default {
     stopScanner() {
       if (this.scanner) {
         try {
-          this.scanner.clear().catch((_error) => {
-            console._error("Failed to clear html5-qrcode scanner. ", _error);
+          this.scanner.clear().catch((error) => {
+            console.error("Failed to clear html5-qrcode scanner. ", error);
           });
         } catch (e) {
-          console._error("Error stopping scanner", e);
+          console.error("Error stopping scanner", e);
         }
         this.scanner = null;
       }
@@ -92,7 +92,7 @@ export default {
       this.stopScanner();
       this.close();
     },
-    onScanFailure(_error) {
+    onScanFailure(error) {
       // console.warn(`Code scan error = ${error}`);
     },
     close() {

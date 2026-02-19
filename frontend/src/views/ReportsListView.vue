@@ -43,7 +43,7 @@ const fetchSubmissions = async () => {
   }
 };
 
-const _openVerificationModal = (submission) => {
+const openVerificationModal = (submission) => {
   selectedSubmission.value = submission;
   showModal.value = true;
 };
@@ -53,7 +53,7 @@ const closeVerificationModal = () => {
   selectedSubmission.value = null;
 };
 
-const _verifySubmission = async (verdict) => {
+const verifySubmission = async (verdict) => {
   if (!selectedSubmission.value) return;
 
   if (!apiService.isAuthenticated()) return;
@@ -136,7 +136,7 @@ onMounted(() => {
                     </span>
                   </td>
                   <td class="text-right">
-                    <button class="btn-details" @click="_openVerificationModal(sub)">
+                    <button class="btn-details" @click="openVerificationModal(sub)">
                       Verifica
                     </button>
                   </td>
@@ -219,8 +219,8 @@ onMounted(() => {
             </div>
 
             <div class="modal-actions">
-                <button class="btn-reject" @click="_verifySubmission('REJECTED')">Rifiuta</button>
-                <button class="btn-approve" @click="_verifySubmission('APPROVED')">Approva</button>
+                <button class="btn-reject" @click="verifySubmission('REJECTED')">Rifiuta</button>
+                <button class="btn-approve" @click="verifySubmission('APPROVED')">Approva</button>
             </div>
 
           </div>

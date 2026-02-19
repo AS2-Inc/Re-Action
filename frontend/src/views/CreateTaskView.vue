@@ -8,7 +8,7 @@ const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
 
 // TABS
-const _currentTab = ref("scratch"); // 'scratch' | 'template'
+const currentTab = ref("scratch"); // 'scratch' | 'template'
 
 // COMMON STATE
 const loading = ref(false);
@@ -128,7 +128,7 @@ const resetQuizForm = () => {
   };
 };
 
-const _addQuizQuestion = () => {
+const addQuizQuestion = () => {
   quizForm.value.questions.push({
     text: "",
     options_text: "",
@@ -136,11 +136,11 @@ const _addQuizQuestion = () => {
   });
 };
 
-const _removeQuizQuestion = (index) => {
+const removeQuizQuestion = (index) => {
   quizForm.value.questions.splice(index, 1);
 };
 
-const _createQuiz = async () => {
+const createQuiz = async () => {
   if (!apiService.isAuthenticated()) return;
 
   if (!quizForm.value.title.trim()) {
@@ -191,7 +191,7 @@ const _createQuiz = async () => {
   }
 };
 
-const _handleTemplateChange = () => {
+const handleTemplateChange = () => {
   if (!selectedTemplate.value) return;
 
   // Reset specific form data
@@ -222,7 +222,7 @@ const _handleTemplateChange = () => {
   }
 };
 
-const _createTask = async () => {
+const createTask = async () => {
   loading.value = true;
   error.value = null;
   successMessage.value = "";
@@ -311,7 +311,7 @@ const _createTask = async () => {
   }
 };
 
-const _createTaskFromTemplate = async () => {
+const createTaskFromTemplate = async () => {
   if (!selectedTemplateId.value) return;
 
   loading.value = true;
@@ -377,15 +377,15 @@ onMounted(() => {
         <div class="tabs-container">
             <button 
                 class="tab-btn" 
-                :class="{ active: _currentTab === 'scratch' }"
-                @click="_currentTab = 'scratch'"
+                :class="{ active: currentTab === 'scratch' }"
+                @click="currentTab = 'scratch'"
             >
                 Crea da Zero
             </button>
             <button 
                 class="tab-btn" 
-                :class="{ active: _currentTab === 'template' }"
-                @click="_currentTab = 'template'"
+                :class="{ active: currentTab === 'template' }"
+                @click="currentTab = 'template'"
             >
                 Usa un Modello
             </button>
@@ -394,7 +394,7 @@ onMounted(() => {
         <div class="form-card">
             
             <!-- FORM: CREATE FROM SCRATCH -->
-            <form v-if="_currentTab === 'scratch'" @submit.prevent="_createTask">
+            <form v-if="currentTab === 'scratch'" @submit.prevent="createTask">
                 <div class="form-header-note">Stai creando un task completamente personalizzato.</div>
                 
                 <div class="form-grid">
@@ -585,7 +585,7 @@ onMounted(() => {
                         <div class="quiz-questions">
                           <div class="quiz-questions-header">
                             <h4>Domande</h4>
-                            <button class="btn-submit" type="button" @click="_addQuizQuestion">
+                            <button class="btn-submit" type="button" @click="addQuizQuestion">
                               + Aggiungi domanda
                             </button>
                           </div>
@@ -619,7 +619,7 @@ onMounted(() => {
                               </div>
                             </div>
                             <div class="inline-actions">
-                              <button class="btn-submit" type="button" @click="_removeQuizQuestion(index)">
+                              <button class="btn-submit" type="button" @click="removeQuizQuestion(index)">
                                 Rimuovi domanda
                               </button>
                             </div>
@@ -627,7 +627,7 @@ onMounted(() => {
                         </div>
 
                         <div class="inline-actions">
-                          <button class="btn-submit" type="button" @click="_createQuiz">
+                          <button class="btn-submit" type="button" @click="createQuiz">
                             Salva quiz
                           </button>
                         </div>
@@ -663,14 +663,14 @@ onMounted(() => {
 
 
             <!-- FORM: CREATE FROM TEMPLATE -->
-            <form v-else @submit.prevent="_createTaskFromTemplate">
+            <form v-else @submit.prevent="createTaskFromTemplate">
                 <div class="form-header-note">Scegli un modello predefinito per configurare rapidamente il task.</div>
 
                 <div class="form-grid">
                     <!-- Template Selector -->
                     <div class="form-group span-2">
                         <label>Seleziona Modello</label>
-                        <select v-model="selectedTemplateId" @change="_handleTemplateChange" class="input-field" required>
+                        <select v-model="selectedTemplateId" @change="handleTemplateChange" class="input-field" required>
                             <option value="" disabled>-- Scegli un Modello --</option>
                             <option v-for="tpl in templates" :key="tpl._id" :value="tpl._id">
                                 {{ tpl.name }} ({{ tpl.category }})

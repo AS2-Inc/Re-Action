@@ -26,7 +26,7 @@ app.use(
   cors({
     origin: [
       process.env.BACKEND_BASE_URL,
-      process.env.PUBLIC_FRONTEND_URL,
+      process.env.FRONTEND_BASE_URL,
     ].filter(Boolean),
   }),
 ); // Allow Cross-Origin requests from Vue Frontend

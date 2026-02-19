@@ -359,7 +359,7 @@ const fetchQuizzes = async () => {
   }
 };
 
-const _addQuizQuestion = () => {
+const addQuizQuestion = () => {
   quizForm.value.questions.push({
     text: "",
     options_text: "",
@@ -367,11 +367,11 @@ const _addQuizQuestion = () => {
   });
 };
 
-const _removeQuizQuestion = (index) => {
+const removeQuizQuestion = (index) => {
   quizForm.value.questions.splice(index, 1);
 };
 
-const _createQuiz = async () => {
+const createQuiz = async () => {
   if (!apiService.isAuthenticated()) return;
 
   if (!quizForm.value.title.trim()) {
@@ -454,7 +454,7 @@ const fetchTemplates = async () => {
 };
 
 // Logica di filtraggio per i tab
-const _filteredTemplates = computed(() => {
+const filteredTemplates = computed(() => {
   if (currentTab.value === "all") return templates.value;
 
   return templates.value.filter((tpl) => {
@@ -465,7 +465,7 @@ const _filteredTemplates = computed(() => {
   });
 });
 
-const _openCreateTemplate = () => {
+const openCreateTemplate = () => {
   templateModalMode.value = "create";
   editingTemplate.value = defaultTemplateForm();
   templateModalError.value = null;
@@ -474,7 +474,7 @@ const _openCreateTemplate = () => {
   showTemplateModal.value = true;
 };
 
-const _openEditTemplate = (template) => {
+const openEditTemplate = (template) => {
   templateModalMode.value = "edit";
   editingTemplate.value = normalizeTemplateForEdit(template);
   templateModalError.value = null;
@@ -489,7 +489,7 @@ const closeTemplateModal = () => {
   templateModalError.value = null;
 };
 
-const _addConfigurableField = () => {
+const addConfigurableField = () => {
   if (!editingTemplate.value) return;
   editingTemplate.value.configurable_fields.push({
     field_name: "",
@@ -506,12 +506,12 @@ const _addConfigurableField = () => {
   });
 };
 
-const _removeConfigurableField = (index) => {
+const removeConfigurableField = (index) => {
   if (!editingTemplate.value) return;
   editingTemplate.value.configurable_fields.splice(index, 1);
 };
 
-const _saveTemplate = async () => {
+const saveTemplate = async () => {
   if (!editingTemplate.value) return;
   if (!apiService.isAuthenticated()) return;
 
@@ -580,7 +580,7 @@ const _saveTemplate = async () => {
   }
 };
 
-const _deleteTemplate = async (template) => {
+const deleteTemplate = async (template) => {
   if (!template?._id) return;
   const proceed = confirm(
     `Vuoi davvero eliminare il modello "${template.name}"?`,
@@ -620,7 +620,7 @@ const fetchTasks = async () => {
   }
 };
 
-const _formatDate = (date) => {
+const formatDate = (date) => {
   if (!date) return "N/A";
   return new Date(date).toLocaleDateString("it-IT");
 };
@@ -637,7 +637,7 @@ const fetchNeighborhoods = async () => {
   }
 };
 
-const _openTaskDetail = (task) => {
+const openTaskDetail = (task) => {
   // Deep clone, and normalize neighborhood_id to just the _id string
   const clone = JSON.parse(JSON.stringify(task));
   clone.neighborhood_id_value =
@@ -696,13 +696,13 @@ const saveTask = async () => {
   }
 };
 
-const _toggleTaskActive = async () => {
+const toggleTaskActive = async () => {
   if (!editingTask.value) return;
   editingTask.value.is_active = !editingTask.value.is_active;
   await saveTask();
 };
 
-const _deleteTask = async () => {
+const deleteTask = async () => {
   if (!editingTask.value) return;
   if (!confirm(`Vuoi davvero eliminare il task "${editingTask.value.title}"?`))
     return;
@@ -773,7 +773,7 @@ onMounted(() => {
           </button>
         </div>
 
-        <button class="btn-create" @click="_openCreateTemplate">
+        <button class="btn-create" @click="openCreateTemplate">
           + Nuovo Modello
         </button>
       </div>
@@ -788,7 +788,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="tasks-grid">
-      <div v-for="tpl in _filteredTemplates" :key="tpl._id" class="task-card">
+      <div v-for="tpl in filteredTemplates" :key="tpl._id" class="task-card">
         <div class="card-content">
             <div class="card-header">
                 <h2 class="task-title">{{ tpl.name }}</h2>
@@ -824,17 +824,17 @@ onMounted(() => {
         </div>
 
         <div class="card-actions">
-          <button @click="_openEditTemplate(tpl)" class="btn-action btn-update">
+          <button @click="openEditTemplate(tpl)" class="btn-action btn-update">
             Modifica
           </button>
-          <button @click="_deleteTemplate(tpl)" class="btn-action btn-delete">
+          <button @click="deleteTemplate(tpl)" class="btn-action btn-delete">
             Elimina
           </button>
         </div>
       </div>
     </div>
 
-    <div v-if="!loading && _filteredTemplates.length === 0" class="empty-state">
+    <div v-if="!loading && filteredTemplates.length === 0" class="empty-state">
         <p>Nessun modello trovato in questa categoria.</p>
     </div>
 
@@ -1033,7 +1033,7 @@ onMounted(() => {
                   <div class="quiz-questions">
                     <div class="quiz-questions-header">
                       <h4>Domande</h4>
-                      <button class="btn-action btn-update" @click="_addQuizQuestion">
+                      <button class="btn-action btn-update" @click="addQuizQuestion">
                         + Aggiungi domanda
                       </button>
                     </div>
@@ -1067,7 +1067,7 @@ onMounted(() => {
                         </div>
                       </div>
                       <div class="config-field-actions">
-                        <button class="btn-action btn-delete" @click="_removeQuizQuestion(index)">
+                        <button class="btn-action btn-delete" @click="removeQuizQuestion(index)">
                           Rimuovi domanda
                         </button>
                       </div>
@@ -1075,7 +1075,7 @@ onMounted(() => {
                   </div>
 
                   <div class="inline-actions">
-                    <button class="btn-action btn-update" @click="_createQuiz">
+                    <button class="btn-action btn-update" @click="createQuiz">
                       Salva quiz
                     </button>
                   </div>
@@ -1184,7 +1184,7 @@ onMounted(() => {
             <div class="config-fields">
               <div class="config-fields-header">
                 <h3>Campi Configurabili</h3>
-                <button class="btn-action btn-update" @click="_addConfigurableField">
+                <button class="btn-action btn-update" @click="addConfigurableField">
                   + Aggiungi Campo
                 </button>
               </div>
@@ -1252,7 +1252,7 @@ onMounted(() => {
                 </div>
 
                 <div class="config-field-actions">
-                  <button class="btn-action btn-delete" @click="_removeConfigurableField(index)">
+                  <button class="btn-action btn-delete" @click="removeConfigurableField(index)">
                     Rimuovi
                   </button>
                 </div>
@@ -1267,11 +1267,11 @@ onMounted(() => {
               <button
                 v-if="templateModalMode === 'edit'"
                 class="btn-modal btn-delete-modal"
-                @click="_deleteTemplate(editingTemplate)"
+                @click="deleteTemplate(editingTemplate)"
               >
                 Elimina
               </button>
-              <button class="btn-modal btn-save" @click="_saveTemplate">
+              <button class="btn-modal btn-save" @click="saveTemplate">
                 Salva
               </button>
             </div>
@@ -1312,7 +1312,7 @@ onMounted(() => {
               <tr v-if="tasks.length === 0">
                 <td colspan="9" class="text-center">Nessun task trovato.</td>
               </tr>
-              <tr v-for="task in tasks" :key="task._id" class="clickable-row" @click="_openTaskDetail(task)">
+              <tr v-for="task in tasks" :key="task._id" class="clickable-row" @click="openTaskDetail(task)">
                 <td class="primary-text">{{ task.title }}</td>
                 <td>{{ task.neighborhood_name || task.neighborhood_id?.name || '—' }}</td>
                 <td><span class="badge badge-frequency">{{ task.category }}</span></td>
@@ -1325,7 +1325,7 @@ onMounted(() => {
                   <span :class="['status-badge', task.is_active !== false ? 'active' : 'inactive']">{{ task.is_active !== false ? 'Attivo' : 'Inattivo' }}</span>
                 </td>
                 <td>{{ task.base_points }}</td>
-                <td>{{ _formatDate(task.created_at) }}</td>
+                <td>{{ formatDate(task.created_at) }}</td>
               </tr>
             </tbody>
           </table>
@@ -1440,8 +1440,8 @@ onMounted(() => {
             </div>
 
             <div class="modal-actions">
-              <button class="btn-modal btn-delete-modal" @click="_deleteTask">Elimina</button>
-              <button class="btn-modal btn-toggle" @click="_toggleTaskActive">
+              <button class="btn-modal btn-delete-modal" @click="deleteTask">Elimina</button>
+              <button class="btn-modal btn-toggle" @click="toggleTaskActive">
                 {{ editingTask.is_active ? 'Disattiva' : 'Attiva' }}
               </button>
               <button class="btn-modal btn-save" @click="saveTask">Salva</button>

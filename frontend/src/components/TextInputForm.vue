@@ -1,24 +1,24 @@
 <template>
 	<div class="text-input-wrapper">
-		<label v-if="_props.label" class="text-input-label" :for="_props.id">
-			{{ _props.label }}
+		<label v-if="props.label" class="text-input-label" :for="props.id">
+			{{ props.label }}
 		</label>
 		<input
-			:id="_props.id"
+			:id="props.id"
 			class="text-input"
-			:type="_props.type"
-			:name="_props.name"
-			:placeholder="_props.placeholder"
-			:value="_props.modelValue"
-			@input="_emit('update:modelValue', $event.target.value)"
+			:type="props.type"
+			:name="props.name"
+			:placeholder="props.placeholder"
+			:value="props.modelValue"
+			@input="emit('update:modelValue', $event.target.value)"
 		/>
 	</div>
 </template>
 
 <script setup>
-const _emit = defineEmits(["update:modelValue"]);
+const emit = defineEmits(["update:modelValue"]);
 
-const _props = defineProps({
+const props = defineProps({
   modelValue: {
     type: String,
     default: "",

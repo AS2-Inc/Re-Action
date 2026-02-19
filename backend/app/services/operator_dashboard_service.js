@@ -120,7 +120,6 @@ class OperatorDashboardService {
           submissions_this_week,
           completed_tasks,
           environmental_data: n.environmental_data,
-          active_goals: n.active_goals,
         };
       }),
     );
@@ -202,7 +201,6 @@ class OperatorDashboardService {
         normalized_points: neighborhood.normalized_points,
         ranking_position: neighborhood.ranking_position,
         environmental_data: neighborhood.environmental_data,
-        active_goals: neighborhood.active_goals,
       },
       stats: {
         total_users: users.length,

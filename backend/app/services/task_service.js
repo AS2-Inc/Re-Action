@@ -84,17 +84,6 @@ export const award_points = async (user_id, task_id) => {
         impact,
       );
 
-      // Automatic Contribution to Active Goal (RF4 Enhancement)
-      const active_goal = neighborhood.active_goals.find(
-        (g) => !g.is_completed,
-      );
-      if (active_goal) {
-        active_goal.current_points += points_to_award;
-        if (active_goal.current_points >= active_goal.target_points) {
-          active_goal.is_completed = true;
-        }
-        await neighborhood.save();
-      }
     }
   }
 

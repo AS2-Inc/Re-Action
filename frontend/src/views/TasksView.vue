@@ -188,6 +188,9 @@ export default {
     async onGPSSubmitted(proof) {
       try {
         console.log("Proof: ", proof);
+        const gpsLocation = Array.isArray(proof)
+          ? proof
+          : [proof?.latitude, proof?.longitude];
         const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/tasks/submit`, {
           method: "POST",
@@ -197,7 +200,7 @@ export default {
           },
           body: JSON.stringify({
             task_id: this.selectedTaskForGPS._id,
-            proof: { gps_location: proof },
+            proof: { gps_location: gpsLocation },
           }),
         });
 

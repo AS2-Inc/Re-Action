@@ -63,12 +63,7 @@
                         <p class="side-info-label">Posizione</p>
                         <p class="side-info-value">#{{ neighborhoodRankingPosition }}</p>
                       </div>
-                      <div class="side-info-item">
-                        <p class="side-info-label">Miglioramento</p>
-                        <p class="side-info-value" >{{ neighborhoodImprovement }}%</p>
-                      </div>
                     </div>
-
                   </div>
                 </div>
                 <div class="neighborhood-stats">
@@ -165,7 +160,6 @@ export default {
       neighborhoodCo2Saved: 0,
       neighborhoodWasteRecycled: 0,
       neighborhoodKmGreen: 0,
-      neighborhoodImprovement: 0,
       neighborhoodPeriod: "monthly",
       isLoading: false,
       error: "",
@@ -327,7 +321,6 @@ export default {
 
         if (entry) {
           this.neighborhoodRankingPosition = Number(entry.rank || 0) || 0;
-          this.neighborhoodImprovement = Number(entry.improvement_factor || 0);
         }
       } catch (error) {
         console.error("Neighborhood ranking fetch error:", error);
@@ -572,6 +565,8 @@ export default {
   flex-direction: column;
   gap: 0.2rem;
   padding: 0.5rem 0.75rem;
+  height: 100%;
+  width: 200px;
   background-color: rgba(127, 158, 62, 0.1);
   border-radius: 8px;
 }
@@ -584,7 +579,7 @@ export default {
 
 .side-info-value {
   font-family: "Caladea", serif;
-  font-size: 1.4rem;
+  font-size: 3rem;
   font-weight: 700;
   color: #7f9e3e;
 }
@@ -642,6 +637,7 @@ export default {
 }
 
 .neighborhood-core-stats{
+  height: 100%;
   display: flex;
   gap: 1.5rem;
   margin-top: 0.75rem;

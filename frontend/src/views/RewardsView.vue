@@ -156,8 +156,9 @@ export default {
   methods: {
     async fetchUserPoints() {
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         });
 
         if (!response.ok) {
@@ -176,8 +177,9 @@ export default {
       this.errorRewards = "";
 
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/v1/rewards`, {
-          credentials: "include",
+          headers: { "x-access-token": token },
         });
 
         if (!response.ok) {
@@ -198,10 +200,11 @@ export default {
       this.errorMyRewards = "";
 
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(
           `${API_BASE_URL}/api/v1/rewards/my-rewards`,
           {
-            credentials: "include",
+            headers: { "x-access-token": token },
           },
         );
 
@@ -226,14 +229,15 @@ export default {
       this.redeemingReward = reward._id;
 
       try {
+        const token = localStorage.getItem("token");
         const response = await fetch(
           `${API_BASE_URL}/api/v1/rewards/${reward._id}/redeem`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "x-access-token": token,
             },
-            credentials: "include",
           },
         );
 

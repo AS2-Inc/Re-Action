@@ -3,7 +3,6 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="modal-title">{{ quiz.title }}</h2>
-        <button class="modal-close" @click="exitQuiz" aria-label="Chiudi">×</button>
       </div>
 
       <div class="modal-body">

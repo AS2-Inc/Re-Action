@@ -43,6 +43,24 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+// Helper function to decode JWT token
+function decodeJWT(token) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(""),
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("Error decoding JWT:", error);
+    return null;
+  }
+}
+
 export default {
   name: "LoginView",
   components: {
@@ -98,6 +116,10 @@ export default {
           const operatorData = await operatorResponse.json();
           if (operatorData?.token) {
             localStorage.setItem("token", operatorData.token);
+            const decoded = decodeJWT(operatorData.token);
+            if (decoded?.role) {
+              localStorage.setItem("role", decoded.role);
+            }
           }
           this.success = "Login operatore effettuato con successo.";
           setTimeout(() => {
@@ -134,6 +156,10 @@ export default {
 
         // Store token in localStorage
         localStorage.setItem("token", data.token);
+        const decoded = decodeJWT(data.token);
+        if (decoded?.role) {
+          localStorage.setItem("role", decoded.role);
+        }
         localStorage.setItem("authenticated", "true");
 
         // Redirect to main area
@@ -224,6 +250,10 @@ export default {
 
         // Store token in localStorage
         localStorage.setItem("token", data.token);
+        const decoded = decodeJWT(data.token);
+        if (decoded?.role) {
+          localStorage.setItem("role", decoded.role);
+        }
         localStorage.setItem("authenticated", "true");
 
         setTimeout(() => {

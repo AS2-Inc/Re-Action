@@ -161,11 +161,13 @@ router.beforeEach((to, _from, next) => {
   }
 
   if (authType === "user") {
-    if (token && role) {
+    // Check if user is authenticated (has token with citizen role)
+    if (!token || !isAuthenticated) {
       next("/login");
       return;
     }
-    if (!isAuthenticated) {
+    // Verify the role is citizen (not operator/admin)
+    if (role && role !== "citizen") {
       next("/login");
       return;
     }

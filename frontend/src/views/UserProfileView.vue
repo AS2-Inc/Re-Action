@@ -258,6 +258,7 @@ export default {
     logout() {
       localStorage.removeItem("authenticated");
       localStorage.removeItem("token");
+      localStorage.removeItem("role");
       this.$router.push("/login");
     },
   },

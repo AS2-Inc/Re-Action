@@ -2,7 +2,7 @@
 
 A gamification platform for neighborhood engagement that rewards citizens for completing environmental and community tasks.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
@@ -12,31 +12,31 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 - [Testing](#-testing)
 - [Deployment](#-deployment)
 
-## ✨ Features
+## Features
 
 ### For Citizens
 
-- 🔐 **Authentication**: Email/password or Google OAuth login
-- 📍 **Neighborhood Selection**: Choose your neighborhood during registration
-- ✅ **Task Completion**: Complete tasks with different verification methods:
-  - 📸 Photo submission with operator review
-  - 📱 GPS location verification
-  - 📝 Quiz-based challenges
-  - 🔲 QR code scanning
-- 🏆 **Gamification**: Earn points, badges, and climb the leaderboard
-- 🎁 **Rewards**: Redeem accumulated points for rewards
-- 🔔 **Notifications**: Receive updates about new tasks and events
-- 📊 **Dashboard**: Track your progress, badges, and statistics
+- **Authentication**: Email/password or Google OAuth login
+- **Neighborhood Selection**: Choose your neighborhood during registration
+- **Task Completion**: Complete tasks with different verification methods:
+  - Photo submission with operator review
+  - GPS location verification
+  - Quiz-based challenges
+  - QR code scanning
+- **Gamification**: Earn points, badges, and climb the leaderboard
+- **Rewards**: Redeem accumulated points for rewards
+- **Notifications**: Receive updates about new tasks and events
+- **Dashboard**: Track your progress, badges, and statistics
 
 ### For Operators
 
-- 🛠️ **Task Management**: Create and manage tasks from templates
-- ✔️ **Submission Review**: Review and approve/reject photo submissions
-- 🎁 **Reward Management**: Create rewards and manage redemptions
-- 📈 **Analytics**: View neighborhood statistics and engagement
-- 👥 **Operator Management**: Admin can register new operators
+- **Task Management**: Create and manage tasks from templates
+- **Submission Review**: Review and approve/reject photo submissions
+- **Reward Management**: Create rewards and manage redemptions
+- **Analytics**: View neighborhood statistics and engagement
+- **Operator Management**: Admin can register new operators
 
-## 🚀 Tech Stack
+## Tech Stack
 
 ### Backend
 
@@ -54,7 +54,6 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 
 - **Framework**: Vue.js 3 (Composition API)
 - **Build Tool**: Vite
-- **Styling**: TailwindCSS + DaisyUI
 - **Routing**: Vue Router
 - **QR Scanner**: html5-qrcode
 
@@ -62,7 +61,7 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 
 - **Linting & Formatting**: Biome
 
-## 📁 Project Structure
+## Project Structure
 
 ```config
 Re-action/
@@ -97,7 +96,7 @@ Re-action/
 └── README.md              # This file
 ```
 
-## 🏁 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -162,7 +161,7 @@ Re-action/
 
    App will be available at `http://localhost:5173`
 
-## 💻 Development
+## Development
 
 ### Formatting and Linting
 
@@ -193,7 +192,7 @@ npm run ci          # CI mode (fails on errors)
 - **Routing**: Configured in `src/router/index.js`
 - **Styling**: TailwindCSS + DaisyUI components
 
-## 🧪 Testing
+## Testing
 
 ### Backend Tests
 
@@ -221,7 +220,7 @@ Test structure:
 - `test/integration/`: API endpoint tests
 - `test/unit/`: Unit tests for controllers, middleware, services
 
-## 🚢 Deployment
+## Deployment
 
 ### Backend Deployment
 
@@ -244,7 +243,7 @@ See detailed configuration:
 - Backend: [backend/.env.example](backend/.env.example)
 - Frontend: [frontend/.env.example](frontend/.env.example)
 
-## 🔗 Links
+## Links
 
 - [Repository](https://github.com/AS2-Inc/Re-Action)
 - [Issues](https://github.com/AS2-Inc/Re-Action/issues)

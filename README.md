@@ -15,6 +15,7 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 ## ✨ Features
 
 ### For Citizens
+
 - 🔐 **Authentication**: Email/password or Google OAuth login
 - 📍 **Neighborhood Selection**: Choose your neighborhood during registration
 - ✅ **Task Completion**: Complete tasks with different verification methods:
@@ -28,6 +29,7 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 - 📊 **Dashboard**: Track your progress, badges, and statistics
 
 ### For Operators
+
 - 🛠️ **Task Management**: Create and manage tasks from templates
 - ✔️ **Submission Review**: Review and approve/reject photo submissions
 - 🎁 **Reward Management**: Create rewards and manage redemptions
@@ -37,6 +39,7 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 ## 🚀 Tech Stack
 
 ### Backend
+
 - **Runtime**: Node.js (>= 25.0.0)
 - **Framework**: Express.js 5
 - **Database**: MongoDB with Mongoose ODM
@@ -48,6 +51,7 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 - **API Documentation**: OpenAPI 3.0 + Swagger UI
 
 ### Frontend
+
 - **Framework**: Vue.js 3 (Composition API)
 - **Build Tool**: Vite
 - **Styling**: TailwindCSS + DaisyUI
@@ -55,11 +59,12 @@ A gamification platform for neighborhood engagement that rewards citizens for co
 - **QR Scanner**: html5-qrcode
 
 ### Code Quality
+
 - **Linting & Formatting**: Biome
 
 ## 📁 Project Structure
 
-```
+```config
 Re-action/
 ├── backend/                 # Node.js/Express API server
 │   ├── app/
@@ -104,12 +109,14 @@ Re-action/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/AS2-Inc/Re-Action.git
    cd Re-action
    ```
 
 2. **Backend Setup**
+
    ```bash
    cd backend
    npm install
@@ -124,6 +131,7 @@ Re-action/
    ```
 
 3. **Frontend Setup**
+
    ```bash
    cd ../frontend
    npm install
@@ -136,23 +144,27 @@ Re-action/
 ### Running the Application
 
 1. **Start Backend** (from `backend/` directory)
+
    ```bash
    npm run dev    # Development with auto-reload
    # or
    npm start      # Production mode
    ```
+
    API will be available at `http://localhost:5000`
    Swagger docs at `http://localhost:5000/api-docs`
 
 2. **Start Frontend** (from `frontend/` directory)
+
    ```bash
    npm run dev    # Development with hot-reload
    ```
+
    App will be available at `http://localhost:5173`
 
 ## 💻 Development
 
-### Code Quality
+### Formatting and Linting
 
 This project uses [Biome](https://biomejs.dev/) for linting and formatting.
 
@@ -199,11 +211,13 @@ npm run test:unit
 ```
 
 Tests use:
+
 - **Jest** as test runner
 - **Supertest** for HTTP assertions
 - **mongodb-memory-server** for in-memory database
 
 Test structure:
+
 - `test/integration/`: API endpoint tests
 - `test/unit/`: Unit tests for controllers, middleware, services
 
@@ -226,6 +240,7 @@ Test structure:
 ### Environment Variables
 
 See detailed configuration:
+
 - Backend: [backend/.env.example](backend/.env.example)
 - Frontend: [frontend/.env.example](frontend/.env.example)
 

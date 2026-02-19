@@ -370,7 +370,7 @@ const fetchQuizzes = async () => {
   }
 };
 
-const addQuizQuestion = () => {
+const _addQuizQuestion = () => {
   quizForm.value.questions.push({
     text: "",
     options_text: "",
@@ -378,11 +378,11 @@ const addQuizQuestion = () => {
   });
 };
 
-const removeQuizQuestion = (index) => {
+const _removeQuizQuestion = (index) => {
   quizForm.value.questions.splice(index, 1);
 };
 
-const createQuiz = async () => {
+const _createQuiz = async () => {
   const token = localStorage.getItem("token");
   if (!token) return;
 
@@ -504,7 +504,7 @@ const _filteredTemplates = computed(() => {
   });
 });
 
-const openCreateTemplate = () => {
+const _openCreateTemplate = () => {
   templateModalMode.value = "create";
   editingTemplate.value = defaultTemplateForm();
   templateModalError.value = null;
@@ -513,7 +513,7 @@ const openCreateTemplate = () => {
   showTemplateModal.value = true;
 };
 
-const openEditTemplate = (template) => {
+const _openEditTemplate = (template) => {
   templateModalMode.value = "edit";
   editingTemplate.value = normalizeTemplateForEdit(template);
   templateModalError.value = null;
@@ -528,7 +528,7 @@ const closeTemplateModal = () => {
   templateModalError.value = null;
 };
 
-const addConfigurableField = () => {
+const _addConfigurableField = () => {
   if (!editingTemplate.value) return;
   editingTemplate.value.configurable_fields.push({
     field_name: "",
@@ -545,12 +545,12 @@ const addConfigurableField = () => {
   });
 };
 
-const removeConfigurableField = (index) => {
+const _removeConfigurableField = (index) => {
   if (!editingTemplate.value) return;
   editingTemplate.value.configurable_fields.splice(index, 1);
 };
 
-const saveTemplate = async () => {
+const _saveTemplate = async () => {
   if (!editingTemplate.value) return;
   const token = localStorage.getItem("token");
   if (!token) return;
@@ -629,7 +629,7 @@ const saveTemplate = async () => {
   }
 };
 
-const deleteTemplate = async (template) => {
+const _deleteTemplate = async (template) => {
   if (!template?._id) return;
   const proceed = confirm(
     `Vuoi davvero eliminare il modello "${template.name}"?`,
@@ -877,7 +877,7 @@ onMounted(() => {
           </button>
         </div>
 
-        <button class="btn-create" @click="openCreateTemplate">
+        <button class="btn-create" @click="_openCreateTemplate">
           + Nuovo Modello
         </button>
       </div>
@@ -928,10 +928,10 @@ onMounted(() => {
         </div>
 
         <div class="card-actions">
-          <button @click="openEditTemplate(tpl)" class="btn-action btn-update">
+          <button @click="_openEditTemplate(tpl)" class="btn-action btn-update">
             Modifica
           </button>
-          <button @click="deleteTemplate(tpl)" class="btn-action btn-delete">
+          <button @click="_deleteTemplate(tpl)" class="btn-action btn-delete">
             Elimina
           </button>
         </div>
@@ -1137,7 +1137,7 @@ onMounted(() => {
                   <div class="quiz-questions">
                     <div class="quiz-questions-header">
                       <h4>Domande</h4>
-                      <button class="btn-action btn-update" @click="addQuizQuestion">
+                      <button class="btn-action btn-update" @click="_addQuizQuestion">
                         + Aggiungi domanda
                       </button>
                     </div>
@@ -1171,7 +1171,7 @@ onMounted(() => {
                         </div>
                       </div>
                       <div class="config-field-actions">
-                        <button class="btn-action btn-delete" @click="removeQuizQuestion(index)">
+                        <button class="btn-action btn-delete" @click="_removeQuizQuestion(index)">
                           Rimuovi domanda
                         </button>
                       </div>
@@ -1179,7 +1179,7 @@ onMounted(() => {
                   </div>
 
                   <div class="inline-actions">
-                    <button class="btn-action btn-update" @click="createQuiz">
+                    <button class="btn-action btn-update" @click="_createQuiz">
                       Salva quiz
                     </button>
                   </div>
@@ -1288,7 +1288,7 @@ onMounted(() => {
             <div class="config-fields">
               <div class="config-fields-header">
                 <h3>Campi Configurabili</h3>
-                <button class="btn-action btn-update" @click="addConfigurableField">
+                <button class="btn-action btn-update" @click="_addConfigurableField">
                   + Aggiungi Campo
                 </button>
               </div>
@@ -1356,7 +1356,7 @@ onMounted(() => {
                 </div>
 
                 <div class="config-field-actions">
-                  <button class="btn-action btn-delete" @click="removeConfigurableField(index)">
+                  <button class="btn-action btn-delete" @click="_removeConfigurableField(index)">
                     Rimuovi
                   </button>
                 </div>
@@ -1371,11 +1371,11 @@ onMounted(() => {
               <button
                 v-if="templateModalMode === 'edit'"
                 class="btn-modal btn-delete-modal"
-                @click="deleteTemplate(editingTemplate)"
+                @click="_deleteTemplate(editingTemplate)"
               >
                 Elimina
               </button>
-              <button class="btn-modal btn-save" @click="saveTemplate">
+              <button class="btn-modal btn-save" @click="_saveTemplate">
                 Salva
               </button>
             </div>

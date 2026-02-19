@@ -141,7 +141,7 @@ const resetQuizForm = () => {
   };
 };
 
-const addQuizQuestion = () => {
+const _addQuizQuestion = () => {
   quizForm.value.questions.push({
     text: "",
     options_text: "",
@@ -149,11 +149,11 @@ const addQuizQuestion = () => {
   });
 };
 
-const removeQuizQuestion = (index) => {
+const _removeQuizQuestion = (index) => {
   quizForm.value.questions.splice(index, 1);
 };
 
-const createQuiz = async () => {
+const _createQuiz = async () => {
   const token = localStorage.getItem("token");
   if (!token) return;
 
@@ -647,7 +647,7 @@ onMounted(() => {
                         <div class="quiz-questions">
                           <div class="quiz-questions-header">
                             <h4>Domande</h4>
-                            <button class="btn-submit" type="button" @click="addQuizQuestion">
+                            <button class="btn-submit" type="button" @click="_addQuizQuestion">
                               + Aggiungi domanda
                             </button>
                           </div>
@@ -681,7 +681,7 @@ onMounted(() => {
                               </div>
                             </div>
                             <div class="inline-actions">
-                              <button class="btn-submit" type="button" @click="removeQuizQuestion(index)">
+                              <button class="btn-submit" type="button" @click="_removeQuizQuestion(index)">
                                 Rimuovi domanda
                               </button>
                             </div>
@@ -689,7 +689,7 @@ onMounted(() => {
                         </div>
 
                         <div class="inline-actions">
-                          <button class="btn-submit" type="button" @click="createQuiz">
+                          <button class="btn-submit" type="button" @click="_createQuiz">
                             Salva quiz
                           </button>
                         </div>

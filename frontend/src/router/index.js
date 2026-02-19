@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import apiService from "../services/api.js";
 import AdminLoginView from "../views/AdminLoginView.vue";
 import AdminOperatorsView from "../views/AdminOperatorsView.vue";
 import CreateTaskView from "../views/CreateTaskView.vue";
@@ -16,7 +17,6 @@ import StatsView from "../views/StatsView.vue";
 import TasksView from "../views/TasksView.vue";
 import TaskTemplatesView from "../views/TaskTemplatesView.vue";
 import UserProfileView from "../views/UserProfileView.vue";
-import apiService from "../services/api.js";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

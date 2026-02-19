@@ -88,7 +88,7 @@ export const create_reward = async (req, res) => {
  * GET /api/v1/rewards/all
  * Get all rewards for admins/operators
  */
-export const get_all_rewards = async (req, res) => {
+export const get_all_rewards = async (_req, res) => {
   try {
     const rewards = await RewardService.get_all_rewards();
     res.status(200).json(rewards);

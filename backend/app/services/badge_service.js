@@ -293,7 +293,8 @@ class BadgeService {
     const currentLevel = user.level;
     const nextLevel = currentLevel + 1;
     const nextLevelThreshold =
-      this.LEVEL_THRESHOLDS.find((t) => t.level === nextLevel)?.points || Infinity;
+      this.LEVEL_THRESHOLDS.find((t) => t.level === nextLevel)?.points ||
+      Infinity;
 
     return user.points >= nextLevelThreshold;
   }

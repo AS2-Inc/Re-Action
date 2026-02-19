@@ -30,7 +30,7 @@ export const get_public_stats = async () => {
       total_neighborhoods,
       total_co2_saved: totals.total_co2_saved,
     };
-  } catch (error) {
+  } catch (_error) {
     throw new ServiceError(500, "Failed to fetch public stats");
   }
 };

@@ -372,14 +372,14 @@ const fetchNeighborhoods = async () => {
   }
 };
 
-const openCreateModal = () => {
+const _openCreateModal = () => {
   modalMode.value = "create";
   rewardForm.value = defaultForm();
   modalError.value = null;
   showModal.value = true;
 };
 
-const openEditModal = (reward) => {
+const _openEditModal = (reward) => {
   modalMode.value = "edit";
   rewardForm.value = {
     _id: reward._id,
@@ -415,7 +415,7 @@ const toggleAllNeighborhoods = () => {
   }
 };
 
-const saveReward = async () => {
+const _saveReward = async () => {
   const token = localStorage.getItem("token");
   if (!token) {
     router.push("/admin");

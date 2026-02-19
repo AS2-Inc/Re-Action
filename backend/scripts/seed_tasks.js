@@ -30,7 +30,8 @@ const EXAMPLE_TASKS = [
   },
   {
     title: "5km Eco-Run Challenge",
-    description: "Complete a 5km run or walk to stay healthy and reduce carbon emissions",
+    description:
+      "Complete a 5km run or walk to stay healthy and reduce carbon emissions",
     category: "Mobility",
     difficulty: "Medium",
     base_points: 100,
@@ -106,7 +107,8 @@ const EXAMPLE_TASKS = [
     base_points: 250,
     verification_method: "PHOTO_UPLOAD",
     verification_criteria: {
-      photo_description: "Photos from the cleanup event with multiple participants",
+      photo_description:
+        "Photos from the cleanup event with multiple participants",
     },
     impact_metrics: {
       waste_recycled: 20,
@@ -132,7 +134,8 @@ const EXAMPLE_TASKS = [
   },
   {
     title: "Attend Community Meeting",
-    description: "Attend a local environmental or sustainability community meeting",
+    description:
+      "Attend a local environmental or sustainability community meeting",
     category: "Community",
     difficulty: "Medium",
     base_points: 100,
@@ -168,7 +171,8 @@ const EXAMPLE_TASKS = [
     base_points: 75,
     verification_method: "PHOTO_UPLOAD",
     verification_criteria: {
-      photo_description: "Photo with volunteer badge or at the organization location",
+      photo_description:
+        "Photo with volunteer badge or at the organization location",
     },
     impact_metrics: {},
     frequency: "weekly",
@@ -192,7 +196,8 @@ const EXAMPLE_TASKS = [
   },
   {
     title: "Mentor a Sustainability Beginner",
-    description: "Mentor someone new to sustainable living for at least 1 month",
+    description:
+      "Mentor someone new to sustainable living for at least 1 month",
     category: "Volunteering",
     difficulty: "High",
     base_points: 300,
@@ -233,7 +238,7 @@ const seed = async () => {
     }
 
     console.log(
-      `\n✨ Task seeding complete. Created: ${created}, Updated: ${updated}`
+      `\n✨ Task seeding complete. Created: ${created}, Updated: ${updated}`,
     );
     process.exit(0);
   } catch (err) {

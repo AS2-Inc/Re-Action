@@ -151,7 +151,7 @@ class LeaderboardService {
    * @returns {Promise<Object>} Period stats
    */
   async _compute_period_stats(neighborhood_id, period) {
-    const empty = {
+    const _empty = {
       participation_rate: 0,
       improvement_factor: 0,
       active_users: 0,

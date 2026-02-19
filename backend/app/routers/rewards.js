@@ -1,7 +1,7 @@
 import express from "express";
+import * as RewardController from "../controllers/reward_controller.js";
 import check_role from "../middleware/role_checker.js";
 import token_checker from "../middleware/token_checker.js";
-import * as RewardController from "../controllers/reward_controller.js";
 
 const router = express.Router();
 

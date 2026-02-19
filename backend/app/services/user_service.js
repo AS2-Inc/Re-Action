@@ -147,6 +147,7 @@ export const get_user_profile = async (email) => {
     name: user.name,
     surname: user.surname,
     email: user.email,
+    points: user.points,
   };
 };
 

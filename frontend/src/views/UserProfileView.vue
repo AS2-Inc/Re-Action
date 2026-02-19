@@ -97,6 +97,7 @@ export default {
         { label: "Tasks", to: "/tasks" },
         { label: "Stats", to: "/stats" },
         { label: "Leaderboard", to: "/leaderboard" },
+        { label: "Premi", to: "/rewards" },
         { label: "Profilo", to: "/profile" },
       ],
       user: {

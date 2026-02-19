@@ -11,6 +11,7 @@ import PresentationView from "../views/PresentationView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import ReportsListView from "../views/ReportsListView.vue";
 import ResetPasswordView from "../views/ResetPasswordView.vue";
+import RewardsView from "../views/RewardsView.vue";
 import StatsView from "../views/StatsView.vue";
 import TasksView from "../views/TasksView.vue";
 import TaskTemplatesView from "../views/TaskTemplatesView.vue";
@@ -81,6 +82,12 @@ const router = createRouter({
       path: "/stats",
       name: "stats",
       component: StatsView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/rewards",
+      name: "rewards",
+      component: RewardsView,
       meta: { requiresAuth: true },
     },
     {

@@ -1,4 +1,3 @@
-import { DEFAULT_BADGES, LEVEL_THRESHOLDS } from "../config/badges.config.js";
 import ServiceError from "../errors/service_error.js";
 import Badge from "../models/badge.js";
 import Activity from "../models/submission.js";
@@ -15,29 +14,33 @@ import User from "../models/user.js";
  * - Retrieving badge information with earned status
  */
 class BadgeService {
-  /**
-   * Initialize default badges in the database
-   * Should be called once during application setup
-   * Uses upsert to update existing badges or create new ones
-   *
-   * @returns {Promise<void>}
-   * @throws {Error} If database operation fails
-   */
-  async initializeDefaultBadges() {
-    try {
-      for (const badgeData of DEFAULT_BADGES) {
-        await Badge.findOneAndUpdate({ name: badgeData.name }, badgeData, {
-          upsert: true,
-          new: true,
-        });
-      }
-      console.log("✅ Default badges initialized successfully");
-    } catch (error) {
-      console.error("❌ Error initializing badges:", error);
-      throw error;
-    }
-  }
-
+  // Level thresholds defining user levels based on points
+  LEVEL_THRESHOLDS = [
+    {
+      level: "Cittadino Base",
+      points: 0,
+    },
+    {
+      level: "Cittadino Attivo",
+      points: 100,
+    },
+    {
+      level: "Cittadino Consapevole",
+      points: 300,
+    },
+    {
+      level: "Ambasciatore Sostenibile",
+      points: 750,
+    },
+    {
+      level: "Guerriero Verde",
+      points: 1500,
+    },
+    {
+      level: "Maestro della Sostenibilità",
+      points: 3000,
+    },
+  ];
   /**
    * Build user context for badge checking
    * Aggregates all relevant user statistics and activities
@@ -84,13 +87,13 @@ class BadgeService {
 
   /**
    * Update user's level based on points
-   * Uses thresholds defined in badges configuration
+   * Uses thresholds defined in the service's LEVEL_THRESHOLDS
    *
    * @param {Object} user - User document to update
    * @private
    */
   _updateUserLevel(user) {
-    for (const { points, level } of LEVEL_THRESHOLDS) {
+    for (const { points, level } of this.LEVEL_THRESHOLDS) {
       if (user.points >= points) {
         user.level = level;
         break;
@@ -290,9 +293,21 @@ class BadgeService {
     const currentLevel = user.level;
     const nextLevel = currentLevel + 1;
     const nextLevelThreshold =
-      LEVEL_THRESHOLDS.find((t) => t.level === nextLevel)?.points || Infinity;
+      this.LEVEL_THRESHOLDS.find((t) => t.level === nextLevel)?.points || Infinity;
 
     return user.points >= nextLevelThreshold;
+  }
+
+  /**
+   * Get level thresholds
+   *
+   * Returns the list of level thresholds with point requirements.
+   * This provides the point ranges that define each user level.
+   *
+   * @returns {Array<Object>} Array of level threshold objects with level name and points
+   */
+  getLevelThresholds() {
+    return this.LEVEL_THRESHOLDS;
   }
 }
 

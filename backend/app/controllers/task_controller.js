@@ -111,19 +111,6 @@ export const get_task = async (req, res) => {
   }
 };
 
-export const get_active_tasks = async (_req, res) => {
-  try {
-    const tasks = await TaskService.get_active_tasks();
-    res.status(200).json(tasks);
-  } catch (error) {
-    if (error instanceof ServiceError) {
-      return res.status(error.status).json({ error: error.message });
-    }
-    console.error("Error fetching active tasks:", error);
-    res.status(500).json({ error: "Failed to fetch active tasks" });
-  }
-};
-
 export const update_task = async (req, res) => {
   try {
     const updates = {

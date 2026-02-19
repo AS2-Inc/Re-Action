@@ -249,16 +249,17 @@ describe("Reward API Endpoints", () => {
       expect(res.body.title).toBe("Updated Title");
     });
 
-    it("DELETE /api/v1/rewards/:id - should deactivate reward", async () => {
+    it("DELETE /api/v1/rewards/:id - should delete reward from database", async () => {
       const reward = await createReward({ active: true });
       const res = await request(app)
         .delete(`/api/v1/rewards/${reward._id}`)
         .set("x-access-token", adminToken);
 
       expect(res.status).toBe(200);
+      expect(res.body.message).toBe("Reward deleted successfully");
 
-      const updated = await Reward.findById(reward._id);
-      expect(updated.active).toBe(false);
+      const deleted = await Reward.findById(reward._id);
+      expect(deleted).toBeNull();
     });
 
     it("should reject non-admin users", async () => {

@@ -24,11 +24,11 @@ class LeaderboardService {
    * Get the current leaderboard.
    * Period stats (participation, improvement) are computed live.
    *
-   * @param {Object} options - { period: 'weekly'|'monthly'|'annually'|'all_time', limit: number }
+   * @param {Object} options - { period: 'weekly'|'monthly'|'annually', limit: number }
    * @returns {Promise<Array>} Sorted leaderboard entries
    */
   async get_leaderboard(options = {}) {
-    const { period = "all_time", limit = 20 } = options;
+    const { period = "annually", limit = 20 } = options;
 
     const neighborhoods = await Neighborhood.find();
 
@@ -147,7 +147,7 @@ class LeaderboardService {
    * for a given period, on-demand.
    *
    * @param {ObjectId} neighborhood_id
-   * @param {string} period - 'weekly' | 'monthly' | 'annually' | 'all_time'
+   * @param {string} period - 'weekly' | 'monthly' | 'annually'
    * @returns {Promise<Object>} Period stats
    */
   async _compute_period_stats(neighborhood_id, period) {
@@ -158,12 +158,6 @@ class LeaderboardService {
       total_users: 0,
       points_earned: 0,
     };
-
-    // For all_time, participation/improvement don't apply
-    if (period === "all_time") {
-      const neighborhood = await Neighborhood.findById(neighborhood_id);
-      return { ...empty, points_earned: neighborhood?.base_points || 0 };
-    }
 
     const { start: current_start, end: current_end } =
       this._get_date_range(period);

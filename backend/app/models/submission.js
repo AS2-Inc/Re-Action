@@ -22,10 +22,6 @@ export default mongoose.model(
       quiz_score: Number,
     },
 
-    // Admin/Operator Handling (RF10, RF12)
-    verified_by: { type: Schema.Types.ObjectId, ref: "User" }, // If manual verification
-    rejection_reason: String,
-
     points_awarded: { type: Number, default: 0 },
     submitted_at: { type: Date, default: Date.now },
     completed_at: { type: Date },

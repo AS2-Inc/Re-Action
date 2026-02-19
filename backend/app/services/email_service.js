@@ -6,7 +6,7 @@ class EmailService {
     this.init_transporter();
     const port = process.env.PORT || 5000;
     this.base_url =
-      process.env.PUBLIC_BASE_URL || `http://localhost:${port}/api/v1`;
+      process.env.BACKEND_BASE_URL || `http://localhost:${port}/api/v1`;
     this.frontend_url =
       process.env.PUBLIC_FRONTEND_URL || "http://localhost:5173";
   }

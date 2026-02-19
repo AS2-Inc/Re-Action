@@ -26,6 +26,7 @@ export default mongoose.model(
       enum: ["GPS", "QR_SCAN", "PHOTO_UPLOAD", "QUIZ"],
       required: true,
     },
+    
     // Technical criteria for auto-verification
     verification_criteria: {
       min_distance_meters: Number, // For walking tasks

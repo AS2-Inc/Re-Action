@@ -166,46 +166,4 @@ export const get_dashboard = async (req, res) => {
   }
 };
 
-/**
- * GET /api/v1/users/me/history
- * Returns paginated action history for the logged-in user (RF3)
- */
-export const get_history = async (req, res) => {
-  try {
-    const { page, limit, type } = req.query;
-    const options = {
-      page: page ? Number.parseInt(page, 10) : 1,
-      limit: limit ? Number.parseInt(limit, 10) : 20,
-      type: type || "all",
-    };
 
-    const result = await user_dashboard_service.get_history(
-      req.logged_user.id,
-      options,
-    );
-    res.status(200).json(result);
-  } catch (error) {
-    if (error instanceof ServiceError) {
-      return res.status(error.status).json({ error: error.message });
-    }
-    console.error("Get History Error:", error);
-    res.status(500).json({ error: "Failed to fetch history" });
-  }
-};
-
-/**
- * GET /api/v1/users/me/stats
- * Returns aggregated statistics for the logged-in user (RF3)
- */
-export const get_stats = async (req, res) => {
-  try {
-    const result = await user_dashboard_service.get_stats(req.logged_user.id);
-    res.status(200).json(result);
-  } catch (error) {
-    if (error instanceof ServiceError) {
-      return res.status(error.status).json({ error: error.message });
-    }
-    console.error("Get Stats Error:", error);
-    res.status(500).json({ error: "Failed to fetch stats" });
-  }
-};

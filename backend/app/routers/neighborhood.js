@@ -22,11 +22,11 @@ router.get("", async (_req, res) => {
 /**
  * GET /api/v1/neighborhood/ranking
  * Get neighborhoods ranked by normalized points (RF17, RF18)
- * Query params: period (weekly|monthly|annually|all_time), limit
+ * Query params: period (weekly|monthly|annually), limit
  */
 router.get("/ranking", async (req, res) => {
   try {
-    const { period = "all_time", limit = 20 } = req.query;
+    const { period = "annually", limit = 20 } = req.query;
 
     const leaderboard = await leaderboard_service.get_leaderboard({
       period,
@@ -36,26 +36,6 @@ router.get("/ranking", async (req, res) => {
     res.status(200).json(leaderboard);
   } catch (err) {
     console.error("Ranking error:", err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-/**
- * GET /api/v1/neighborhood/ranking/simple
- * Get simple ranking based on raw base_points (legacy endpoint)
- */
-router.get("/ranking/simple", async (_req, res) => {
-  try {
-    const neighborhoods = await Neighborhood.find().sort({ base_points: -1 });
-
-    const ranked = neighborhoods.map((n, index) => ({
-      ...n.toObject(),
-      rank: index + 1,
-    }));
-
-    res.status(200).json(ranked);
-  } catch (err) {
-    console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

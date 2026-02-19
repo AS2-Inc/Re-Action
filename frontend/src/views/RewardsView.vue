@@ -32,14 +32,19 @@
               Non hai ancora riscattato nessun premio.
             </div>
             <div v-for="userReward in myRewards" :key="userReward._id" class="my-reward-item">
-              <div class="my-reward-header">
+              <div v-if="userReward.reward_id" class="my-reward-header">
                 <h3 class="my-reward-title">{{ userReward.reward_id.title }}</h3>
                 <span class="my-reward-date">{{ formatDate(userReward.redeemed_at) }}</span>
               </div>
-              <p class="my-reward-description">{{ userReward.reward_id.description }}</p>
+              <div v-else class="my-reward-header">
+                <h3 class="my-reward-title">Premio non disponibile</h3>
+                <span class="my-reward-date">{{ formatDate(userReward.redeemed_at) }}</span>
+              </div>
+              <p v-if="userReward.reward_id" class="my-reward-description">{{ userReward.reward_id.description }}</p>
+              <p v-else class="my-reward-description">Il premio è stato rimosso dal sistema.</p>
               <div class="my-reward-footer">
                 <span class="my-reward-code">Codice: <strong>{{ userReward.unique_code }}</strong></span>
-                <span class="my-reward-type" :class="`type-${userReward.reward_id.type.toLowerCase()}`">
+                <span v-if="userReward.reward_id" class="my-reward-type" :class="`type-${userReward.reward_id.type.toLowerCase()}`">
                   {{ formatRewardType(userReward.reward_id.type) }}
                 </span>
               </div>

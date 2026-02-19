@@ -47,6 +47,7 @@ export default mongoose.model(
       },
     },
 
+    // Not used for now, but could be useful for future features like personalized recommendations
     notification_preferences: {
       email: { type: Boolean, default: true },
       push: { type: Boolean, default: true },
@@ -56,6 +57,7 @@ export default mongoose.model(
       motivational: { type: Boolean, default: true },
     },
 
+    // For future multilingual support (RNF3)
     language: { type: String, default: "it", enum: ["it", "en", "de"] }, // RNF3
 
     is_active: { type: Boolean, default: false }, // Activated after email verification

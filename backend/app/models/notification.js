@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 
+// Not used for now, but could be useful for future features like personalized recommendations
 const notification_schema = new Schema({
   user_id: {
     type: Schema.Types.ObjectId,

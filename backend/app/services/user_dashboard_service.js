@@ -1,4 +1,3 @@
-import { LEVEL_THRESHOLDS } from "../config/badges.config.js";
 import ServiceError from "../errors/service_error.js";
 import Badge from "../models/badge.js";
 import Neighborhood from "../models/neighborhood.js";
@@ -6,6 +5,7 @@ import Submission from "../models/submission.js";
 import User from "../models/user.js";
 import UserReward from "../models/user_reward.js";
 import UserTask from "../models/user_task.js";
+import BadgeService from "./badge_service.js";
 
 /**
  * User Dashboard Service
@@ -75,6 +75,9 @@ class UserDashboardService {
         };
       }
     }
+
+    // Get level thresholds from badge service
+    const LEVEL_THRESHOLDS = BadgeService.getLevelThresholds();
 
     // Compute level progress server-side
     const sorted = [...LEVEL_THRESHOLDS].sort((a, b) => a.points - b.points);
@@ -147,87 +150,6 @@ class UserDashboardService {
         expires_at: ut.expires_at,
       })),
       neighborhood: neighborhood_data,
-    };
-  }
-
-  /**
-   * Get user action history with pagination
-   * Includes: completed tasks, earned badges, redeemed rewards
-   *
-   * @param {string} user_id - User MongoDB ID
-   * @param {Object} options - Pagination options { page, limit, type }
-   * @returns {Promise<Object>} Paginated history data
-   */
-  async get_history(user_id, options = {}) {
-    const page = parseInt(options.page, 10) || 1;
-    const limit = parseInt(options.limit, 10) || 20;
-    const type = options.type || "all";
-    const skip = (page - 1) * limit;
-
-    const user = await User.findById(user_id);
-    if (!user) {
-      throw new ServiceError("User not found", 404);
-    }
-
-    const history = [];
-
-    // Get task submissions
-    if (type === "all" || type === "tasks") {
-      const submissions = await Submission.find({
-        user_id,
-        status: "APPROVED",
-      })
-        .populate("task_id")
-        .sort({ completed_at: -1 });
-
-      for (const sub of submissions) {
-        history.push({
-          type: "task_completed",
-          timestamp: sub.completed_at || sub.submitted_at,
-          data: {
-            task_id: sub.task_id?._id,
-            title: sub.task_id?.title,
-            category: sub.task_id?.category,
-            points_awarded: sub.points_awarded || sub.task_id?.base_points,
-          },
-        });
-      }
-    }
-
-    // Get redeemed rewards
-    if (type === "all" || type === "rewards") {
-      const rewards = await UserReward.find({ user_id })
-        .populate("reward_id")
-        .sort({ redeemed_at: -1 });
-
-      for (const reward of rewards) {
-        history.push({
-          type: "reward_redeemed",
-          timestamp: reward.redeemed_at,
-          data: {
-            reward_id: reward.reward_id?._id,
-            title: reward.reward_id?.title,
-            points_cost: reward.reward_id?.points_cost,
-          },
-        });
-      }
-    }
-
-    // Sort by timestamp descending
-    history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    // Paginate
-    const total = history.length;
-    const paginated = history.slice(skip, skip + limit);
-
-    return {
-      items: paginated,
-      pagination: {
-        page,
-        limit,
-        total,
-        total_pages: Math.ceil(total / limit),
-      },
     };
   }
 

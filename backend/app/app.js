@@ -25,12 +25,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      process.env.FRONTEND_URL,
+      process.env.BACKEND_BASE_URL,
       process.env.PUBLIC_FRONTEND_URL,
     ].filter(Boolean),
-    credentials: true, // Allow cookies in CORS requests
   }),
 ); // Allow Cross-Origin requests from Vue Frontend
 

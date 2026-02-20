@@ -35,7 +35,8 @@ describe("EmailService", () => {
         subject,
         html,
       });
-      expect(result).toHaveProperty("messageId", "test-message-id");
+      expect(result).toHaveProperty("success", true);
+      expect(result.info).toHaveProperty("messageId", "test-message-id");
     });
 
     it("should handle errors gracefully", async () => {
@@ -47,7 +48,8 @@ describe("EmailService", () => {
         "Body",
       );
 
-      expect(result).toBeNull();
+      expect(result).toHaveProperty("success", false);
+      expect(result).toHaveProperty("error");
       expect(console.error).toHaveBeenCalled();
     });
   });

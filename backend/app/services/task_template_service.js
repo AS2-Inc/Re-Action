@@ -174,7 +174,7 @@ class TaskTemplateService {
     const template = await TaskTemplate.findByIdAndUpdate(
       template_id,
       update_data,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     if (!template) {
       throw new ServiceError("Template not found", 404);
@@ -191,7 +191,7 @@ class TaskTemplateService {
     const template = await TaskTemplate.findByIdAndUpdate(
       template_id,
       { is_active: false },
-      { new: true }
+      { new: true },
     );
     if (!template) {
       throw new ServiceError("Template not found", 404);

@@ -163,6 +163,41 @@ class TaskTemplateService {
     await template.save();
     return template;
   }
+
+  /**
+   * Update a template
+   * @param {string} template_id - Template ID
+   * @param {Object} update_data - Data to update
+   * @returns {Promise<Object>} Updated template
+   */
+  async update_template(template_id, update_data) {
+    const template = await TaskTemplate.findByIdAndUpdate(
+      template_id,
+      update_data,
+      { new: true, runValidators: true }
+    );
+    if (!template) {
+      throw new ServiceError("Template not found", 404);
+    }
+    return template;
+  }
+
+  /**
+   * Deactivate a template (archive)
+   * @param {string} template_id - Template ID
+   * @returns {Promise<Object>} Deactivated template
+   */
+  async deactivate_template(template_id) {
+    const template = await TaskTemplate.findByIdAndUpdate(
+      template_id,
+      { is_active: false },
+      { new: true }
+    );
+    if (!template) {
+      throw new ServiceError("Template not found", 404);
+    }
+    return template;
+  }
 }
 
 export default new TaskTemplateService();
